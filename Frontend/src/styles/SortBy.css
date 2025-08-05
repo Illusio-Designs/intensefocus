@@ -1,0 +1,105 @@
+/* Sort By Container */
+.sort-by {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.sort-by-label {
+  color: #000000;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.sort-by-select {
+  padding: 8px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #000000;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 120px;
+}
+
+.sort-by-select:focus {
+  outline: none;
+  border-color: #000000;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+}
+
+.sort-by-select:hover {
+  border-color: #d0d0d0;
+}
+
+.sort-by-select option {
+  background: #ffffff;
+  color: #000000;
+}
+
+.sort-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #666666;
+  font-size: 12px;
+}
+
+.sort-indicator.active {
+  color: #000000;
+  font-weight: 500;
+}
+
+.sort-arrow {
+  font-size: 10px;
+  transition: transform 0.2s ease;
+}
+
+.sort-arrow.asc {
+  transform: rotate(180deg);
+}
+
+.sort-arrow.desc {
+  transform: rotate(0deg);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .sort-by {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+  }
+  
+  .sort-by-label {
+    font-size: 12px;
+  }
+  
+  .sort-by-select {
+    min-width: auto;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .sort-by-label {
+    color: #f9fafb;
+  }
+  
+  .sort-by-select {
+    background-color: #1f2937;
+    border-color: #4b5563;
+    color: #f9fafb;
+  }
+  
+  .sort-indicator {
+    background-color: #374151;
+    color: #d1d5db;
+  }
+  
+  .sort-field {
+    color: #f9fafb;
+  }
+} 
