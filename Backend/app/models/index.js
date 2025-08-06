@@ -17,6 +17,17 @@ const State = require('./State');
 const Cities = require('./Cities');
 const Zone = require('./Zone');
 
+// Import business models
+const AllotedOrders = require('./AllotedOrders');
+const DistributorBrands = require('./DistributorBrands');
+const DistributorWorkingState = require('./DistributorWorkingState');
+const RetailorWorkingState = require('./RetailorWorkingState');
+const TrayAllotment = require('./TrayAllotment');
+const SalesmanTarget = require('./SalesmanTarget');
+const OrderDetails = require('./OrderDetails');
+const Notification = require('./Notification');
+const LoginHistory = require('./LoginHistory');
+
 // Define associations
 
 // Product associations
@@ -55,8 +66,33 @@ Zone.belongsTo(Cities, { foreignKey: 'city_id', as: 'city' });
 State.hasMany(Zone, { foreignKey: 'state_id', as: 'zones' });
 Cities.hasMany(Zone, { foreignKey: 'city_id', as: 'zones' });
 
+// Business model associations
+AllotedOrders.belongsTo(User, { foreignKey: 'distributor_id', as: 'distributor' });
+AllotedOrders.belongsTo(User, { foreignKey: 'retailor_id', as: 'retailor' });
+AllotedOrders.belongsTo(User, { foreignKey: 'salesman_id', as: 'salesman' });
+
+DistributorBrands.belongsTo(User, { foreignKey: 'distributor_id', as: 'distributor' });
+DistributorBrands.belongsTo(Brand, { foreignKey: 'brand_id', as: 'brand' });
+
+DistributorWorkingState.belongsTo(User, { foreignKey: 'distributor_id', as: 'distributor' });
+DistributorWorkingState.belongsTo(State, { foreignKey: 'state_id', as: 'state' });
+
+RetailorWorkingState.belongsTo(User, { foreignKey: 'retailor_id', as: 'retailor' });
+RetailorWorkingState.belongsTo(State, { foreignKey: 'state_id', as: 'state' });
+
+TrayAllotment.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
+SalesmanTarget.belongsTo(User, { foreignKey: 'salesman_id', as: 'salesman' });
+
+OrderDetails.belongsTo(Product, { foreignKey: 'product_id', as: 'product' });
+
+Notification.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
+LoginHistory.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
 // Export all models
 module.exports = {
+  // Core models (17)
   User,
   Product,
   ProductImages,
@@ -73,5 +109,16 @@ module.exports = {
   Slider,
   State,
   Cities,
-  Zone
+  Zone,
+  
+  // Business models (10)
+  AllotedOrders,
+  DistributorBrands,
+  DistributorWorkingState,
+  RetailorWorkingState,
+  TrayAllotment,
+  SalesmanTarget,
+  OrderDetails,
+  Notification,
+  LoginHistory
 }; 

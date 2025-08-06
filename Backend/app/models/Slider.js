@@ -4,48 +4,38 @@ const sequelize = require('../config/database');
 const Slider = sequelize.define('Slider', {
   id: {
     type: DataTypes.INTEGER,
-    autoIncrement: true,
     primaryKey: true,
+    autoIncrement: true
   },
   title: {
     type: DataTypes.STRING(255),
-    allowNull: true,
-  },
-  subtitle: {
-    type: DataTypes.STRING(255),
-    allowNull: true,
+    allowNull: true
   },
   description: {
     type: DataTypes.TEXT,
-    allowNull: true,
+    allowNull: true
   },
   image: {
     type: DataTypes.STRING(255),
-    allowNull: false,
+    allowNull: true
   },
-  button_text: {
-    type: DataTypes.STRING(100),
-    allowNull: true,
-  },
-  button_link: {
+  link: {
     type: DataTypes.STRING(255),
-    allowNull: true,
-  },
-  status: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: true,
-    allowNull: false,
+    allowNull: true
   },
   sort_order: {
     type: DataTypes.INTEGER,
-    defaultValue: 0,
-    allowNull: false,
+    defaultValue: 0
   },
+  status: {
+    type: DataTypes.ENUM('active', 'inactive'),
+    defaultValue: 'active'
+  }
 }, {
   tableName: 'slider_d2c',
   timestamps: true,
   createdAt: 'created_at',
-  updatedAt: 'updated_at',
+  updatedAt: 'updated_at'
 });
 
 module.exports = Slider; 

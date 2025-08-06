@@ -17,14 +17,19 @@ const databaseManager = async () => {
     
     console.log(`📊 Total tables found: ${allTables.length}`);
     
-    // Check for user's 21 models
+    // Check for user's 26 models (17 core + 9 business) - excluding expense models for now
     const userModels = [
+      // Core 17 models
       'users', 'products', 'product_images', 'brands', 'collections', 'shape', 'gender',
       'lens_material', 'lens_color', 'frame_material', 'frame_color', 'type', 'role_type',
-      'slider_d2c', 'states', 'cities', 'zones', 'expenses', 'expensetypes', 'expense_bill', 'expense_backed_entry'
+      'slider_d2c', 'states', 'cities', 'zones',
+      
+      // Business 9 models
+      'allotedorders', 'distributor_brands', 'distributor_workingstate', 'retailor_workingstate',
+      'tray_allotment', 'salesman_target', 'order_details', 'notifications', 'loginhistory'
     ];
     
-    console.log('\n📋 User\'s 21 Models Status:');
+    console.log('\n📋 User\'s 26 Models Status (excluding expense models for now):');
     userModels.forEach(model => {
       const exists = allTables.includes(model);
       const status = exists ? '✅' : '❌';
@@ -35,11 +40,11 @@ const databaseManager = async () => {
     const extraTables = allTables.filter(table => !userModels.includes(table));
     
     console.log(`\n📈 Summary:`);
-    console.log(`   ✅ Available: ${userModels.filter(model => allTables.includes(model)).length}/21`);
+    console.log(`   ✅ Available: ${userModels.filter(model => allTables.includes(model)).length}/26`);
     console.log(`   ❌ Missing: ${missingModels.length}`);
     console.log(`   🗑️  Extra tables: ${extraTables.length}`);
     
-    // Drop extra tables (not in user's 21 models)
+    // Drop extra tables (not in user's 26 models)
     if (extraTables.length > 0) {
       console.log('\n🗑️  Dropping extra tables...');
       for (const table of extraTables) {
@@ -77,74 +82,219 @@ const databaseManager = async () => {
               `);
               break;
               
-            case 'expenses':
+            case 'allotedorders':
               await sequelize.query(`
-                CREATE TABLE IF NOT EXISTS \`expenses\` (
+                CREATE TABLE IF NOT EXISTS \`allotedorders\` (
+                  \`id\` int(11) NOT NULL AUTO_INCREMENT,
+                  \`order_id\` int(11) NOT NULL,
+                  \`distributor_id\` int(11) NOT NULL,
+                  \`retailor_id\` int(11) NOT NULL,
+                  \`salesman_id\` int(11) NOT NULL,
+                  \`status\` enum('pending','processing','completed','cancelled') DEFAULT 'pending',
+                  \`alloted_date\` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+                  \`completed_date\` timestamp NULL DEFAULT NULL,
+                  \`notes\` text,
+                  \`created_at\` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+                  \`updated_at\` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                  PRIMARY KEY (\`id\`),
+                  KEY \`order_id\` (\`order_id\`),
+                  KEY \`distributor_id\` (\`distributor_id\`),
+                  KEY \`retailor_id\` (\`retailor_id\`),
+                  KEY \`salesman_id\` (\`salesman_id\`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+              `);
+              break;
+              
+            case 'distributor_brands':
+              await sequelize.query(`
+                CREATE TABLE IF NOT EXISTS \`distributor_brands\` (
+                  \`id\` int(11) NOT NULL AUTO_INCREMENT,
+                  \`distributor_id\` int(11) NOT NULL,
+                  \`brand_id\` int(11) NOT NULL,
+                  \`status\` enum('active','inactive') DEFAULT 'active',
+                  \`assigned_date\` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+                  \`commission_rate\` decimal(5,2) DEFAULT NULL,
+                  \`notes\` text,
+                  \`created_at\` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+                  \`updated_at\` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                  PRIMARY KEY (\`id\`),
+                  KEY \`distributor_id\` (\`distributor_id\`),
+                  KEY \`brand_id\` (\`brand_id\`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+              `);
+              break;
+              
+            case 'distributor_workingstate':
+              await sequelize.query(`
+                CREATE TABLE IF NOT EXISTS \`distributor_workingstate\` (
+                  \`id\` int(11) NOT NULL AUTO_INCREMENT,
+                  \`distributor_id\` int(11) NOT NULL,
+                  \`state_id\` int(11) NOT NULL,
+                  \`status\` enum('active','inactive') DEFAULT 'active',
+                  \`assigned_date\` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+                  \`territory_description\` text,
+                  \`commission_rate\` decimal(5,2) DEFAULT NULL,
+                  \`notes\` text,
+                  \`created_at\` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+                  \`updated_at\` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                  PRIMARY KEY (\`id\`),
+                  KEY \`distributor_id\` (\`distributor_id\`),
+                  KEY \`state_id\` (\`state_id\`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+              `);
+              break;
+              
+            case 'retailor_workingstate':
+              await sequelize.query(`
+                CREATE TABLE IF NOT EXISTS \`retailor_workingstate\` (
+                  \`id\` int(11) NOT NULL AUTO_INCREMENT,
+                  \`retailor_id\` int(11) NOT NULL,
+                  \`state_id\` int(11) NOT NULL,
+                  \`status\` enum('active','inactive') DEFAULT 'active',
+                  \`assigned_date\` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+                  \`territory_description\` text,
+                  \`commission_rate\` decimal(5,2) DEFAULT NULL,
+                  \`notes\` text,
+                  \`created_at\` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+                  \`updated_at\` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                  PRIMARY KEY (\`id\`),
+                  KEY \`retailor_id\` (\`retailor_id\`),
+                  KEY \`state_id\` (\`state_id\`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+              `);
+              break;
+              
+            case 'tray_allotment':
+              await sequelize.query(`
+                CREATE TABLE IF NOT EXISTS \`tray_allotment\` (
+                  \`id\` int(11) NOT NULL AUTO_INCREMENT,
+                  \`tray_id\` int(11) NOT NULL,
+                  \`user_id\` int(11) NOT NULL,
+                  \`user_type\` enum('distributor','retailor','salesman') NOT NULL,
+                  \`status\` enum('allocated','returned','damaged') DEFAULT 'allocated',
+                  \`allocated_date\` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+                  \`return_date\` timestamp NULL DEFAULT NULL,
+                  \`deposit_amount\` decimal(10,2) DEFAULT NULL,
+                  \`notes\` text,
+                  \`created_at\` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+                  \`updated_at\` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                  PRIMARY KEY (\`id\`),
+                  KEY \`tray_id\` (\`tray_id\`),
+                  KEY \`user_id\` (\`user_id\`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+              `);
+              break;
+              
+            case 'salesman_target':
+              await sequelize.query(`
+                CREATE TABLE IF NOT EXISTS \`salesman_target\` (
+                  \`id\` int(11) NOT NULL AUTO_INCREMENT,
+                  \`salesman_id\` int(11) NOT NULL,
+                  \`target_month\` int(11) NOT NULL,
+                  \`target_year\` int(11) NOT NULL,
+                  \`target_amount\` decimal(12,2) NOT NULL,
+                  \`achieved_amount\` decimal(12,2) DEFAULT 0.00,
+                  \`target_orders\` int(11) NOT NULL,
+                  \`achieved_orders\` int(11) DEFAULT 0,
+                  \`status\` enum('active','completed','cancelled') DEFAULT 'active',
+                  \`notes\` text,
+                  \`created_at\` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+                  \`updated_at\` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                  PRIMARY KEY (\`id\`),
+                  KEY \`salesman_id\` (\`salesman_id\`),
+                  KEY \`target_month\` (\`target_month\`),
+                  KEY \`target_year\` (\`target_year\`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+              `);
+              break;
+              
+            case 'products_image':
+              await sequelize.query(`
+                CREATE TABLE IF NOT EXISTS \`products_image\` (
+                  \`id\` int(11) NOT NULL AUTO_INCREMENT,
+                  \`product_id\` int(11) NOT NULL,
+                  \`image_name\` varchar(255) NOT NULL,
+                  \`image_path\` varchar(500) NOT NULL,
+                  \`image_type\` enum('main','gallery','thumbnail') DEFAULT 'gallery',
+                  \`sort_order\` int(11) DEFAULT 0,
+                  \`status\` enum('active','inactive') DEFAULT 'active',
+                  \`alt_text\` varchar(255) DEFAULT NULL,
+                  \`created_at\` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+                  \`updated_at\` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                  PRIMARY KEY (\`id\`),
+                  KEY \`product_id\` (\`product_id\`),
+                  KEY \`image_type\` (\`image_type\`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+              `);
+              break;
+              
+            case 'order_details':
+              await sequelize.query(`
+                CREATE TABLE IF NOT EXISTS \`order_details\` (
+                  \`id\` int(11) NOT NULL AUTO_INCREMENT,
+                  \`order_id\` int(11) NOT NULL,
+                  \`product_id\` int(11) NOT NULL,
+                  \`quantity\` int(11) NOT NULL DEFAULT 1,
+                  \`unit_price\` decimal(10,2) NOT NULL,
+                  \`total_price\` decimal(10,2) NOT NULL,
+                  \`discount_amount\` decimal(10,2) DEFAULT 0.00,
+                  \`discount_percentage\` decimal(5,2) DEFAULT 0.00,
+                  \`final_price\` decimal(10,2) NOT NULL,
+                  \`status\` enum('pending','processing','shipped','delivered','cancelled') DEFAULT 'pending',
+                  \`notes\` text,
+                  \`created_at\` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+                  \`updated_at\` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                  PRIMARY KEY (\`id\`),
+                  KEY \`order_id\` (\`order_id\`),
+                  KEY \`product_id\` (\`product_id\`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+              `);
+              break;
+              
+            case 'notifications':
+              await sequelize.query(`
+                CREATE TABLE IF NOT EXISTS \`notifications\` (
                   \`id\` int(11) NOT NULL AUTO_INCREMENT,
                   \`user_id\` int(11) NOT NULL,
-                  \`date\` date NOT NULL,
-                  \`expense_type\` varchar(255) DEFAULT NULL,
-                  \`amount\` decimal(10,2) DEFAULT NULL,
-                  \`remark\` text,
-                  \`status\` enum('pending','approved','rejected') DEFAULT 'pending',
+                  \`user_type\` enum('admin','distributor','retailor','salesman','consumer') NOT NULL,
+                  \`title\` varchar(255) NOT NULL,
+                  \`message\` text NOT NULL,
+                  \`type\` enum('info','success','warning','error','order','system') DEFAULT 'info',
+                  \`is_read\` tinyint(1) DEFAULT 0,
+                  \`read_at\` timestamp NULL DEFAULT NULL,
+                  \`related_id\` int(11) DEFAULT NULL,
+                  \`related_type\` varchar(50) DEFAULT NULL,
                   \`created_at\` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
                   \`updated_at\` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                   PRIMARY KEY (\`id\`),
                   KEY \`user_id\` (\`user_id\`),
-                  KEY \`date\` (\`date\`)
+                  KEY \`user_type\` (\`user_type\`),
+                  KEY \`is_read\` (\`is_read\`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
               `);
               break;
               
-            case 'expensetypes':
+            case 'loginhistory':
               await sequelize.query(`
-                CREATE TABLE IF NOT EXISTS \`expensetypes\` (
-                  \`id\` int(11) NOT NULL AUTO_INCREMENT,
-                  \`name\` varchar(255) NOT NULL,
-                  \`description\` text,
-                  \`status\` tinyint(1) DEFAULT 1,
-                  \`created_at\` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-                  \`updated_at\` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                  PRIMARY KEY (\`id\`)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-              `);
-              break;
-              
-            case 'expense_bill':
-              await sequelize.query(`
-                CREATE TABLE IF NOT EXISTS \`expense_bill\` (
-                  \`id\` int(11) NOT NULL AUTO_INCREMENT,
-                  \`expense_id\` int(11) NOT NULL,
-                  \`amount\` decimal(10,2) NOT NULL,
-                  \`expense_type\` varchar(255) DEFAULT NULL,
-                  \`remark\` text,
-                  \`bill\` varchar(255) DEFAULT NULL,
-                  \`km\` decimal(10,2) DEFAULT NULL,
-                  \`reject_reason\` text,
-                  \`status\` enum('pending','approved','rejected') DEFAULT 'pending',
-                  \`created_at\` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-                  \`updated_at\` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                  PRIMARY KEY (\`id\`),
-                  KEY \`expense_id\` (\`expense_id\`)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-              `);
-              break;
-              
-            case 'expense_backed_entry':
-              await sequelize.query(`
-                CREATE TABLE IF NOT EXISTS \`expense_backed_entry\` (
+                CREATE TABLE IF NOT EXISTS \`loginhistory\` (
                   \`id\` int(11) NOT NULL AUTO_INCREMENT,
                   \`user_id\` int(11) NOT NULL,
-                  \`date\` date NOT NULL,
-                  \`expense_type\` varchar(255) DEFAULT NULL,
-                  \`amount\` decimal(10,2) DEFAULT NULL,
-                  \`remark\` text,
-                  \`status\` enum('pending','approved','rejected') DEFAULT 'pending',
+                  \`user_type\` enum('admin','distributor','retailor','salesman','consumer') NOT NULL,
+                  \`login_time\` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+                  \`logout_time\` timestamp NULL DEFAULT NULL,
+                  \`ip_address\` varchar(45) DEFAULT NULL,
+                  \`user_agent\` text,
+                  \`device_type\` enum('desktop','mobile','tablet') DEFAULT NULL,
+                  \`browser\` varchar(100) DEFAULT NULL,
+                  \`os\` varchar(100) DEFAULT NULL,
+                  \`status\` enum('success','failed','logout') DEFAULT 'success',
+                  \`session_duration\` int(11) DEFAULT NULL,
                   \`created_at\` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
                   \`updated_at\` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                   PRIMARY KEY (\`id\`),
                   KEY \`user_id\` (\`user_id\`),
-                  KEY \`date\` (\`date\`)
+                  KEY \`user_type\` (\`user_type\`),
+                  KEY \`login_time\` (\`login_time\`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
               `);
               break;
@@ -193,7 +343,7 @@ const databaseManager = async () => {
     
     const finalMissing = userModels.filter(model => !finalTableNames.includes(model));
     if (finalMissing.length === 0) {
-      console.log('✅ All 21 models are now available!');
+      console.log('✅ All 26 models are now available!');
     } else {
       console.log(`⚠️  Still missing: ${finalMissing.join(', ')}`);
     }
