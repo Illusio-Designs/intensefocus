@@ -1,47 +1,78 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '../components';
-import { Visibility, VisibilityOff, Email, Lock } from '@mui/icons-material';
+import { Phone, Sms, ArrowBack, Timer } from '@mui/icons-material';
 import '../styles/Login.css';
 
 const Login = () => {
   const [formData, setFormData] = useState({
-    email: '',
-    password: ''
+    phone: '+91 ',
+    otp: ''
   });
   
   const [errors, setErrors] = useState({});
-  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoginMode, setIsLoginMode] = useState(true);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpTimer, setOtpTimer] = useState(0);
+  const [canResend, setCanResend] = useState(true);
+  const [resendTimer, setResendTimer] = useState(0);
+  
+  const otpInputRefs = useRef([]);
 
-  const validateForm = () => {
+  // Timer effect for OTP expiration
+  useEffect(() => {
+    let interval;
+    if (otpTimer > 0) {
+      interval = setInterval(() => {
+        setOtpTimer(prev => {
+          if (prev <= 1) {
+            setOtpSent(false);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [otpTimer]);
+
+  // Timer effect for resend button
+  useEffect(() => {
+    let interval;
+    if (resendTimer > 0) {
+      interval = setInterval(() => {
+        setResendTimer(prev => {
+          if (prev <= 1) {
+            setCanResend(true);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [resendTimer]);
+
+  const validatePhone = () => {
     const newErrors = {};
-
-    // Email validation
-    if (!formData.email) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
+    
+    if (!formData.phone) {
+      newErrors.phone = 'Phone number is required';
+    } else if (!/^\+91 [0-9]{10}$/.test(formData.phone)) {
+      newErrors.phone = 'Please enter a valid 10-digit Indian phone number';
     }
 
-    // Password validation
-    if (!formData.password) {
-      newErrors.password = 'Password is required';
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
-    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
-    // Additional validation for registration
-    if (!isLoginMode) {
-      if (!formData.confirmPassword) {
-        newErrors.confirmPassword = 'Please confirm your password';
-      } else if (formData.password !== formData.confirmPassword) {
-        newErrors.confirmPassword = 'Passwords do not match';
-      }
-
-      if (!formData.name) {
-        newErrors.name = 'Name is required';
-      }
+  const validateOTP = () => {
+    const newErrors = {};
+    
+    if (!formData.otp || formData.otp.length !== 6) {
+      newErrors.otp = 'Please enter a 6-digit OTP';
+    } else if (!/^[0-9]{6}$/.test(formData.otp)) {
+      newErrors.otp = 'OTP should contain only numbers';
     }
 
     setErrors(newErrors);
@@ -50,10 +81,39 @@ const Login = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    
+    if (name === 'phone') {
+      // Format Indian phone number as user types
+      const cleaned = value.replace(/\D/g, '');
+      
+      // If user starts typing without +91, add it
+      let formatted = value;
+      if (!value.startsWith('+91')) {
+        if (cleaned.length <= 10) {
+          formatted = `+91 ${cleaned}`;
+        } else {
+          formatted = `+91 ${cleaned.substring(0, 10)}`;
+        }
+      } else {
+        // If +91 is already there, format the remaining digits
+        const digitsAfterCode = cleaned.substring(2); // Remove 91 from the cleaned string
+        if (digitsAfterCode.length <= 10) {
+          formatted = `+91 ${digitsAfterCode}`;
+        } else {
+          formatted = `+91 ${digitsAfterCode.substring(0, 10)}`;
+        }
+      }
+      
+      setFormData(prev => ({
+        ...prev,
+        [name]: formatted
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
 
     // Clear error when user starts typing
     if (errors[name]) {
@@ -64,48 +124,137 @@ const Login = () => {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleOTPChange = (index, value) => {
+    if (value.length > 1) return; // Prevent multiple digits
     
-    if (!validateForm()) {
+    const newOTP = formData.otp.split('');
+    newOTP[index] = value;
+    const otpString = newOTP.join('');
+    
+    setFormData(prev => ({
+      ...prev,
+      otp: otpString
+    }));
+
+    // Auto-focus next input
+    if (value && index < 5) {
+      otpInputRefs.current[index + 1]?.focus();
+    }
+
+    // Clear error when user starts typing
+    if (errors.otp) {
+      setErrors(prev => ({
+        ...prev,
+        otp: ''
+      }));
+    }
+  };
+
+  const handleKeyDown = (index, e) => {
+    if (e.key === 'Backspace' && !formData.otp[index] && index > 0) {
+      otpInputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const sendOTP = async () => {
+    if (!validatePhone()) {
       return;
     }
 
     setIsLoading(true);
 
     try {
-      // Simulate API call
+      // Simulate API call to send OTP
       await new Promise(resolve => setTimeout(resolve, 1500));
       
-      if (isLoginMode) {
-        // Handle login
-        console.log('Logging in with:', formData);
-        alert('Login successful!');
-      } else {
-        // Handle registration
-        console.log('Registering with:', formData);
-        alert('Registration successful!');
-      }
+      setOtpSent(true);
+      setOtpTimer(300); // 5 minutes
+      setCanResend(false);
+      setResendTimer(60); // 1 minute cooldown
+      
+      // Focus first OTP input
+      setTimeout(() => {
+        otpInputRefs.current[0]?.focus();
+      }, 100);
+      
+      alert('OTP sent successfully!');
     } catch (error) {
-      console.error('Authentication error:', error);
-      alert('Authentication failed. Please try again.');
+      console.error('Error sending OTP:', error);
+      alert('Failed to send OTP. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const toggleMode = () => {
-    setIsLoginMode(!isLoginMode);
-    setFormData({ email: '', password: '' });
+  const resendOTP = async () => {
+    if (!canResend) return;
+
+    setIsLoading(true);
+
+    try {
+      // Simulate API call to resend OTP
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      setOtpTimer(300); // 5 minutes
+      setCanResend(false);
+      setResendTimer(60); // 1 minute cooldown
+      
+      alert('OTP resent successfully!');
+    } catch (error) {
+      console.error('Error resending OTP:', error);
+      alert('Failed to resend OTP. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!validateOTP()) {
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Simulate API call to verify OTP
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      if (isLoginMode) {
+        console.log('Logging in with phone:', formData.phone);
+        alert('Login successful!');
+      } else {
+        console.log('Registering with phone:', formData.phone);
+        alert('Registration successful!');
+      }
+    } catch (error) {
+      console.error('Authentication error:', error);
+      alert('Invalid OTP. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const goBack = () => {
+    setOtpSent(false);
+    setOtpTimer(0);
+    setFormData(prev => ({ ...prev, otp: '' }));
     setErrors({});
   };
 
-  const handleForgotPassword = () => {
-    alert('Password reset functionality would be implemented here');
+  const toggleMode = () => {
+    setIsLoginMode(!isLoginMode);
+    setFormData({ phone: '+91 ', otp: '' });
+    setErrors({});
+    setOtpSent(false);
+    setOtpTimer(0);
   };
 
-  const handleSocialLogin = (provider) => {
-    alert(`${provider} login would be implemented here`);
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -113,160 +262,139 @@ const Login = () => {
       <div className="login-container">
         <div className="login-card">
           <div className="login-header">
+            {otpSent && (
+              <button
+                type="button"
+                className="back-button"
+                onClick={goBack}
+              >
+                <ArrowBack />
+              </button>
+            )}
+            
             <h1 className="login-title">
-              {isLoginMode ? 'Welcome Back' : 'Create Account'}
+              {otpSent 
+                ? 'Verify OTP' 
+                : (isLoginMode ? 'Welcome Back' : 'Create Account')
+              }
             </h1>
             <p className="login-subtitle">
-              {isLoginMode 
-                ? 'Sign in to your account to continue' 
-                : 'Join us and discover amazing eyewear'
+              {otpSent 
+                ? `Enter the 6-digit code sent to ${formData.phone}`
+                : (isLoginMode 
+                    ? 'Sign in with your phone number' 
+                    : 'Join us and discover amazing eyewear'
+                  )
               }
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="login-form">
-            {!isLoginMode && (
+            {!otpSent ? (
+              // Phone Number Input
               <div className="form-group">
-                <label className="form-label">Full Name</label>
+                <label className="form-label">Phone Number</label>
                 <div className="input-wrapper">
+                  <Phone className="input-icon" />
                   <input
-                    type="text"
-                    name="name"
-                    value={formData.name || ''}
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
                     onChange={handleInputChange}
-                    className={`form-input ${errors.name ? 'form-input-error' : ''}`}
-                    placeholder="Enter your full name"
+                    className={`form-input ${errors.phone ? 'form-input-error' : ''}`}
+                    placeholder="Enter your phone number"
+                    maxLength="15"
                   />
                 </div>
-                {errors.name && <span className="form-error">{errors.name}</span>}
-              </div>
-            )}
-
-            <div className="form-group">
-              <label className="form-label">Email Address</label>
-              <div className="input-wrapper">
-                <Email className="input-icon" />
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  className={`form-input ${errors.email ? 'form-input-error' : ''}`}
-                  placeholder="Enter your email address"
-                />
-              </div>
-              {errors.email && <span className="form-error">{errors.email}</span>}
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Password</label>
-              <div className="input-wrapper">
-                <Lock className="input-icon" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  name="password"
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  className={`form-input ${errors.password ? 'form-input-error' : ''}`}
-                  placeholder="Enter your password"
-                />
-                <button
+                {errors.phone && <span className="form-error">{errors.phone}</span>}
+                
+                <Button
                   type="button"
-                  className="password-toggle"
-                  onClick={() => setShowPassword(!showPassword)}
+                  variant="primary"
+                  size="large"
+                  loading={isLoading}
+                  className="submit-btn"
+                  onClick={sendOTP}
                 >
-                  {showPassword ? <VisibilityOff /> : <Visibility />}
-                </button>
+                  {isLoading ? 'Sending OTP...' : 'Send OTP'}
+                </Button>
               </div>
-              {errors.password && <span className="form-error">{errors.password}</span>}
-            </div>
-
-            {!isLoginMode && (
+            ) : (
+              // OTP Input
               <div className="form-group">
-                <label className="form-label">Confirm Password</label>
-                <div className="input-wrapper">
-                  <Lock className="input-icon" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    name="confirmPassword"
-                    value={formData.confirmPassword || ''}
-                    onChange={handleInputChange}
-                    className={`form-input ${errors.confirmPassword ? 'form-input-error' : ''}`}
-                    placeholder="Confirm your password"
-                  />
+                <label className="form-label">Enter OTP</label>
+                <div className="otp-container">
+                  {[0, 1, 2, 3, 4, 5].map((index) => (
+                    <input
+                      key={index}
+                      ref={(el) => (otpInputRefs.current[index] = el)}
+                      type="text"
+                      maxLength="1"
+                      className={`otp-input ${errors.otp ? 'otp-input-error' : ''}`}
+                      value={formData.otp[index] || ''}
+                      onChange={(e) => handleOTPChange(index, e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(index, e)}
+                      onFocus={(e) => e.target.select()}
+                    />
+                  ))}
                 </div>
-                {errors.confirmPassword && <span className="form-error">{errors.confirmPassword}</span>}
-              </div>
-            )}
-
-            {isLoginMode && (
-              <div className="form-options">
-                <label className="checkbox-label">
-                  <input type="checkbox" className="form-checkbox" />
-                  <span className="checkbox-text">Remember me</span>
-                </label>
-                <button
-                  type="button"
-                  className="forgot-password"
-                  onClick={handleForgotPassword}
+                {errors.otp && <span className="form-error">{errors.otp}</span>}
+                
+                {/* OTP Timer */}
+                {otpTimer > 0 && (
+                  <div className="otp-timer">
+                    <Timer className="timer-icon" />
+                    <span>OTP expires in {formatTime(otpTimer)}</span>
+                  </div>
+                )}
+                
+                {/* Resend OTP */}
+                <div className="resend-otp">
+                  <span>Didn't receive the code? </span>
+                  <button
+                    type="button"
+                    className={`resend-btn ${!canResend ? 'disabled' : ''}`}
+                    onClick={resendOTP}
+                    disabled={!canResend || isLoading}
+                  >
+                    {canResend 
+                      ? 'Resend OTP' 
+                      : `Resend in ${formatTime(resendTimer)}`
+                    }
+                  </button>
+                </div>
+                
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="large"
+                  loading={isLoading}
+                  className="submit-btn"
                 >
-                  Forgot password?
-                </button>
+                  {isLoading 
+                    ? (isLoginMode ? 'Signing In...' : 'Creating Account...')
+                    : (isLoginMode ? 'Sign In' : 'Create Account')
+                  }
+                </Button>
               </div>
             )}
-
-            <Button
-              type="submit"
-              variant="primary"
-              size="large"
-              loading={isLoading}
-              className="submit-btn"
-            >
-              {isLoading 
-                ? (isLoginMode ? 'Signing In...' : 'Creating Account...')
-                : (isLoginMode ? 'Sign In' : 'Create Account')
-              }
-            </Button>
           </form>
 
-          {/* Social Login */}
-          <div className="social-login">
-            <div className="divider">
-              <span>or continue with</span>
-            </div>
-            
-            <div className="social-buttons">
-              <button
-                className="social-btn google"
-                onClick={() => handleSocialLogin('Google')}
-              >
-                <img src="/google-icon.svg" alt="Google" />
-                Google
-              </button>
-              
-              <button
-                className="social-btn facebook"
-                onClick={() => handleSocialLogin('Facebook')}
-              >
-                <img src="/facebook-icon.svg" alt="Facebook" />
-                Facebook
-              </button>
-            </div>
-          </div>
-
           {/* Mode Toggle */}
-          <div className="mode-toggle">
-            <p>
-              {isLoginMode ? "Don't have an account?" : "Already have an account?"}
-              <button
-                type="button"
-                className="toggle-btn"
-                onClick={toggleMode}
-              >
-                {isLoginMode ? 'Sign up' : 'Sign in'}
-              </button>
-            </p>
-          </div>
+          {!otpSent && (
+            <div className="mode-toggle">
+              <p>
+                {isLoginMode ? "Don't have an account?" : "Already have an account?"}
+                <button
+                  type="button"
+                  className="toggle-btn"
+                  onClick={toggleMode}
+                >
+                  {isLoginMode ? 'Sign up' : 'Sign in'}
+                </button>
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
