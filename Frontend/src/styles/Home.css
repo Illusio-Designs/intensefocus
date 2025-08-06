@@ -1,0 +1,269 @@
+/* Home Page Styles */
+.home-page {
+  min-height: 100vh;
+}
+
+/* Hero Section */
+.hero-section {
+  background: linear-gradient(135deg, #f8f8f8 0%, #e0e0e0 100%);
+  padding: 80px 0;
+  text-align: center;
+}
+
+.hero-content {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.hero-title {
+  font-size: 48px;
+  font-weight: 700;
+  color: #000000;
+  margin-bottom: 24px;
+  line-height: 1.2;
+}
+
+.hero-subtitle {
+  font-size: 20px;
+  color: #666666;
+  margin-bottom: 40px;
+  line-height: 1.6;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* Featured Categories */
+.featured-categories {
+  padding: 80px 0;
+  background: #ffffff;
+}
+
+.section-title {
+  font-size: 36px;
+  font-weight: 600;
+  color: #000000;
+  text-align: center;
+  margin-bottom: 48px;
+}
+
+.categories-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 32px;
+  margin-top: 48px;
+}
+
+.category-card {
+  background: #ffffff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  cursor: pointer;
+}
+
+.category-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.category-image {
+  height: 200px;
+  background: #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.category-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.category-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #000000;
+  margin: 24px 24px 12px 24px;
+}
+
+.category-description {
+  font-size: 16px;
+  color: #666666;
+  margin: 0 24px 24px 24px;
+  line-height: 1.5;
+}
+
+/* About Section */
+.about-section {
+  padding: 80px 0;
+  background: #f8f8f8;
+}
+
+.about-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  align-items: center;
+}
+
+.about-description {
+  font-size: 18px;
+  color: #666666;
+  line-height: 1.7;
+  margin-bottom: 32px;
+}
+
+.about-features {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.feature h4 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #000000;
+  margin-bottom: 8px;
+}
+
+.feature p {
+  font-size: 16px;
+  color: #666666;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.about-image {
+  height: 400px;
+  background: #e0e0e0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.about-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Newsletter Section */
+.newsletter-section {
+  padding: 80px 0;
+  background: #000000;
+  color: #ffffff;
+}
+
+.newsletter-content {
+  text-align: center;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.newsletter-section .section-title {
+  color: #ffffff;
+  margin-bottom: 16px;
+}
+
+.newsletter-description {
+  font-size: 18px;
+  color: #cccccc;
+  margin-bottom: 32px;
+  line-height: 1.6;
+}
+
+.newsletter-form {
+  display: flex;
+  gap: 12px;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.newsletter-input {
+  flex: 1;
+  padding: 12px 16px;
+  border: 1px solid #333333;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #000000;
+  font-size: 16px;
+}
+
+.newsletter-input:focus {
+  outline: none;
+  border-color: #ffffff;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .hero-title {
+    font-size: 36px;
+  }
+  
+  .hero-subtitle {
+    font-size: 18px;
+  }
+  
+  .hero-actions {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .section-title {
+    font-size: 28px;
+  }
+  
+  .categories-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  
+  .about-content {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+  
+  .about-image {
+    height: 300px;
+  }
+  
+  .newsletter-form {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-section {
+    padding: 60px 0;
+  }
+  
+  .hero-title {
+    font-size: 28px;
+  }
+  
+  .hero-subtitle {
+    font-size: 16px;
+  }
+  
+  .featured-categories,
+  .about-section,
+  .newsletter-section {
+    padding: 60px 0;
+  }
+  
+  .section-title {
+    font-size: 24px;
+  }
+  
+  .category-card {
+    margin: 0 16px;
+  }
+} 
