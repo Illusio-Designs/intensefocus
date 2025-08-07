@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Button, ActionButton } from '../components';
+import Button from '../components/common/Button';
+import ActionButton from '../components/common/ActionButton';
 import { Delete, Add, Remove } from '@mui/icons-material';
-import '../styles/Cart.css';
+import '../styles/pages/Cart.css';
 
 const Cart = () => {
   const [cartItems, setCartItems] = useState([

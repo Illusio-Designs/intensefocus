@@ -1,5 +1,5 @@
 import React from 'react';
-import '../styles/SortBy.css';
+import '../../styles/components/common/SortBy.css';
 
 const SortBy = ({ 
   options = [], 

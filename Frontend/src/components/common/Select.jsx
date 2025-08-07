@@ -1,6 +1,6 @@
 import React from 'react';
 import Select from 'react-select';
-import '../styles/Select.css';
+import '../../styles/components/common/Select.css';
 
 const CustomSelect = ({
   options = [],

@@ -1,9 +1,10 @@
 import React from 'react';
-import '../styles/Home.css';
+import '../styles/pages/Home.css';
 
 const Home = () => {
   return (
     <div className="home-page">
+      
       {/* Hero Section */}
       <section className="hero-section">
         <div className="hero-content">

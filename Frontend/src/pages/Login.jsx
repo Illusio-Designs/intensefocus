@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Button } from '../components';
+import Button from '../components/common/Button';
 import { Phone, Sms, ArrowBack, Timer } from '@mui/icons-material';
-import '../styles/Login.css';
+import '../styles/pages/Login.css';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -257,11 +257,10 @@ const Login = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  return (
-    <div className="login-page">
-      <div className="login-container">
-        <div className="login-card">
-          <div className="login-header">
+    return (
+    <div className="login-container">
+      <div className="login-card">
+        <div className="login-header">
             {otpSent && (
               <button
                 type="button"
@@ -397,7 +396,6 @@ const Login = () => {
           )}
         </div>
       </div>
-    </div>
   );
 };
 

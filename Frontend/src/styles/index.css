@@ -1,18 +1,7 @@
 /* Import all component styles */
-@import './Button.css';
-@import './ActionButton.css';
-@import './SearchBar.css';
-@import './SortBy.css';
-@import './Pagination.css';
-@import './Select.css';
-@import './Modal.css';
-@import './App.css';
 
-/* Import all page styles */
-@import './Home.css';
-@import './Shop.css';
-@import './Cart.css';
-@import './Login.css';
+
+
 
 /* Global Styles */
 body {

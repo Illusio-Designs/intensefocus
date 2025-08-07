@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Close, Save, Cancel } from '@mui/icons-material';
-import '../styles/Modal.css';
+import '../../styles/components/common/Modal.css';
 
 const Modal = ({
   isOpen = false,

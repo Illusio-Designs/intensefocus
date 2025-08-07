@@ -1,4 +1,0 @@
-[33mf73c249[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/main[m[33m)[m Refactor Login component to implement OTP-based authentication. Replace email/password fields with phone number and OTP inputs. Add validation for phone number and OTP, along with timers for OTP expiration and resend functionality. Update styles for improved UI/UX, including a new background gradient and enhanced input designs.
-[33mec840ae[m Implement routing and navigation in the frontend application, adding pages for Home, Shop, Cart, Login, and Dashboard. Update package dependencies to include react-router-dom. Remove the backend environment example file.
-[33m3d9c2f1[m Remove all backend files and configurations for the IntenseFocus Optical E-commerce application, including models, controllers, routes, and environment settings.
-[33mbfef026[m Initial commit: Node.js backend for IntenseFocus Optical E-commerce

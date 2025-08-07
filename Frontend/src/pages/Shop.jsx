@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { SearchBar, SortBy, Pagination } from '../components';
-import '../styles/Shop.css';
+import SearchBar from '../components/common/SearchBar';
+import SortBy from '../components/common/SortBy';
+import Pagination from '../components/common/Pagination';
+import '../styles/pages/Shop.css';
 
 const Shop = () => {
   const [searchTerm, setSearchTerm] = useState('');

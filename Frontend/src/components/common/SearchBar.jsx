@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Search, Clear } from '@mui/icons-material';
-import '../styles/SearchBar.css';
+import '../../styles/components/common/SearchBar.css';
 
 const SearchBar = ({ 
   onSearch, 
