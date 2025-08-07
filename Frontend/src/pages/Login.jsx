@@ -1,9 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Button from '../components/common/Button';
 import { Phone, Sms, ArrowBack, Timer } from '@mui/icons-material';
 import '../styles/pages/Login.css';
 
 const Login = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Get the page user was trying to access before being redirected to login
+  const from = location.state?.from?.pathname || '/';
+  
   const [formData, setFormData] = useState({
     phone: '+91 ',
     otp: ''
@@ -223,10 +230,20 @@ const Login = () => {
       
       if (isLoginMode) {
         console.log('Logging in with phone:', formData.phone);
+        // Set authentication status
+        localStorage.setItem('isAuthenticated', 'true');
+        localStorage.setItem('userPhone', formData.phone);
         alert('Login successful!');
+        // Redirect to the page user was trying to access, or home
+        navigate(from, { replace: true });
       } else {
         console.log('Registering with phone:', formData.phone);
+        // Set authentication status for new users too
+        localStorage.setItem('isAuthenticated', 'true');
+        localStorage.setItem('userPhone', formData.phone);
         alert('Registration successful!');
+        // Redirect to the page user was trying to access, or home
+        navigate(from, { replace: true });
       }
     } catch (error) {
       console.error('Authentication error:', error);

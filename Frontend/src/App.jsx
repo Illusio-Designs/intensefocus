@@ -4,6 +4,8 @@ import Home from './pages/Home';
 import Shop from './pages/Shop';
 import Cart from './pages/Cart';
 import Login from './pages/Login';
+import { Home as DashboardHome } from './pages/dashboard';
+import ProtectedRoute from './components/common/ProtectedRoute';
 import { PublicLayout, AuthLayout, DashboardLayout } from './layouts';
 
 function App() {
@@ -18,14 +20,18 @@ function App() {
             </PublicLayout>
           } />
           <Route path="/shop" element={
-            <PublicLayout>
-              <Shop />
-            </PublicLayout>
+            <ProtectedRoute>
+              <PublicLayout>
+                <Shop />
+              </PublicLayout>
+            </ProtectedRoute>
           } />
           <Route path="/cart" element={
-            <PublicLayout>
-              <Cart />
-            </PublicLayout>
+            <ProtectedRoute>
+              <PublicLayout>
+                <Cart />
+              </PublicLayout>
+            </ProtectedRoute>
           } />
           
           {/* Auth Routes */}
@@ -33,6 +39,15 @@ function App() {
             <AuthLayout>
               <Login />
             </AuthLayout>
+          } />
+          
+          {/* Dashboard Routes */}
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <DashboardHome />
+              </DashboardLayout>
+            </ProtectedRoute>
           } />
           
           {/* 404 Route */}
