@@ -4,6 +4,7 @@ import Home from './pages/Home';
 import Shop from './pages/Shop';
 import Cart from './pages/Cart';
 import Login from './pages/Login';
+import ComponentsDemo from './pages/ComponentsDemo';
 import { Home as DashboardHome } from './pages/dashboard';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import { PublicLayout, AuthLayout, DashboardLayout } from './layouts';
@@ -13,26 +14,31 @@ function App() {
     <Router>
       <div className="app">
         <Routes>
-          {/* Public Routes */}
-          <Route path="/" element={
-            <PublicLayout>
-              <Home />
-            </PublicLayout>
-          } />
-          <Route path="/shop" element={
-            <ProtectedRoute>
-              <PublicLayout>
-                <Shop />
-              </PublicLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/cart" element={
-            <ProtectedRoute>
-              <PublicLayout>
-                <Cart />
-              </PublicLayout>
-            </ProtectedRoute>
-          } />
+                            {/* Public Routes */}
+                  <Route path="/" element={
+                    <PublicLayout>
+                      <Home />
+                    </PublicLayout>
+                  } />
+                  <Route path="/components" element={
+                    <PublicLayout>
+                      <ComponentsDemo />
+                    </PublicLayout>
+                  } />
+                  <Route path="/shop" element={
+                    <ProtectedRoute>
+                      <PublicLayout>
+                        <Shop />
+                      </PublicLayout>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/cart" element={
+                    <ProtectedRoute>
+                      <PublicLayout>
+                        <Cart />
+                      </PublicLayout>
+                    </ProtectedRoute>
+                  } />
           
           {/* Auth Routes */}
           <Route path="/login" element={
