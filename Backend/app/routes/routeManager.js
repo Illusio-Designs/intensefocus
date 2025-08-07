@@ -31,6 +31,7 @@ const productsImageRoutes = require('./productsImageRoutes');
 const orderDetailsRoutes = require('./orderDetailsRoutes');
 const notificationRoutes = require('./notificationRoutes');
 const loginHistoryRoutes = require('./loginHistoryRoutes');
+const msg91Routes = require('./msg91Routes');
 
 // Mount routes
 router.use('/users', userRoutes);
@@ -62,6 +63,7 @@ router.use('/products-images', productsImageRoutes);
 router.use('/order-details', orderDetailsRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/login-history', loginHistoryRoutes);
+router.use('/msg91', msg91Routes);
 
 // API documentation route
 router.get('/docs', (req, res) => {
@@ -98,7 +100,10 @@ router.get('/docs', (req, res) => {
       productsImages: '/api/products-images',
       orderDetails: '/api/order-details',
       notifications: '/api/notifications',
-      loginHistory: '/api/login-history'
+      loginHistory: '/api/login-history',
+      
+      // Authentication endpoints
+      msg91: '/api/msg91'
     }
   });
 });

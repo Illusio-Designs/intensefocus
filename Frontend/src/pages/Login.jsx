@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Button from '../components/common/Button';
 import { Phone, Sms, ArrowBack, Timer } from '@mui/icons-material';
+import { initializeMSG91, sendOTP, verifyOTP, retryOTP, verifyAccessToken } from '../utils/msg91';
 import '../styles/pages/Login.css';
 
 const Login = () => {
@@ -23,6 +24,8 @@ const Login = () => {
   const [otpTimer, setOtpTimer] = useState(0);
   const [canResend, setCanResend] = useState(true);
   const [resendTimer, setResendTimer] = useState(0);
+  const [msg91Initialized, setMsg91Initialized] = useState(false);
+  const [reqId, setReqId] = useState(null);
   
   const otpInputRefs = useRef([]);
 
@@ -42,6 +45,22 @@ const Login = () => {
     }
     return () => clearInterval(interval);
   }, [otpTimer]);
+
+  // Initialize MSG91 on component mount
+  useEffect(() => {
+    const initMSG91 = async () => {
+      try {
+        await initializeMSG91();
+        setMsg91Initialized(true);
+        console.log('MSG91 initialized successfully');
+      } catch (error) {
+        console.error('Failed to initialize MSG91:', error);
+        alert('Failed to initialize OTP service. Please refresh the page.');
+      }
+    };
+
+    initMSG91();
+  }, []);
 
   // Timer effect for resend button
   useEffect(() => {
@@ -168,11 +187,22 @@ const Login = () => {
       return;
     }
 
+    if (!msg91Initialized) {
+      alert('OTP service is not ready. Please wait a moment and try again.');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      // Simulate API call to send OTP
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Send OTP using MSG91
+      const result = await sendOTP(formData.phone);
+      console.log('MSG91 send OTP result:', result);
+      
+      // Store request ID if available
+      if (result && result.requestId) {
+        setReqId(result.requestId);
+      }
       
       setOtpSent(true);
       setOtpTimer(300); // 5 minutes
@@ -187,7 +217,7 @@ const Login = () => {
       alert('OTP sent successfully!');
     } catch (error) {
       console.error('Error sending OTP:', error);
-      alert('Failed to send OTP. Please try again.');
+      alert(`Failed to send OTP: ${error.message || 'Please try again.'}`);
     } finally {
       setIsLoading(false);
     }
@@ -196,11 +226,17 @@ const Login = () => {
   const resendOTP = async () => {
     if (!canResend) return;
 
+    if (!msg91Initialized) {
+      alert('OTP service is not ready. Please wait a moment and try again.');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      // Simulate API call to resend OTP
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Retry OTP using MSG91
+      const result = await retryOTP(null, reqId);
+      console.log('MSG91 retry OTP result:', result);
       
       setOtpTimer(300); // 5 minutes
       setCanResend(false);
@@ -209,7 +245,7 @@ const Login = () => {
       alert('OTP resent successfully!');
     } catch (error) {
       console.error('Error resending OTP:', error);
-      alert('Failed to resend OTP. Please try again.');
+      alert(`Failed to resend OTP: ${error.message || 'Please try again.'}`);
     } finally {
       setIsLoading(false);
     }
@@ -222,32 +258,52 @@ const Login = () => {
       return;
     }
 
+    if (!msg91Initialized) {
+      alert('OTP service is not ready. Please wait a moment and try again.');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      // Simulate API call to verify OTP
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Verify OTP using MSG91
+      const verifyResult = await verifyOTP(formData.otp, reqId);
+      console.log('MSG91 verify OTP result:', verifyResult);
       
-      if (isLoginMode) {
-        console.log('Logging in with phone:', formData.phone);
-        // Set authentication status
-        localStorage.setItem('isAuthenticated', 'true');
-        localStorage.setItem('userPhone', formData.phone);
-        alert('Login successful!');
-        // Redirect to the page user was trying to access, or home
-        navigate(from, { replace: true });
+      // If verification successful, verify with server
+      if (verifyResult && verifyResult.token) {
+        const serverVerification = await verifyAccessToken(verifyResult.token);
+        console.log('Server verification result:', serverVerification);
+        
+        if (serverVerification.success) {
+          if (isLoginMode) {
+            console.log('Logging in with phone:', formData.phone);
+            // Set authentication status
+            localStorage.setItem('isAuthenticated', 'true');
+            localStorage.setItem('userPhone', formData.phone);
+            localStorage.setItem('userToken', verifyResult.token);
+            alert('Login successful!');
+            // Redirect to the page user was trying to access, or home
+            navigate(from, { replace: true });
+          } else {
+            console.log('Registering with phone:', formData.phone);
+            // Set authentication status for new users too
+            localStorage.setItem('isAuthenticated', 'true');
+            localStorage.setItem('userPhone', formData.phone);
+            localStorage.setItem('userToken', verifyResult.token);
+            alert('Registration successful!');
+            // Redirect to the page user was trying to access, or home
+            navigate(from, { replace: true });
+          }
+        } else {
+          throw new Error('Server verification failed');
+        }
       } else {
-        console.log('Registering with phone:', formData.phone);
-        // Set authentication status for new users too
-        localStorage.setItem('isAuthenticated', 'true');
-        localStorage.setItem('userPhone', formData.phone);
-        alert('Registration successful!');
-        // Redirect to the page user was trying to access, or home
-        navigate(from, { replace: true });
+        throw new Error('OTP verification failed');
       }
     } catch (error) {
       console.error('Authentication error:', error);
-      alert('Invalid OTP. Please try again.');
+      alert(`Authentication failed: ${error.message || 'Invalid OTP. Please try again.'}`);
     } finally {
       setIsLoading(false);
     }

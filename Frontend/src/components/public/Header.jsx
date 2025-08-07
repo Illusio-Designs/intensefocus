@@ -18,6 +18,7 @@ const Header = () => {
   const handleLogout = () => {
     localStorage.removeItem('isAuthenticated');
     localStorage.removeItem('userPhone');
+    localStorage.removeItem('userToken');
     setIsAuthenticated(false);
     setUserPhone('');
     navigate('/');
