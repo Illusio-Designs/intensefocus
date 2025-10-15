@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 // Import all route files
+const authRoutes = require('./auth');
 const userRoutes = require('./userRoutes');
 const brandRoutes = require('./brandRoutes');
 const productRoutes = require('./productRoutes');
@@ -34,6 +35,7 @@ const loginHistoryRoutes = require('./loginHistoryRoutes');
 const msg91Routes = require('./msg91Routes');
 
 // Mount routes
+router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/brands', brandRoutes);
 router.use('/products', productRoutes);
@@ -68,9 +70,11 @@ router.use('/msg91', msg91Routes);
 // API documentation route
 router.get('/docs', (req, res) => {
   res.json({
-    message: 'IntenseFocus Optical E-commerce API Documentation',
+    message: 'Stallion Optical E-commerce API Documentation',
     version: '1.0.0',
     endpoints: {
+      // Authentication endpoints
+      auth: '/api/auth',
       // Core endpoints
       users: '/api/users',
       brands: '/api/brands',

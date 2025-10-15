@@ -11,39 +11,41 @@ const AllotedOrders = sequelize.define('AllotedOrders', {
         type: DataTypes.INTEGER,
         allowNull: false
     },
-    distributor_id: {
-        type: DataTypes.INTEGER,
-        allowNull: false
-    },
-    retailor_id: {
-        type: DataTypes.INTEGER,
-        allowNull: false
-    },
-    salesman_id: {
-        type: DataTypes.INTEGER,
-        allowNull: false
-    },
-    status: {
-        type: DataTypes.ENUM('pending', 'processing', 'completed', 'cancelled'),
-        defaultValue: 'pending'
-    },
-    alloted_date: {
-        type: DataTypes.DATE,
-        defaultValue: DataTypes.NOW
-    },
-    completed_date: {
-        type: DataTypes.DATE,
-        allowNull: true
-    },
-    notes: {
+    json_data: {
         type: DataTypes.TEXT,
         allowNull: true
     },
-    created_at: {
-        type: DataTypes.DATE,
-        defaultValue: DataTypes.NOW
+    distributor_id: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+            model: 'users',
+            key: 'id'
+        }
     },
-    updated_at: {
+    product_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true
+    },
+    quantity: {
+        type: DataTypes.INTEGER,
+        allowNull: true
+    },
+    status: {
+        type: DataTypes.ENUM(
+            'Pending',
+            'Processing', 
+            'Dispatch',
+            'Partially Dispatch',
+            'Processed',
+            'On Hold',
+            'Hold By Trey',
+            'Cancelled',
+            'Completed'
+        ),
+        defaultValue: 'Pending'
+    },
+    created_at: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW
     }
@@ -51,7 +53,7 @@ const AllotedOrders = sequelize.define('AllotedOrders', {
     tableName: 'allotedorders',
     timestamps: true,
     createdAt: 'created_at',
-    updatedAt: 'updated_at'
+    updatedAt: false // This table doesn't have updated_at column
 });
 
 module.exports = AllotedOrders; 

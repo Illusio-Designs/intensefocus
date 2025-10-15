@@ -9,11 +9,27 @@ const RetailorWorkingState = sequelize.define('RetailorWorkingState', {
     },
     retailor_id: {
         type: DataTypes.INTEGER,
-        allowNull: false
+        allowNull: false,
+        references: {
+            model: 'users',
+            key: 'id'
+        }
     },
     state_id: {
         type: DataTypes.INTEGER,
-        allowNull: false
+        allowNull: false,
+        references: {
+            model: 'states',
+            key: 'id'
+        }
+    },
+    zone_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+            model: 'zones',
+            key: 'id'
+        }
     },
     status: {
         type: DataTypes.ENUM('active', 'inactive'),
@@ -49,5 +65,62 @@ const RetailorWorkingState = sequelize.define('RetailorWorkingState', {
     createdAt: 'created_at',
     updatedAt: 'updated_at'
 });
+
+// Define associations
+RetailorWorkingState.associate = function(models) {
+    RetailorWorkingState.belongsTo(models.User, {
+        foreignKey: 'retailor_id',
+        as: 'retailor'
+    });
+
+    RetailorWorkingState.belongsTo(models.State, {
+        foreignKey: 'state_id',
+        as: 'state'
+    });
+
+    RetailorWorkingState.belongsTo(models.Zone, {
+        foreignKey: 'zone_id',
+        as: 'zone'
+    });
+};
+
+// Static method to find retailers by zone
+RetailorWorkingState.findByZone = async function(zoneId) {
+    return await this.findAll({
+        where: { 
+            zone_id: zoneId,
+            status: 'active'
+        },
+        include: [
+            {
+                model: sequelize.models.User,
+                as: 'retailor',
+                where: { status: true }
+            },
+            {
+                model: sequelize.models.Zone,
+                as: 'zone'
+            }
+        ],
+        order: [['assigned_date', 'DESC']]
+    });
+};
+
+// Static method to get active zones for a retailer
+RetailorWorkingState.getRetailorZones = async function(retailorId) {
+    return await this.findAll({
+        where: { 
+            retailor_id: retailorId,
+            status: 'active'
+        },
+        include: [
+            {
+                model: sequelize.models.Zone,
+                as: 'zone',
+                where: { status: true }
+            }
+        ]
+    });
+};
 
 module.exports = RetailorWorkingState; 

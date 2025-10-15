@@ -25,24 +25,71 @@ const ProductImages = sequelize.define('ProductImages', {
   },
   is_primary: {
     type: DataTypes.BOOLEAN,
+    allowNull: true,
     defaultValue: false,
-    allowNull: false,
   },
   sort_order: {
     type: DataTypes.INTEGER,
+    allowNull: true,
     defaultValue: 0,
-    allowNull: false,
   },
-  status: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: true,
-    allowNull: false,
+  created_at: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  updated_at: {
+    type: DataTypes.DATE,
+    allowNull: true,
   },
 }, {
-  tableName: 'products_image',
+  tableName: 'product_images',
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',
 });
 
-module.exports = ProductImages; 
+// Static method to get images by product
+ProductImages.getImagesByProduct = async function(productId) {
+  return await this.findAll({ 
+    where: { product_id: productId },
+    order: [['sort_order', 'ASC'], ['is_primary', 'DESC']]
+  });
+};
+
+// Static method to get primary image for product
+ProductImages.getPrimaryImage = async function(productId) {
+  return await this.findOne({ 
+    where: { 
+      product_id: productId,
+      is_primary: true 
+    }
+  });
+};
+
+// Static method to set primary image
+ProductImages.setPrimaryImage = async function(imageId, productId) {
+  // First, unset all primary images for this product
+  await this.update(
+    { is_primary: false },
+    { where: { product_id: productId } }
+  );
+  
+  // Then set the specified image as primary
+  return await this.update(
+    { is_primary: true },
+    { where: { id: imageId, product_id: productId } }
+  );
+};
+
+// Static method to add image to product
+ProductImages.addImage = async function(productId, imagePath, imageName, isPrimary = false, sortOrder = 0) {
+  return await this.create({
+    product_id: productId,
+    image_path: imagePath,
+    image_name: imageName,
+    is_primary: isPrimary,
+    sort_order: sortOrder
+  });
+};
+
+module.exports = ProductImages;

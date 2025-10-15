@@ -7,49 +7,37 @@ const Notification = sequelize.define('Notification', {
         primaryKey: true,
         autoIncrement: true
     },
-    user_id: {
+    by_id: {
         type: DataTypes.INTEGER,
-        allowNull: false
+        allowNull: true,
+        references: {
+            model: 'users',
+            key: 'id'
+        }
     },
-    user_type: {
-        type: DataTypes.ENUM('admin', 'distributor', 'retailor', 'salesman', 'consumer'),
-        allowNull: false
-    },
-    title: {
-        type: DataTypes.STRING(255),
-        allowNull: false
+    to_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+            model: 'users',
+            key: 'id'
+        }
     },
     message: {
         type: DataTypes.TEXT,
-        allowNull: false
-    },
-    type: {
-        type: DataTypes.ENUM('info', 'success', 'warning', 'error', 'order', 'system'),
-        defaultValue: 'info'
-    },
-    is_read: {
-        type: DataTypes.BOOLEAN,
-        defaultValue: false
-    },
-    read_at: {
-        type: DataTypes.DATE,
         allowNull: true
     },
-    related_id: {
+    readed: {
         type: DataTypes.INTEGER,
         allowNull: true
     },
-    related_type: {
-        type: DataTypes.STRING(50),
+    created_at: {
+        type: DataTypes.STRING(255),
         allowNull: true
     },
-    created_at: {
-        type: DataTypes.DATE,
-        defaultValue: DataTypes.NOW
-    },
     updated_at: {
-        type: DataTypes.DATE,
-        defaultValue: DataTypes.NOW
+        type: DataTypes.STRING(255),
+        allowNull: true
     }
 }, {
     tableName: 'notifications',

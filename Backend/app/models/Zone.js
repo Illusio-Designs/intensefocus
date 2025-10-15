@@ -10,7 +10,6 @@ const Zone = sequelize.define('Zone', {
   name: {
     type: DataTypes.STRING(255),
     allowNull: false,
-    unique: true,
   },
   description: {
     type: DataTypes.TEXT,
@@ -18,17 +17,9 @@ const Zone = sequelize.define('Zone', {
   },
   state_id: {
     type: DataTypes.INTEGER,
-    allowNull: true,
+    allowNull: false,
     references: {
       model: 'states',
-      key: 'id'
-    }
-  },
-  city_id: {
-    type: DataTypes.INTEGER,
-    allowNull: true,
-    references: {
-      model: 'cities',
       key: 'id'
     }
   },
@@ -42,11 +33,45 @@ const Zone = sequelize.define('Zone', {
     defaultValue: 0,
     allowNull: false,
   },
+  zone_code: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+    unique: true,
+  }
 }, {
   tableName: 'zones',
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',
+  indexes: [
+    {
+      unique: true,
+      fields: ['name', 'state_id'],
+      name: 'zones_name_state_unique'
+    }
+  ]
 });
+
+// Static method to get zones by state
+Zone.getZonesByState = async function(stateId) {
+  return await this.findAll({ 
+    where: { 
+      state_id: stateId,
+      status: true 
+    },
+    order: [['sort_order', 'ASC'], ['name', 'ASC']]
+  });
+};
+
+// Static method to get zone by name in a state
+Zone.getZoneByNameAndState = async function(zoneName, stateId) {
+  return await this.findOne({ 
+    where: { 
+      name: zoneName,
+      state_id: stateId,
+      status: true 
+    }
+  });
+};
 
 module.exports = Zone; 

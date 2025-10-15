@@ -8,59 +8,114 @@ const OrderDetails = sequelize.define('OrderDetails', {
         autoIncrement: true
     },
     order_id: {
+        type: DataTypes.STRING(255),
+        allowNull: true
+    },
+    user_id: {
         type: DataTypes.INTEGER,
-        allowNull: false
+        allowNull: true,
+        references: {
+            model: 'users',
+            key: 'id'
+        }
     },
-    product_id: {
-        type: DataTypes.INTEGER,
-        allowNull: false
-    },
-    quantity: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        defaultValue: 1
-    },
-    unit_price: {
-        type: DataTypes.DECIMAL(10, 2),
-        allowNull: false
-    },
-    total_price: {
-        type: DataTypes.DECIMAL(10, 2),
-        allowNull: false
-    },
-    discount_amount: {
-        type: DataTypes.DECIMAL(10, 2),
-        defaultValue: 0.00
-    },
-    discount_percentage: {
-        type: DataTypes.DECIMAL(5, 2),
-        defaultValue: 0.00
-    },
-    final_price: {
-        type: DataTypes.DECIMAL(10, 2),
-        allowNull: false
+    json_data: {
+        type: DataTypes.TEXT,
+        allowNull: true
     },
     status: {
-        type: DataTypes.ENUM('pending', 'processing', 'shipped', 'delivered', 'cancelled'),
-        defaultValue: 'pending'
+        type: DataTypes.ENUM(
+            'Pending',
+            'Processing',
+            'Dispatch', 
+            'Partially Dispatch',
+            'Processed',
+            'On Hold',
+            'Hold By Trey',
+            'Cancelled',
+            'Completed'
+        ),
+        defaultValue: 'Pending'
     },
-    notes: {
+    type: {
+        type: DataTypes.STRING(255),
+        allowNull: true
+    },
+    totalamount: {
+        type: DataTypes.STRING(255),
+        allowNull: true
+    },
+    event_type: {
+        type: DataTypes.STRING(255),
+        allowNull: true
+    },
+    event_visit_type: {
+        type: DataTypes.STRING(255),
+        allowNull: true
+    },
+    alloted_user_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+            model: 'users',
+            key: 'id'
+        }
+    },
+    party_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+            model: 'users',
+            key: 'id'
+        }
+    },
+    partallydispacthed: {
+        type: DataTypes.STRING(211),
+        allowNull: true
+    },
+    onholdreason: {
         type: DataTypes.TEXT,
+        allowNull: true
+    },
+    cancelreason: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
+    agencyname: {
+        type: DataTypes.STRING(211),
+        allowNull: true
+    },
+    docketnumber: {
+        type: DataTypes.STRING(211),
+        allowNull: true
+    },
+    holdbytray: {
+        type: DataTypes.STRING(211),
+        allowNull: true
+    },
+    note: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
+    ordernewtype: {
+        type: DataTypes.STRING(211),
+        allowNull: true
+    },
+    userlocation: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
+    email_sent: {
+        type: DataTypes.BOOLEAN,
         allowNull: true
     },
     created_at: {
         type: DataTypes.DATE,
-        defaultValue: DataTypes.NOW
-    },
-    updated_at: {
-        type: DataTypes.DATE,
-        defaultValue: DataTypes.NOW
+        allowNull: true
     }
 }, {
     tableName: 'order_details',
-    timestamps: true,
-    createdAt: 'created_at',
-    updatedAt: 'updated_at'
+    timestamps: false // This table doesn't use standard timestamps
 });
 
 module.exports = OrderDetails; 

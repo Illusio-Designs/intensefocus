@@ -7,35 +7,39 @@ const TrayAllotment = sequelize.define('TrayAllotment', {
         primaryKey: true,
         autoIncrement: true
     },
-    tray_id: {
+    salesman_id: {
         type: DataTypes.INTEGER,
-        allowNull: false
+        allowNull: false,
+        references: {
+            model: 'users',
+            key: 'id'
+        }
     },
-    user_id: {
+    party_name: {
+        type: DataTypes.STRING(255),
+        allowNull: true
+    },
+    product_id: {
         type: DataTypes.INTEGER,
-        allowNull: false
+        allowNull: true
     },
-    user_type: {
-        type: DataTypes.ENUM('distributor', 'retailor', 'salesman'),
-        allowNull: false
+    quantity: {
+        type: DataTypes.INTEGER,
+        allowNull: true
     },
     status: {
-        type: DataTypes.ENUM('allocated', 'returned', 'damaged'),
-        defaultValue: 'allocated'
-    },
-    allocated_date: {
-        type: DataTypes.DATE,
-        defaultValue: DataTypes.NOW
-    },
-    return_date: {
-        type: DataTypes.DATE,
+        type: DataTypes.INTEGER,
         allowNull: true
     },
-    deposit_amount: {
-        type: DataTypes.DECIMAL(10, 2),
+    couriror_name: {
+        type: DataTypes.TEXT,
         allowNull: true
     },
-    notes: {
+    barcodeids: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
+    shipping_id: {
         type: DataTypes.TEXT,
         allowNull: true
     },
@@ -44,8 +48,8 @@ const TrayAllotment = sequelize.define('TrayAllotment', {
         defaultValue: DataTypes.NOW
     },
     updated_at: {
-        type: DataTypes.DATE,
-        defaultValue: DataTypes.NOW
+        type: DataTypes.STRING(255),
+        allowNull: true
     }
 }, {
     tableName: 'tray_allotment',

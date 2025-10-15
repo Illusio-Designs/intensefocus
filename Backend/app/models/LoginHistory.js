@@ -9,61 +9,47 @@ const LoginHistory = sequelize.define('LoginHistory', {
     },
     user_id: {
         type: DataTypes.INTEGER,
-        allowNull: false
+        allowNull: true,
+        references: {
+            model: 'users',
+            key: 'id'
+        }
     },
-    user_type: {
-        type: DataTypes.ENUM('admin', 'distributor', 'retailor', 'salesman', 'consumer'),
-        allowNull: false
-    },
-    login_time: {
-        type: DataTypes.DATE,
-        defaultValue: DataTypes.NOW
-    },
-    logout_time: {
-        type: DataTypes.DATE,
-        allowNull: true
-    },
-    ip_address: {
-        type: DataTypes.STRING(45),
-        allowNull: true
-    },
-    user_agent: {
+    location: {
         type: DataTypes.TEXT,
         allowNull: true
     },
-    device_type: {
-        type: DataTypes.ENUM('desktop', 'mobile', 'tablet'),
+    logintime: {
+        type: DataTypes.TEXT,
         allowNull: true
     },
-    browser: {
-        type: DataTypes.STRING(100),
+    reason: {
+        type: DataTypes.STRING(211),
         allowNull: true
     },
-    os: {
-        type: DataTypes.STRING(100),
+    partyname: {
+        type: DataTypes.STRING(211),
         allowNull: true
     },
-    status: {
-        type: DataTypes.ENUM('success', 'failed', 'logout'),
-        defaultValue: 'success'
-    },
-    session_duration: {
-        type: DataTypes.INTEGER, // in seconds
+    party_id: {
+        type: DataTypes.INTEGER,
         allowNull: true
     },
-    created_at: {
-        type: DataTypes.DATE,
-        defaultValue: DataTypes.NOW
+    type: {
+        type: DataTypes.STRING(211),
+        allowNull: true
     },
-    updated_at: {
-        type: DataTypes.DATE,
-        defaultValue: DataTypes.NOW
+    lat: {
+        type: DataTypes.STRING(50),
+        allowNull: true
+    },
+    long: {
+        type: DataTypes.STRING(50),
+        allowNull: true
     }
 }, {
     tableName: 'loginhistory',
-    timestamps: true,
-    createdAt: 'created_at',
-    updatedAt: 'updated_at'
+    timestamps: false // This table doesn't use standard timestamps
 });
 
 module.exports = LoginHistory; 

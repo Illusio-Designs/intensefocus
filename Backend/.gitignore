@@ -69,4 +69,7 @@ backups/
 
 # Temporary files
 *.tmp
-*.temp 
+*.temp
+
+# Test files
+test-*.html 

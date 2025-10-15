@@ -3,7 +3,7 @@ const cors = require('cors');
 const path = require('path');
 const dotenv = require('dotenv');
 const sequelize = require('./config/database');
-const { databaseManager } = require('./scripts/databaseManager');
+const DatabaseManager = require('./scripts/databaseManager');
 
 dotenv.config();
 
@@ -25,6 +25,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+
+// Serve static HTML files for testing
+app.use(express.static(path.join(__dirname, '..')));
 
 // Import and use the route manager
 const routeManager = require('./routes/routeManager');
@@ -51,9 +54,9 @@ const PORT = process.env.PORT || 3000;
 // Start server with database manager
 const startServer = async () => {
   try {
-    // Run database manager first
+    // Initialize database with DatabaseManager
     console.log('🚀 Starting Database Manager...');
-    await databaseManager();
+    await DatabaseManager.initialize();
     console.log('✅ Database Manager completed!\n');
     
     // Start the server
