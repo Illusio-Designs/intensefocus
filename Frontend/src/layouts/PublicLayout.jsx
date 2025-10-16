@@ -1,22 +1,18 @@
 import React from 'react';
-import { Header, Footer } from '../components/public';
-import '../styles/layouts/PublicLayout.css';
+import Header from '../components/Header';
+import Footer from '../components/Footer';
+import '../styles/pages/public.css';
 
-const PublicLayout = ({ children }) => {
+const PublicLayout = ({ children, onPageChange, currentPage }) => {
   return (
     <div className="public-layout">
-      {/* Header */}
-      <Header />
-
-      {/* Main Content */}
-      <main className="public-main">
+      <Header onPageChange={onPageChange} currentPage={currentPage} />
+      <main className="main-content">
         {children}
       </main>
-
-      {/* Footer */}
       <Footer />
     </div>
   );
 };
 
-export default PublicLayout; 
+export default PublicLayout;

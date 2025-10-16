@@ -1,22 +1,22 @@
-/* Cart Page Styles */
-.cart-page {
+/* Collection Page Styles */
+.collection-page {
   min-height: 100vh;
   background: #f8f9fa;
 }
 
-.cart-hero {
+.collection-hero {
   background: white;
   padding: 60px 20px;
   text-align: center;
 }
 
-.cart-hero h1 {
+.collection-hero h1 {
   font-size: 2.5rem;
   color: #2c3e50;
   margin-bottom: 20px;
 }
 
-.cart-hero p {
+.collection-hero p {
   font-size: 1.1rem;
   color: #7f8c8d;
   max-width: 600px;

@@ -1,34 +1,16 @@
-import React, { useState } from 'react';
-import { Sidebar, Header, Footer } from '../components/dashboard';
-import '../styles/layouts/DashboardLayout.css';
+import React from 'react';
+import Sidebar from '../components/Sidebar';
+import '../styles/pages/dashboard-layout.css';
 
-const DashboardLayout = ({ children }) => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
-  };
-
+const DashboardLayout = ({ children, currentPage, onPageChange }) => {
   return (
     <div className="dashboard-layout">
-      {/* Sidebar */}
-      <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-
-      {/* Main Content */}
-      <div className="dashboard-main">
-        {/* Header */}
-        <Header toggleSidebar={toggleSidebar} />
-
-        {/* Content */}
-        <main className="dashboard-content">
-          {children}
-        </main>
-
-        {/* Footer */}
-        <Footer />
+      <Sidebar currentPage={currentPage} onPageChange={onPageChange} />
+      <div className="dashboard-content">
+        {children}
       </div>
     </div>
   );
 };
 
-export default DashboardLayout; 
+export default DashboardLayout;
