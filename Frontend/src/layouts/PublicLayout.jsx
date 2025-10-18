@@ -1,7 +1,6 @@
 import React from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import '../styles/pages/public.css';
 
 const PublicLayout = ({ children, onPageChange, currentPage }) => {
   return (

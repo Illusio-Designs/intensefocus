@@ -39,6 +39,10 @@
   width: 200px;
   height: auto;
   object-fit: contain;
+  opacity: 0.2;
+  rotate: -20deg;
+  position: relative;
+  left: -33px;
 }
 
 .hero-content {

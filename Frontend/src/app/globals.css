@@ -1,15 +1,122 @@
 @import "tailwindcss";
 
+/* Preload main font to prevent FOUT */
+@font-face {
+  font-family: 'Spoof Trial';
+  src: url('/SpoofTrial-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
+/* Spoof Trial Font Faces */
+@font-face {
+  font-family: 'Spoof Trial';
+  src: url('/SpoofTrial-Thin.otf') format('opentype');
+  font-weight: 100;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Spoof Trial';
+  src: url('/SpoofTrial-ThinSlanted.otf') format('opentype');
+  font-weight: 100;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Spoof Trial';
+  src: url('/SpoofTrial-Light.otf') format('opentype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Spoof Trial';
+  src: url('/SpoofTrial-LightSlanted.otf') format('opentype');
+  font-weight: 300;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Spoof Trial';
+  src: url('/SpoofTrial-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Spoof Trial';
+  src: url('/SpoofTrial-RegularSlanted.otf') format('opentype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Spoof Trial';
+  src: url('/SpoofTrial-Medium.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Spoof Trial';
+  src: url('/SpoofTrial-MediumSlanted.otf') format('opentype');
+  font-weight: 500;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Spoof Trial';
+  src: url('/SpoofTrial-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Spoof Trial';
+  src: url('/SpoofTrial-BoldSlanted.otf') format('opentype');
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Spoof Trial';
+  src: url('/SpoofTrial-Black.otf') format('opentype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Spoof Trial';
+  src: url('/SpoofTrial-BlackSlanted.otf') format('opentype');
+  font-weight: 900;
+  font-style: italic;
+  font-display: swap;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --font-spoof: 'Spoof Trial', sans-serif;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-spoof);
+  --font-mono: var(--font-spoof);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -22,5 +129,9 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Spoof Trial', sans-serif;
+}
+
+* {
+  font-family: 'Spoof Trial', sans-serif;
 }

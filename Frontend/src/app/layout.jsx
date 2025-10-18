@@ -1,31 +1,30 @@
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import LoaderProvider from "../components/LoaderProvider";
 
 export const metadata = {
   title: "Stallion Eyewear",
   description: "Your Vision, Our Passion",
   icons: {
-    icon: '/favicon.ico',
+    icon: '/favicon.png',
   },
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
+      <head>
+        <link
+          rel="preload"
+          href="/SpoofTrial-Regular.otf"
+          as="font"
+          type="font/otf"
+          crossOrigin="anonymous"
+        />
+      </head>
+      <body className="antialiased">
+        <LoaderProvider>
+          {children}
+        </LoaderProvider>
       </body>
     </html>
   );
