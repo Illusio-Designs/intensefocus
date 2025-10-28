@@ -118,6 +118,53 @@ const Home = () => {
           ))}
         </div>
       </section>
+
+      {/* About Us Section */}
+      <section className="about-section">
+        <div className="about-container">
+          <div className="about-image">
+            <img src="/images/banners/hero3.webp" alt="About Us" />
+            <div className="about-image-overlay"></div>
+          </div>
+          <div className="about-content">
+            <div className="about-goggles-icon">
+              <img src="/images/banners/spacs.webp" alt="Goggles" />
+            </div>
+            <h2>About Us</h2>
+            <p>
+              At Stallion, we specialize in providing high-quality safety goggles designed for industrial, corporate, and institutional use. Our focus is not retail sales, but long-term B2B partnerships with organizations that prioritize workforce safety and compliance.
+            </p>
+            <p>
+              With years of expertise in manufacturing and global distribution, we supply goggles that meet international safety standards such as ANSI, EN166, and ISI. From manufacturing plants and construction sites to laboratories and healthcare facilities, our products are trusted by industries worldwide.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Our B2B Advantage Section */}
+      <section className="b2b-advantage-section">
+        <h2 className="b2b-advantage-title">Our B2B Advantage</h2>
+        <div className="b2b-advantage-container">
+          <div className="b2b-advantage-card">
+            <div className="b2b-icon">
+              <img src="/images/icons/package.png" alt="Package" />
+            </div>
+            <h3>Bulk Order Fulfilment</h3>
+          </div>
+          <div className="b2b-advantage-card">
+            <div className="b2b-icon">
+              <img src="/images/icons/bank-note-01.png" alt="Bank Note" />
+            </div>
+            <h3>Competitive Pricing</h3>
+          </div>
+          <div className="b2b-advantage-card">
+            <div className="b2b-icon">
+              <img src="/images/icons/globe-01.png" alt="Globe" />
+            </div>
+            <h3>Global Shipping</h3>
+          </div>
+        </div>
+      </section>
      
     </div>
   );

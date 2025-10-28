@@ -7,6 +7,12 @@ export const metadata = {
   icons: {
     icon: '/favicon.png',
   },
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+  },
 };
 
 export default function RootLayout({ children }) {

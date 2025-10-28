@@ -153,34 +153,6 @@
   }
 }
 
-@media (max-width: 768px) {
-  .hero-content h1 {
-    font-size: 2.5rem;
-  }
-
-  .hero-content p {
-    font-size: 1.1rem;
-  }
-
-  .slider-track {
-    width: calc(150px * 10);
-    gap: 15px;
-  }
-
-  .slider-image {
-    width: 150px;
-    height: 150px;
-  }
-
-  @keyframes scroll {
-    0% {
-      transform: translateX(0);
-    }
-    100% {
-      transform: translateX(calc(-150px * 5));
-    }
-  }
-}
 
 .features-section {
   padding: 60px 20px;
@@ -215,8 +187,8 @@
 
 /* Collection Section Styles */
 .collection-section {
-  background: #0D0A34;
-  padding: 80px 40px;
+  background: #0d0a34;
+  padding: 80px 6%;
 }
 
 .collection-header {
@@ -251,7 +223,7 @@
 }
 
 .view-all-button:hover {
-  opacity: 0.8;
+  color: #4134dc;
 }
 
 .arrow-with-star {
@@ -260,7 +232,7 @@
   justify-content: center;
   width: 45px;
   height: 45px;
-  background-image: url('/images/icons/Star.webp');
+  background-image: url("/images/icons/Star.webp");
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
@@ -314,7 +286,7 @@
   cursor: pointer;
   transition: all 0.3s ease;
   white-space: nowrap;
-  font-family: 'Spoof Trial', sans-serif;
+  font-family: "Spoof Trial", sans-serif;
   font-weight: 400;
   position: relative;
 }
@@ -365,7 +337,7 @@
   justify-content: center;
   margin-bottom: 20px;
   overflow: hidden;
-  border-bottom: 1px solid #0000001A;
+  border-bottom: 1px solid #0000001a;
 }
 
 .product-image img {
@@ -409,7 +381,7 @@
 
 .color-swatch.active {
   border-color: transparent;
-  box-shadow: 0 0 0 2px white, 0 0 0 4px #4134DC;
+  box-shadow: 0 0 0 2px white, 0 0 0 4px #4134dc;
 }
 
 /* View More Button */
@@ -421,7 +393,7 @@
 }
 
 .view-more-button {
-  background: #19126B;
+  background: #19126b;
   color: white;
   padding: 10px 20px;
   border-radius: 5px;
@@ -439,7 +411,7 @@
 }
 
 .view-more-button-border {
-  border: 1px solid #19126B66;
+  border: 1px solid #19126b66;
   padding: 20px 0;
   border-radius: 5px;
   position: absolute;
@@ -448,47 +420,164 @@
   top: 7px;
   cursor: pointer;
   width: 100%;
-  left: 5px;
+  left: 4px;
 }
 
-/* Responsive Design */
-@media (max-width: 1200px) {
-  .products-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
+/* About Section Styles */
+.about-section {
+  padding: 0;
+  overflow: hidden;
+  background: #0d0a34;
 }
 
-@media (max-width: 768px) {
-  .collection-section {
-    padding: 60px 20px;
-  }
-
-  .collection-header {
-    flex-direction: column;
-    gap: 20px;
-    align-items: flex-start;
-  }
-
-  .collection-header h2 {
-    font-size: 2rem;
-  }
-
-  .view-all-button {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .products-grid {
-    grid-template-columns: 1fr;
-    gap: 20px;
-  }
-
-  .collection-filters {
-    gap: 10px;
-  }
-
-  .filter-btn {
-    font-size: 0.85rem;
-    padding: 8px 20px;
-  }
+.about-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  height: 500px;
 }
+
+.about-image {
+  position: relative;
+  overflow: hidden;
+  background: #0d0a34;
+  width: 130%;
+}
+
+.about-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.5;
+}
+
+.about-image-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(304.14deg, #0D0A34 21.59%, rgba(13, 10, 52, 0.4) 72.31%, #0D0A34 89.86%);
+  opacity: 1;
+  z-index: 1;
+}
+
+.about-content {
+  padding: 0px 80px 0 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  color: white;
+  position: relative;
+  z-index: 2;
+}
+
+.about-goggles-icon {
+  position: absolute;
+  top: 40px;
+  right: 60px;
+  opacity: 0.13;
+  z-index: 10;
+}
+
+.about-goggles-icon img {
+  width: 300px;
+  height: auto;
+  filter: brightness(0) invert(1);
+  rotate: -13deg;
+  position: relative;
+  right: -115px;
+  top: 20px;
+}
+
+.about-content h2 {
+  font-size: 2rem;
+  font-weight: 500;
+  color: white;
+}
+
+.about-content p {
+  font-size: 1.1rem;
+  line-height: 1.8;
+  margin-bottom: 20px;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 300;
+}
+
+.about-content p:last-child {
+  margin-bottom: 0;
+}
+
+/* B2B Advantage Section Styles */
+.b2b-advantage-section {
+  background: #0d0a34;
+  padding: 80px 6%;
+}
+
+.b2b-advantage-title {
+  text-align: center;
+  color: white;
+  font-size: 3rem;
+  font-weight: 500;
+  margin-bottom: 50px;
+  letter-spacing: -0.02em;
+}
+
+.b2b-advantage-container {
+  background: #140F51;
+  border: 1px solid #FFFFFF1A;
+  border-radius: 12px;
+  padding: 40px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 40px;
+}
+
+.b2b-advantage-card {
+  text-align: center;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.b2b-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(0deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.16)),
+              linear-gradient(316.82deg, rgba(255, 255, 255, 0.46) 0%, rgba(255, 255, 255, 0) 50%);
+  border-radius: 50%;
+  position: relative;
+}
+
+.b2b-icon::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  padding: 1px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, rgba(153, 153, 153, 0.7) 100%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+}
+
+.b2b-icon img {
+  width: 50px;
+  height: 50px;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+  position: relative;
+  z-index: 1;
+}
+
+.b2b-advantage-card h3 {
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: white;
+}
+
