@@ -48,7 +48,7 @@ const LoaderProvider = ({ children }) => {
 
   return (
     <LoaderContext.Provider value={value}>
-      {children}
+      {!isLoading && children}
       <Loader isLoading={isLoading} />
     </LoaderContext.Provider>
   );
