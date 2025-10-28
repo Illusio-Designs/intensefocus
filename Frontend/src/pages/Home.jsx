@@ -147,19 +147,19 @@ const Home = () => {
         <div className="b2b-advantage-container">
           <div className="b2b-advantage-card">
             <div className="b2b-icon">
-              <img src="/images/icons/package.png" alt="Package" />
+              <img src="/images/icons/package.webp" alt="Package" />
             </div>
             <h3>Bulk Order Fulfilment</h3>
           </div>
           <div className="b2b-advantage-card">
             <div className="b2b-icon">
-              <img src="/images/icons/bank-note-01.png" alt="Bank Note" />
+              <img src="/images/icons/bank-note-01.webp" alt="Bank Note" />
             </div>
             <h3>Competitive Pricing</h3>
           </div>
           <div className="b2b-advantage-card">
             <div className="b2b-icon">
-              <img src="/images/icons/globe-01.png" alt="Globe" />
+              <img src="/images/icons/globe-01.webp" alt="Globe" />
             </div>
             <h3>Global Shipping</h3>
           </div>
