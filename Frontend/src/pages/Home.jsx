@@ -4,6 +4,7 @@ import '../styles/pages/Home.css';
 const Home = () => {
   const [activeColors, setActiveColors] = useState({});
   const [activeFilter, setActiveFilter] = useState('ALL');
+  const [expandedFaq, setExpandedFaq] = useState(0);
 
   const handleColorClick = (productId, colorIndex) => {
     setActiveColors(prev => ({
@@ -15,6 +16,33 @@ const Home = () => {
   const handleFilterClick = (filterName) => {
     setActiveFilter(filterName);
   };
+
+  const toggleFaq = (index) => {
+    setExpandedFaq(expandedFaq === index ? null : index);
+  };
+
+  const faqs = [
+    {
+      question: "What is your minimum order quantity (MOQ)?",
+      answer: "We typically supply bulk orders starting from 500 units, but requirements may vary by product category."
+    },
+    {
+      question: "Do you offer bulk pricing or distributor discounts?",
+      answer: "Yes, we provide competitive pricing for bulk orders and special discounts for distributors."
+    },
+    {
+      question: "Can we customize goggles with our company logo or specific requirements?",
+      answer: "Absolutely! We offer customization services including logo printing and specific design requirements."
+    },
+    {
+      question: "How do you handle large-scale procurement contracts?",
+      answer: "We have dedicated teams to manage large-scale contracts with flexible payment terms and delivery schedules."
+    },
+    {
+      question: "Can we request product samples before placing a bulk order?",
+      answer: "Yes, we can provide product samples for evaluation before you commit to a bulk order."
+    }
+  ];
 
   const colors = [
     { color: '#000000', name: 'Black' },
@@ -163,6 +191,31 @@ const Home = () => {
             </div>
             <h3>Global Shipping</h3>
           </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="faq-section">
+        <h2 className="faq-title">Our Collection</h2>
+        <div className="faq-container">
+          {faqs.map((faq, index) => (
+            <div key={index} className="faq-item">
+              <div className="faq-question" onClick={() => toggleFaq(index)}>
+                <div className="faq-question-content">
+                  <span className="faq-number">{String(index + 1).padStart(2, '0')}</span>
+                  <h3>{faq.question}</h3>
+                </div>
+                <button className="faq-toggle">
+                  {expandedFaq === index ? '-' : '+'}
+                </button>
+              </div>
+              {expandedFaq === index && (
+                <div className="faq-answer">
+                  <p>{faq.answer}</p>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       </section>
      

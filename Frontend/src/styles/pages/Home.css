@@ -188,7 +188,7 @@
 /* Collection Section Styles */
 .collection-section {
   background: #0d0a34;
-  padding: 80px 6%;
+  padding: 100px 6%;
 }
 
 .collection-header {
@@ -510,7 +510,7 @@
 /* B2B Advantage Section Styles */
 .b2b-advantage-section {
   background: #0d0a34;
-  padding: 80px 6%;
+  padding: 100px 6%;
 }
 
 .b2b-advantage-title {
@@ -579,5 +579,99 @@
   font-size: 1.5rem;
   font-weight: 500;
   color: white;
+}
+
+/* FAQ Section Styles */
+.faq-section {
+  background: #0D0A34;
+  padding: 0 6% 100px 6%;
+}
+
+.faq-title {
+  text-align: center;
+  color: white;
+  font-size: 3rem;
+  font-weight: 500;
+  margin-bottom: 60px;
+  letter-spacing: -0.02em;
+}
+
+.faq-item {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 30px 0;
+}
+
+.faq-question {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  gap: 20px;
+}
+
+.faq-question-content {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  flex: 1;
+}
+
+.faq-number {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 1.2rem;
+  font-weight: 400;
+  min-width: 40px;
+}
+
+.faq-question h3 {
+  color: white;
+  font-size: 1.3rem;
+  font-weight: 500;
+  margin: 0;
+}
+
+.faq-toggle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid white;
+  background: transparent;
+  color: white;
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.faq-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.faq-answer {
+  margin-top: 20px;
+  padding-left: 70px;
+  animation: fadeIn 0.3s ease;
+}
+
+.faq-answer p {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 1.1rem;
+  line-height: 1.8;
+  margin: 0;
+  font-weight: 300;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 

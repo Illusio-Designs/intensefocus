@@ -89,72 +89,6 @@
   margin: 0;
   font-size: 0.9rem;
 }
-
-.faq-section {
-  background: white;
-  padding: 30px;
-  border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-}
-
-.faq-section h3 {
-  color: #2c3e50;
-  margin-bottom: 20px;
-}
-
-.faq-list {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-
-.faq-item {
-  border: 1px solid #ecf0f1;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.faq-question {
-  padding: 20px;
-  background: #f8f9fa;
-  cursor: pointer;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  transition: background 0.3s;
-}
-
-.faq-question:hover {
-  background: #e9ecef;
-}
-
-.faq-question h4 {
-  color: #2c3e50;
-  margin: 0;
-  font-size: 1rem;
-}
-
-.faq-question .icon {
-  color: #7f8c8d;
-  font-size: 1.2rem;
-  transition: transform 0.3s;
-}
-
-.faq-answer {
-  padding: 0 20px 20px;
-  color: #7f8c8d;
-  line-height: 1.6;
-  display: none;
-}
-
-.faq-item.active .faq-answer {
-  display: block;
-}
-
-.faq-item.active .faq-question .icon {
-  transform: rotate(180deg);
-}
-
 .ticket-section {
   background: white;
   padding: 30px;
@@ -166,7 +100,7 @@
 .ticket-section h3 {
   color: #2c3e50;
   margin-bottom: 20px;
-}
+}.faq-section
 
 .ticket-form {
   display: flex;
