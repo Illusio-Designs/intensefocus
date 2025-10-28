@@ -20,12 +20,13 @@ import Products from './Products';
 
 // Dashboard Pages
 import Dashboard from './Dashboard';
-import Orders from './Orders';
-import Clients from './Clients';
-import Suppliers from './Suppliers';
+import DashboardProducts from './DashboardProducts';
+import DashboardOrders from './DashboardOrders';
+import DashboardClients from './DashboardClients';
+import DashboardSuppliers from './DashboardSuppliers';
 import AnalyticsReports from './AnalyticsReports';
-import Support from './Support';
-import Settings from './Settings';
+import DashboardSupport from './DashboardSupport';
+import DashboardSettings from './DashboardSettings';
 
 const App = ({ initialPage = 'home' }) => {
   const router = useRouter();
@@ -48,7 +49,7 @@ const App = ({ initialPage = 'home' }) => {
     let layout = 'public';
     if (['login', 'register'].includes(page)) {
       layout = 'auth';
-    } else if (['dashboard', 'products', 'orders', 'clients', 'suppliers', 'analytics', 'support', 'settings'].includes(page)) {
+    } else if (['dashboard', 'dashboard-products', 'orders', 'clients', 'suppliers', 'analytics', 'support', 'settings'].includes(page)) {
       layout = 'dashboard';
     }
     setCurrentLayout(layout);
@@ -83,19 +84,19 @@ const App = ({ initialPage = 'home' }) => {
       case 'dashboard':
         return <Dashboard />;
       case 'dashboard-products':
-        return <Products />;
+        return <DashboardProducts />;
       case 'orders':
-        return <Orders />;
+        return <DashboardOrders />;
       case 'clients':
-        return <Clients />;
+        return <DashboardClients />;
       case 'suppliers':
-        return <Suppliers />;
+        return <DashboardSuppliers />;
       case 'analytics':
         return <AnalyticsReports />;
       case 'support':
-        return <Support />;
+        return <DashboardSupport />;
       case 'settings':
-        return <Settings />;
+        return <DashboardSettings />;
       
       default:
         return <Home />;

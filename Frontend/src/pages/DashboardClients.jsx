@@ -1,7 +1,7 @@
 import React from 'react';
 import '../styles/pages/Clients.css';
 
-const Clients = () => {
+const DashboardClients = () => {
   return (
     <div className="clients-page">
       <div className="clients-header">
@@ -12,4 +12,5 @@ const Clients = () => {
   );
 };
 
-export default Clients;
+export default DashboardClients;
+

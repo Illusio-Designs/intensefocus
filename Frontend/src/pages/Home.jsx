@@ -1,20 +1,18 @@
 import React, { useState } from 'react';
 import '../styles/pages/Home.css';
+import ProductCard from '../components/ProductCard';
 
 const Home = () => {
-  const [activeColors, setActiveColors] = useState({});
   const [activeFilter, setActiveFilter] = useState('ALL');
   const [expandedFaq, setExpandedFaq] = useState(0);
 
-  const handleColorClick = (productId, colorIndex) => {
-    setActiveColors(prev => ({
-      ...prev,
-      [productId]: colorIndex
-    }));
-  };
-
   const handleFilterClick = (filterName) => {
     setActiveFilter(filterName);
+  };
+
+  const handleViewMore = (productId) => {
+    console.log('View more clicked for product:', productId);
+    // Add your navigation logic here
   };
 
   const toggleFaq = (index) => {
@@ -42,12 +40,6 @@ const Home = () => {
       question: "Can we request product samples before placing a bulk order?",
       answer: "Yes, we can provide product samples for evaluation before you commit to a bulk order."
     }
-  ];
-
-  const colors = [
-    { color: '#000000', name: 'Black' },
-    { color: '#E5E5E5', name: 'Grey' },
-    { color: '#FFB6C1', name: 'Pink' }
   ];
 
   const filters = [
@@ -122,27 +114,13 @@ const Home = () => {
 
         <div className="products-grid">
           {[1, 2, 3, 4, 5, 6].map((item) => (
-            <div key={item} className="product-card">
-              <div className="product-image">
-                <img src={`/images/products/spac${item}.webp`} alt="Anti-Fog Safety Goggles" />
-              </div>
-              <h3 className="product-name">Anti-Fog Safety Goggles</h3>
-              <div className="color-options">
-                {colors.map((colorItem, index) => (
-                  <div
-                    key={index}
-                    className={`color-swatch ${(activeColors[item] === undefined && index === 0) || activeColors[item] === index ? 'active' : ''}`}
-                    style={{backgroundColor: colorItem.color}}
-                    onClick={() => handleColorClick(item, index)}
-                    title={colorItem.name}
-                  ></div>
-                ))}
-              </div>
-              <div className="button-container">
-                <button className="view-more-button">VIEW MORE</button>
-                <button className="view-more-button-border"></button>
-              </div>
-            </div>
+            <ProductCard
+              key={item}
+              productId={item}
+              productName="Anti-Fog Safety Goggles"
+              productImage={`/images/products/spac${item}.webp`}
+              onViewMore={handleViewMore}
+            />
           ))}
         </div>
       </section>

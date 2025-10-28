@@ -13,11 +13,14 @@ export const metadata = {
     maximumScale: 1,
     userScalable: false,
   },
+  other: {
+    'color-scheme': 'light only',
+  },
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" style={{colorScheme: 'light'}}>
       <head>
         <link
           rel="preload"
@@ -26,8 +29,9 @@ export default function RootLayout({ children }) {
           type="font/otf"
           crossOrigin="anonymous"
         />
+        <meta name="color-scheme" content="light only" />
       </head>
-      <body className="antialiased">
+      <body className="antialiased" style={{colorScheme: 'light'}}>
         <LoaderProvider>
           {children}
         </LoaderProvider>

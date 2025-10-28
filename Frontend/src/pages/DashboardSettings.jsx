@@ -1,7 +1,7 @@
 import React from 'react';
 import '../styles/pages/Settings.css';
 
-const Settings = () => {
+const DashboardSettings = () => {
   return (
     <div className="settings-page">
       <div className="settings-header">
@@ -12,4 +12,5 @@ const Settings = () => {
   );
 };
 
-export default Settings;
+export default DashboardSettings;
+

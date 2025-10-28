@@ -1,7 +1,7 @@
 import React from 'react';
 import '../styles/pages/Support.css';
 
-const Support = () => {
+const DashboardSupport = () => {
   return (
     <div className="support-page">
       <div className="support-header">
@@ -12,4 +12,5 @@ const Support = () => {
   );
 };
 
-export default Support;
+export default DashboardSupport;
+

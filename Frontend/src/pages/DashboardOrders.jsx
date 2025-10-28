@@ -1,7 +1,7 @@
 import React from 'react';
 import '../styles/pages/Orders.css';
 
-const Orders = () => {
+const DashboardOrders = () => {
   return (
     <div className="orders-page">
       <div className="orders-header">
@@ -12,4 +12,5 @@ const Orders = () => {
   );
 };
 
-export default Orders;
+export default DashboardOrders;
+

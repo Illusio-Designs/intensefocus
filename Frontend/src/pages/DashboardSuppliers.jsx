@@ -1,7 +1,7 @@
 import React from 'react';
 import '../styles/pages/Suppliers.css';
 
-const Suppliers = () => {
+const DashboardSuppliers = () => {
   return (
     <div className="suppliers-page">
       <div className="suppliers-header">
@@ -12,4 +12,5 @@ const Suppliers = () => {
   );
 };
 
-export default Suppliers;
+export default DashboardSuppliers;
+
