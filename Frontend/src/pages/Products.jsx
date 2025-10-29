@@ -76,7 +76,9 @@ const Products = () => {
   };
 
   const handleViewMore = (productId) => {
-    console.log('View more clicked for product:', productId);
+    if (typeof window !== 'undefined') {
+      window.location.href = `/product-detail?id=${productId}`;
+    }
   };
 
   // Generate dummy products

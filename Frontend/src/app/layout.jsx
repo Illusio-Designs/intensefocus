@@ -1,5 +1,7 @@
 import "./globals.css";
+import 'react-toastify/dist/ReactToastify.css';
 import LoaderProvider from "../components/LoaderProvider";
+import ToastContainerProvider from "../components/ToastContainerProvider";
 
 export const metadata = {
   title: "Stallion Eyewear",
@@ -33,7 +35,9 @@ export default function RootLayout({ children }) {
       </head>
       <body className="antialiased" style={{colorScheme: 'light'}}>
         <LoaderProvider>
-          {children}
+          <ToastContainerProvider>
+            {children}
+          </ToastContainerProvider>
         </LoaderProvider>
       </body>
     </html>

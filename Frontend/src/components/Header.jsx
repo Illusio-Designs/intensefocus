@@ -1,8 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import '../styles/components/Header.css';
+import { getCartCount, registerCartListener } from '../services/cartService';
+import { isLoggedIn, logout as authLogout } from '../services/authService';
+import { showLogoutSuccess } from '../services/notificationService';
 
 const Header = ({ onPageChange, currentPage }) => {
   const [isScrolled, setIsScrolled] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
+  const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+  const [loggedIn, setLoggedIn] = useState(false);
+  const dropdownRef = useRef(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -18,6 +25,80 @@ const Header = ({ onPageChange, currentPage }) => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    // Initialize cart count
+    setCartCount(getCartCount());
+    
+    // Listen for cart changes
+    const unsubscribe = registerCartListener(() => {
+      setCartCount(getCartCount());
+    });
+    
+    return unsubscribe;
+  }, []);
+
+  // Check login status on mount and when page changes
+  useEffect(() => {
+    setLoggedIn(isLoggedIn());
+  }, [currentPage]);
+
+  // Listen for storage changes to update login status
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setLoggedIn(isLoggedIn());
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    // Also listen for custom event for same-tab updates
+    window.addEventListener('authChange', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('authChange', handleStorageChange);
+    };
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsUserDropdownOpen(false);
+      }
+    };
+
+    if (isUserDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isUserDropdownOpen]);
+
+  // Handle user icon click
+  const handleUserIconClick = () => {
+    if (loggedIn) {
+      setIsUserDropdownOpen(!isUserDropdownOpen);
+    } else {
+      onPageChange('login');
+    }
+  };
+
+  // Handle dashboard navigation
+  const handleDashboardClick = () => {
+    setIsUserDropdownOpen(false);
+    onPageChange('dashboard');
+  };
+
+  // Handle logout
+  const handleLogout = () => {
+    setIsUserDropdownOpen(false);
+    authLogout();
+    setLoggedIn(false);
+    showLogoutSuccess();
+    onPageChange('home');
+  };
 
   const navItems = [
     { id: 'home', text: 'Home' },
@@ -56,12 +137,37 @@ const Header = ({ onPageChange, currentPage }) => {
             <input type="text" placeholder="Search..." />
           </div>
           <div className="action-icons">
-            <button className="icon-btn" onClick={() => onPageChange('cart')} title="Cart">
+            <button className="icon-btn cart-btn" onClick={() => onPageChange('cart')} title="Cart">
               <img src="/images/icons/shopping-bag-02.webp" alt="Cart" className="icon-image" />
+              {cartCount > 0 && (
+                <span className="cart-badge">{cartCount}</span>
+              )}
             </button>
-            <button className="icon-btn" onClick={() => onPageChange('login')} title="Login">
-              <img src="/images/icons/user-circle.webp" alt="User" className="icon-image" />
-            </button>
+            <div className="user-menu-container" ref={dropdownRef}>
+              <button 
+                className="icon-btn user-btn" 
+                onClick={handleUserIconClick} 
+                title={loggedIn ? "User Menu" : "Login"}
+              >
+                <img src="/images/icons/user-circle.webp" alt="User" className="icon-image" />
+              </button>
+              {loggedIn && isUserDropdownOpen && (
+                <div className="user-dropdown">
+                  <button 
+                    className="dropdown-item" 
+                    onClick={handleDashboardClick}
+                  >
+                    My Dashboard
+                  </button>
+                  <button 
+                    className="dropdown-item" 
+                    onClick={handleLogout}
+                  >
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
             <button className="icon-btn menu-btn" title="Menu">
               <img src="/images/icons/menu.webp" alt="Menu" className="icon-image" />
             </button>

@@ -11,8 +11,9 @@ const Home = () => {
   };
 
   const handleViewMore = (productId) => {
-    console.log('View more clicked for product:', productId);
-    // Add your navigation logic here
+    if (typeof window !== 'undefined') {
+      window.location.href = `/product-detail?id=${productId}`;
+    }
   };
 
   const toggleFaq = (index) => {
