@@ -13,7 +13,6 @@ import Register from './Register';
 
 // Public Pages
 import Home from './Home';
-import Collection from './Collection';
 import About from './About';
 import Contact from './Contact';
 import Cart from './Cart';
@@ -66,8 +65,6 @@ const App = ({ initialPage = 'home' }) => {
       // Public Pages
       case 'home':
         return <Home />;
-      case 'collection':
-        return <Collection />;
       case 'products':
         return <Products />;
       case 'about':
