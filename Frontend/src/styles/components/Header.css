@@ -1,12 +1,17 @@
 /* Header Styles */
 .header {
-  background: #0D0A34;
+  background: transparent;
   color: white;
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 1000;
+  transition: background 0.3s ease;
+}
+
+.header.scrolled {
+  background: #0D0A34;
 }
 
 .header::after {

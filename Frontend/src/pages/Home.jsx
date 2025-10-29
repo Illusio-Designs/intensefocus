@@ -173,8 +173,8 @@ const Home = () => {
       </section>
 
       {/* FAQ Section */}
-      <section className="faq-section">
-        <h2 className="faq-title">Our Collection</h2>
+      <section className="faq-section" id="faq-section">
+        <h2 className="faq-title">FAQs</h2>
         <div className="faq-container">
           {faqs.map((faq, index) => (
             <div key={index} className="faq-item">

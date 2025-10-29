@@ -1,10 +1,11 @@
 'use client';
-import React, { useState, useEffect } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import React, { useState } from 'react';
+import { flushSync } from 'react-dom';
 import AuthLayout from '../layouts/AuthLayout';
 import PublicLayout from '../layouts/PublicLayout';
 import DashboardLayout from '../layouts/DashboardLayout';
 import '../styles/globals.css';
+import Loader from '../components/Loader';
 
 // Auth Pages
 import Login from './Login';
@@ -29,22 +30,15 @@ import DashboardSupport from './DashboardSupport';
 import DashboardSettings from './DashboardSettings';
 
 const App = ({ initialPage = 'home' }) => {
-  const router = useRouter();
-  const searchParams = useSearchParams();
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [currentLayout, setCurrentLayout] = useState('public');
-
-  // Handle URL routing
-  useEffect(() => {
-    const page = searchParams.get('page');
-    const layout = searchParams.get('layout');
-    if (page) setCurrentPage(page);
-    if (layout) setCurrentLayout(layout);
-  }, [searchParams]);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Update URL when page or layout changes
   const handlePageChange = (page) => {
-    setCurrentPage(page);
+    if (page === currentPage) return;
+    flushSync(() => setIsLoading(true));
+
     // Determine layout based on page
     let layout = 'public';
     if (['login', 'register'].includes(page)) {
@@ -52,10 +46,13 @@ const App = ({ initialPage = 'home' }) => {
     } else if (['dashboard', 'dashboard-products', 'orders', 'clients', 'suppliers', 'analytics', 'support', 'settings'].includes(page)) {
       layout = 'dashboard';
     }
-    setCurrentLayout(layout);
-    
-    // Update URL without page reload
-    router.push(`/${page}`);
+
+    // Delay rendering new page for 2 seconds to show loader first
+    setTimeout(() => {
+      setCurrentPage(page);
+      setCurrentLayout(layout);
+      setIsLoading(false);
+    }, 2000);
   };
 
   const renderPage = () => {
@@ -119,7 +116,7 @@ const App = ({ initialPage = 'home' }) => {
 
   return (
     <div className="app">
-      {renderLayout()}
+      {isLoading ? <Loader isLoading={true} /> : renderLayout()}
     </div>
   );
 };

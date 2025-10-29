@@ -3,7 +3,8 @@ import '../styles/pages/Products.css';
 import ProductCard from '../components/ProductCard';
 
 const Products = () => {
-  const [priceRange, setPriceRange] = useState([0, 10000]);
+  const [minPrice, setMinPrice] = useState(0);
+  const [maxPrice, setMaxPrice] = useState(10000);
   const [selectedBrands, setSelectedBrands] = useState([]);
   const [selectedFrameMaterials, setSelectedFrameMaterials] = useState([]);
   const [selectedShape, setSelectedShape] = useState(null);
@@ -27,7 +28,7 @@ const Products = () => {
     productType: false
   });
 
-  const brands = ['Coolay', 'Fastrack', 'Jos Block', 'Cosso'];
+  const brands = ['Oakley', 'Fastrack', 'Joe Black', 'Carrera'];
   const frameMaterials = ['Metal', 'High Acetate', 'Titanium', 'Urban'];
   const types = ['Full Frame', 'Half Frame', 'Rimless'];
   const genders = ['Men', 'Women', 'Kids'];
@@ -46,7 +47,8 @@ const Products = () => {
   ];
 
   const handleReset = () => {
-    setPriceRange([0, 10000]);
+    setMinPrice(0);
+    setMaxPrice(10000);
     setSelectedBrands([]);
     setSelectedFrameMaterials([]);
     setSelectedShape(null);
@@ -84,6 +86,9 @@ const Products = () => {
     image: `/images/products/spac${(i % 6) + 1}.webp`
   }));
 
+  const minPercent = (minPrice / 10000) * 100;
+  const maxPercent = (maxPrice / 10000) * 100;
+
   return (
     <div className="products-page">
       <div className="products-container">
@@ -97,18 +102,34 @@ const Products = () => {
           {/* Price Filter */}
           <div className="filter-section">
             <h3>Price</h3>
-            <div className="price-slider">
+            <div className="price-slider-container">
+              <div className="price-range-track"></div>
+              <div
+                className="price-range-fill"
+                style={{ left: `${minPercent}%`, width: `${Math.max(0, maxPercent - minPercent)}%` }}
+              ></div>
               <input 
                 type="range" 
                 min="0" 
                 max="10000" 
-                value={priceRange[1]}
-                onChange={(e) => setPriceRange([priceRange[0], parseInt(e.target.value)])}
+                value={minPrice}
+                onChange={(e) => setMinPrice(Math.min(parseInt(e.target.value), maxPrice - 1))}
+                className="price-range-input"
+                id="min-price"
+              />
+              <input 
+                type="range" 
+                min="0" 
+                max="10000" 
+                value={maxPrice}
+                onChange={(e) => setMaxPrice(Math.max(parseInt(e.target.value), minPrice + 1))}
+                className="price-range-input"
+                id="max-price"
               />
             </div>
             <div className="price-inputs">
-              <input type="text" value={priceRange[0]} readOnly />
-              <input type="text" placeholder="Price" value={priceRange[1]} readOnly />
+              <input type="text" value={`₹${minPrice}`} readOnly />
+              <input type="text" value={`₹${maxPrice}`} readOnly />
             </div>
           </div>
 
@@ -177,13 +198,21 @@ const Products = () => {
             {expandedSections.shape && (
               <div className="filter-section-content">
                 <div className="shape-grid">
-                  {[1, 2, 3, 4].map(shape => (
+                  {[
+                    { id: 'cateye', name: 'Cat Eye', image: '/images/productshape/cateye.webp' },
+                    { id: 'phantos', name: 'Phantos', image: '/images/productshape/phantos.webp' },
+                    { id: 'geometric', name: 'Geometric', image: '/images/productshape/geomatric.webp' },
+                    { id: 'oval', name: 'Oval', image: '/images/productshape/oval.webp' }
+                  ].map(shape => (
                     <div 
-                      key={shape}
-                      className={`shape-icon ${selectedShape === shape ? 'active' : ''}`}
-                      onClick={() => setSelectedShape(shape)}
+                      key={shape.id}
+                      className={`shape-card ${selectedShape === shape.id ? 'active' : ''}`}
+                      onClick={() => setSelectedShape(shape.id)}
                     >
-                      <div className="shape-placeholder"></div>
+                      <div className="shape-image-container">
+                        <img src={shape.image} alt={shape.name} className="shape-image" />
+                      </div>
+                      <span className="shape-name">{shape.name}</span>
                     </div>
                   ))}
                 </div>

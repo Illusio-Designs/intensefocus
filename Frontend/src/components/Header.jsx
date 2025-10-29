@@ -1,15 +1,32 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import '../styles/components/Header.css';
 
 const Header = ({ onPageChange, currentPage }) => {
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 50) {
+        setIsScrolled(true);
+      } else {
+        setIsScrolled(false);
+      }
+    };
+
+    // Initialize on mount and then listen for scroll
+    handleScroll();
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   const navItems = [
     { id: 'home', text: 'Home' },
-    { id: 'collection', text: 'Collection' },
+    { id: 'products', text: 'Shop' },
     { id: 'about', text: 'About' }
   ];
 
   return (
-    <header className="header">
+    <header className={`header ${isScrolled ? 'scrolled' : ''}`}>
       <div className="header-content">
         <nav className="nav-menu">
           {navItems.map((item) => (

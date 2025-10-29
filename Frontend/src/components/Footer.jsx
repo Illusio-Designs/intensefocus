@@ -21,7 +21,13 @@ const Footer = () => {
           <ul>
             <li><a href="#">About</a></li>
             <li><a href="#">Privacy policy</a></li>
-            <li><a href="#">FAQ</a></li>
+            <li><a href="#faq-section" onClick={(e) => {
+              e.preventDefault();
+              const faqSection = document.getElementById('faq-section');
+              if (faqSection) {
+                faqSection.scrollIntoView({ behavior: 'smooth' });
+              }
+            }}>FAQ</a></li>
           </ul>
         </div>
         <div className="footer-section">

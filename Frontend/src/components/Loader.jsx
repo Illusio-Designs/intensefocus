@@ -10,7 +10,7 @@ const Loader = ({ isLoading = true }) => {
         <div className="loader-icon">
           <div className="loader-arc loader-arc-1"></div>
           <div className="loader-arc loader-arc-2"></div>
-          <img src="/favicon.png" alt="Loading..." className="loader-image" />
+          <img src="/faviconnotbg.png" alt="Loading..." className="loader-image" />
         </div>
         <div className="loader-text">LOADING</div>
       </div>
