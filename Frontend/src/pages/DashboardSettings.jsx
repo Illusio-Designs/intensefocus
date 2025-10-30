@@ -1,12 +1,23 @@
 import React from 'react';
-import '../styles/pages/Settings.css';
+import '../styles/pages/dashboard-settings.css';
 
 const DashboardSettings = () => {
   return (
-    <div className="settings-page">
-      <div className="settings-header">
-        <h1>Settings</h1>
-        <p>Manage your account and application preferences</p>
+    <div className="dash-page">
+      <div className="dash-container">
+        <div className="dash-row header-row">
+          <h4 className="page-title">Settings</h4>
+        </div>
+        <div className="dash-row">
+          <div className="dash-card">
+            <h4>Profile</h4>
+            <div className="placeholder">Profile form</div>
+          </div>
+          <div className="dash-card">
+            <h4>Security</h4>
+            <div className="placeholder">Password/2FA</div>
+          </div>
+        </div>
       </div>
     </div>
   );

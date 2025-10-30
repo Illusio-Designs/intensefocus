@@ -38,6 +38,11 @@ const App = ({ initialPage = 'home', productId: initialProductId = null }) => {
   const getPageFromUrl = () => {
     if (typeof window !== 'undefined') {
       const path = window.location.pathname;
+      const params = new URLSearchParams(window.location.search);
+      // Keep a single dashboard route, switch content via ?tab=
+      if (path === '/dashboard') {
+        return params.get('tab') || 'dashboard';
+      }
       const page = path.slice(1);
       return page === '' ? '' : page;
     }
@@ -91,14 +96,20 @@ const App = ({ initialPage = 'home', productId: initialProductId = null }) => {
   // Update URL when page or layout changes
   const handlePageChange = (page, productId = null) => {
     if (page === currentPage && productId === currentProductId) return;
-    
-    // Update URL using Next.js router
-    let url = `/${page}`;
-    if (productId) {
-      url += `?id=${productId}`;
+    const dashboardTabs = ['dashboard', 'dashboard-products', 'orders', 'clients', 'suppliers', 'analytics', 'support', 'settings'];
+    // For dashboard tabs, keep the same /dashboard route and switch ?tab=
+    let url;
+    if (dashboardTabs.includes(page)) {
+      const params = new URLSearchParams();
+      params.set('tab', page);
+      url = `/dashboard?${params.toString()}`;
+    } else {
+      url = `/${page}`;
+      if (productId) {
+        url += `?id=${productId}`;
+      }
     }
-    
-    router.push(url);
+    router.push(url, { scroll: false });
     
     // Determine layout based on page
     const layout = getLayoutFromPage(page);
