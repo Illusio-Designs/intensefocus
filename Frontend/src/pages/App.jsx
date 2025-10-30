@@ -77,7 +77,6 @@ const App = ({ initialPage = 'home', productId: initialProductId = null }) => {
     const page = initialPage || getPageFromUrl();
     return getLayoutFromPage(page);
   });
-  const [isLoading, setIsLoading] = useState(false);
 
   // Sync with prop changes (which come from URL changes)
   useEffect(() => {
@@ -101,8 +100,6 @@ const App = ({ initialPage = 'home', productId: initialProductId = null }) => {
     
     router.push(url);
     
-    setIsLoading(true);
-
     // Determine layout based on page
     const layout = getLayoutFromPage(page);
 
@@ -111,7 +108,6 @@ const App = ({ initialPage = 'home', productId: initialProductId = null }) => {
       setCurrentPage(page);
       setCurrentProductId(productId);
       setCurrentLayout(layout);
-      setIsLoading(false);
     }, 2000);
   };
 
@@ -178,7 +174,7 @@ const App = ({ initialPage = 'home', productId: initialProductId = null }) => {
 
   return (
     <div className="app">
-      {isLoading ? <Loader isLoading={true} /> : renderLayout()}
+      {renderLayout()}
     </div>
   );
 };

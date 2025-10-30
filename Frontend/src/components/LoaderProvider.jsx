@@ -14,44 +14,19 @@ export const useLoaderContext = () => {
 };
 
 const LoaderProvider = ({ children }) => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // Show loader on initial mount
   const pathname = usePathname();
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!mounted) return;
-    
     setIsLoading(true);
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 500);
-
+    }, 2000);
     return () => clearTimeout(timer);
-  }, [pathname, mounted]);
+  }, [pathname]);
 
-  const showLoader = () => setIsLoading(true);
-  const hideLoader = () => setIsLoading(false);
-
-  const value = {
-    isLoading,
-    showLoader,
-    hideLoader,
-  };
-
-  if (!mounted) {
-    return <>{children}</>;
-  }
-
-  return (
-    <LoaderContext.Provider value={value}>
-      {!isLoading && children}
-      <Loader isLoading={isLoading} />
-    </LoaderContext.Provider>
-  );
+  // Only render loader or content
+  return isLoading ? <Loader isLoading={true} /> : <>{children}</>;
 };
 
 export default LoaderProvider;
