@@ -38,8 +38,8 @@ const App = ({ initialPage = 'home', productId: initialProductId = null }) => {
   const getPageFromUrl = () => {
     if (typeof window !== 'undefined') {
       const path = window.location.pathname;
-      const page = path.slice(1) || 'home';
-      return page === '' ? 'home' : page;
+      const page = path.slice(1);
+      return page === '' ? '' : page;
     }
     return initialPage;
   };
@@ -120,7 +120,7 @@ const App = ({ initialPage = 'home', productId: initialProductId = null }) => {
         return <Register />;
       
       // Public Pages
-      case 'home':
+      case '':
         return <Home onPageChange={handlePageChange} />;
       case 'products':
         return <Products />;
@@ -154,7 +154,7 @@ const App = ({ initialPage = 'home', productId: initialProductId = null }) => {
         return <DashboardSettings />;
       
       default:
-        return <Home />;
+        return <Home onPageChange={handlePageChange} />;
     }
   };
 

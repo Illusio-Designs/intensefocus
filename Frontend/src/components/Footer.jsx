@@ -19,15 +19,9 @@ const Footer = ({ onPageChange }) => {
         <div className="footer-section">
           <h4>Quick Links</h4>
           <ul>
-            <li><a href="/about" onClick={(e) => { e.preventDefault(); onPageChange ? onPageChange('about') : (window.location.href = '/about'); }}>About</a></li>
-            <li><a href="/privacy-policy" onClick={(e) => { e.preventDefault(); onPageChange ? onPageChange('privacy-policy') : (window.location.href = '/privacy-policy'); }}>Privacy policy</a></li>
-            <li><a href="#faq-section" onClick={(e) => {
-              e.preventDefault();
-              const faqSection = document.getElementById('faq-section');
-              if (faqSection) {
-                faqSection.scrollIntoView({ behavior: 'smooth' });
-              }
-            }}>FAQ</a></li>
+            <li><a href="/products" onClick={e => { e.preventDefault(); onPageChange ? onPageChange('products') : (window.location.href = '/products'); }}>Shop</a></li>
+            <li><a href="/about" onClick={e => { e.preventDefault(); onPageChange ? onPageChange('about') : (window.location.href = '/about'); }}>About</a></li>
+            <li><a href="/privacy-policy" onClick={e => { e.preventDefault(); onPageChange ? onPageChange('privacy-policy') : (window.location.href = '/privacy-policy'); }}>Privacy policy</a></li>
           </ul>
         </div>
         <div className="footer-section">

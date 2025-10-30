@@ -97,11 +97,11 @@ const Header = ({ onPageChange, currentPage }) => {
     authLogout();
     setLoggedIn(false);
     showLogoutSuccess();
-    onPageChange('home');
+    onPageChange('');
   };
 
   const navItems = [
-    { id: 'home', text: 'Home' },
+    { id: '', text: 'Home' },
     { id: 'products', text: 'Shop' },
     { id: 'about', text: 'About' }
   ];
@@ -113,11 +113,12 @@ const Header = ({ onPageChange, currentPage }) => {
           {navItems.map((item) => (
             <a 
               key={item.id}
-              href="#" 
+              href={item.id === '' ? '/' : `/${item.id}`}
               className={currentPage === item.id ? 'active' : ''}
-              onClick={(e) => {
+              onClick={e => {
                 e.preventDefault();
-                onPageChange(item.id);
+                if (onPageChange) onPageChange(item.id);
+                else window.location.href = item.id === '' ? '/' : `/${item.id}`;
               }}
             >
               {item.text}
@@ -125,7 +126,7 @@ const Header = ({ onPageChange, currentPage }) => {
           ))}
         </nav>
         
-        <div className="logo" onClick={() => onPageChange('home')}>
+        <div className="logo" onClick={() => onPageChange ? onPageChange('') : window.location.href = '/'}>
           <img src="/images/logo/logo.webp" alt="Stallion Eyewear" className="logo-image" />
         </div>
         
