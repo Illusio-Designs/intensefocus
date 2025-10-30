@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import '../styles/components/DashboardHeader.css';
 
 const DashboardHeader = ({ onPageChange, currentPage, isCollapsed }) => {
-  const [userName, setUserName] = useState('Riya Patel');
+  const [userName, setUserName] = useState('Admin');
   const [avatarUrl, setAvatarUrl] = useState(null);
 
   useEffect(() => {
@@ -24,7 +24,7 @@ const DashboardHeader = ({ onPageChange, currentPage, isCollapsed }) => {
   return (
     <header className={`dashboard-header ${isCollapsed ? 'collapsed' : 'expanded'}`}>
       <div className="dashboard-header-content">
-        <div className="dashboard-title">Welcome Stacy</div>
+        <div className="dashboard-title">Welcome {userName}</div>
 
         <div className="dashboard-header-actions">
           <div className="dashboard-search-bar">
@@ -35,18 +35,21 @@ const DashboardHeader = ({ onPageChange, currentPage, isCollapsed }) => {
           </div>
 
           <div className="dashboard-action-icons">
-            <button className="dashboard-icon-btn" title="Notifications">
+            <button className="dashboard-icon-btn has-tooltip" aria-label="Notifications">
               <img src="/images/icons/bell.webp" alt="Notifications" className="dashboard-icon-image" />
+              <span className="header-tooltip">Notifications</span>
             </button>
-            <button className="dashboard-icon-btn" title="Messages">
+            <button className="dashboard-icon-btn has-tooltip" aria-label="Messages">
               <img src="/images/icons/chat.webp" alt="Messages" className="dashboard-icon-image" />
+              <span className="header-tooltip">Messages</span>
             </button>
-            <button className="dashboard-avatar-btn" onClick={() => onPageChange('profile')} title="Profile">
+            <button className="dashboard-avatar-btn has-tooltip" onClick={() => onPageChange('profile')} aria-label="Profile">
               {avatarUrl ? (
                 <img src={avatarUrl} alt={userName} className="dashboard-avatar-image" />
               ) : (
                 <span className="dashboard-avatar-initials">{initials}</span>
               )}
+              <span className="header-tooltip">Profile</span>
             </button>
           </div>
         </div>

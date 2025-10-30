@@ -15,10 +15,10 @@
 .hero-background {
   position: absolute;
   top: 0;
-  left: 0;
-  width: 100%;
+  left: -3px;
   height: auto;
   z-index: 1;
+  right: -3px;
 }
 
 .hero-bg-image {
