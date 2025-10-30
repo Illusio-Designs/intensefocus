@@ -19,6 +19,7 @@ import Contact from './Contact';
 import Cart from './Cart';
 import Products from './Products';
 import ProductDetail from './ProductDetail';
+import PrivacyPolicy from './PrivacyPolicy';
 
 // Dashboard Pages
 import Dashboard from './Dashboard';
@@ -124,13 +125,15 @@ const App = ({ initialPage = 'home', productId: initialProductId = null }) => {
       
       // Public Pages
       case 'home':
-        return <Home />;
+        return <Home onPageChange={handlePageChange} />;
       case 'products':
         return <Products />;
       case 'product-detail':
         return <ProductDetail productId={currentProductId || initialProductId} />;
       case 'about':
         return <About />;
+      case 'privacy-policy':
+        return <PrivacyPolicy />;
       case 'contact':
         return <Contact />;
       case 'cart':

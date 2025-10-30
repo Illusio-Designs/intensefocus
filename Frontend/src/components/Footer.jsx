@@ -1,7 +1,7 @@
 import React from 'react';
 import '../styles/components/Footer.css';
 
-const Footer = () => {
+const Footer = ({ onPageChange }) => {
   return (
     <footer className="footer">
       <div className="footer-background">
@@ -19,8 +19,8 @@ const Footer = () => {
         <div className="footer-section">
           <h4>Quick Links</h4>
           <ul>
-            <li><a href="#">About</a></li>
-            <li><a href="#">Privacy policy</a></li>
+            <li><a href="/about" onClick={(e) => { e.preventDefault(); onPageChange ? onPageChange('about') : (window.location.href = '/about'); }}>About</a></li>
+            <li><a href="/privacy-policy" onClick={(e) => { e.preventDefault(); onPageChange ? onPageChange('privacy-policy') : (window.location.href = '/privacy-policy'); }}>Privacy policy</a></li>
             <li><a href="#faq-section" onClick={(e) => {
               e.preventDefault();
               const faqSection = document.getElementById('faq-section');

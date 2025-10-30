@@ -11,7 +11,7 @@ const PublicLayout = ({ children, onPageChange, currentPage }) => {
       <main className="main-content">
         {children}
       </main>
-      <Footer />
+      <Footer onPageChange={onPageChange} />
     </div>
   );
 };

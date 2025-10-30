@@ -19,6 +19,13 @@ const Login = ({ onPageChange }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (loginMethod === 'phone') {
+      // Validate Indian phone numbers: require exactly 10 digits (excluding country code)
+      const digitsOnly = String(phoneNumber || '').replace(/\D/g, '');
+      const nationalNumber = digitsOnly.startsWith('91') ? digitsOnly.slice(2) : digitsOnly;
+      if (nationalNumber.length !== 10) {
+        showError('Please enter a 10-digit phone number');
+        return;
+      }
       // Show OTP screen for phone login
       setShowOTP(true);
     } else {

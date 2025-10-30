@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import '../styles/pages/Home.css';
 import ProductCard from '../components/ProductCard';
 
-const Home = () => {
+const Home = ({ onPageChange }) => {
   const [activeFilter, setActiveFilter] = useState('ALL');
   const [expandedFaq, setExpandedFaq] = useState(0);
 
@@ -11,7 +11,9 @@ const Home = () => {
   };
 
   const handleViewMore = (productId) => {
-    if (typeof window !== 'undefined') {
+    if (onPageChange) {
+      onPageChange('product-detail', productId);
+    } else if (typeof window !== 'undefined') {
       window.location.href = `/product-detail?id=${productId}`;
     }
   };
@@ -91,7 +93,7 @@ const Home = () => {
       <section className="collection-section">
         <div className="collection-header">
           <h2>Our Collection</h2>
-          <button className="view-all-button" onClick={() => window.location.href = '/products'}>
+          <button className="view-all-button" onClick={() => onPageChange ? onPageChange('products') : (window.location.href = '/products')}>
             VIEW ALL
             <div className="arrow-with-star">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

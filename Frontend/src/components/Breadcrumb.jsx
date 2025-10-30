@@ -33,6 +33,10 @@ const Breadcrumb = ({ currentPage, onPageChange }) => {
         { id: 'home', text: 'Home' },
         { id: 'about', text: 'About' }
       ],
+      'privacy-policy': [
+        { id: 'home', text: 'Home' },
+        { id: 'privacy-policy', text: 'Privacy Policy' }
+      ],
       'contact': [
         { id: 'home', text: 'Home' },
         { id: 'contact', text: 'Contact' }
