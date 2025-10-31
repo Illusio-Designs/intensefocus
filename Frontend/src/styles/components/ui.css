@@ -343,6 +343,8 @@
   padding: 24px 0;
 }
 .ui-table__footer {
+  background: linear-gradient(0deg, #FFFFFF, #FFFFFF),
+linear-gradient(0deg, rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.02));
   border-top: 1px solid #E0E0E0;
   border-radius: 12px;
   padding: 10px 16px;

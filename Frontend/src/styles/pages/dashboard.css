@@ -30,6 +30,8 @@
   grid-column: span 9;
 }
 .dash-card.full {
+  padding: 0;
+  border: none;
   grid-column: 1 / -1;
 }
 

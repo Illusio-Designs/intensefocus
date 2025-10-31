@@ -56,7 +56,7 @@ const Dashboard = () => {
         </div>
 
         <div className="dash-row">
-          <div className="dash-card full">
+          <div className="dash-card" style={{gridColumn:'span 12'}}>
             <h4>Order Overview</h4>
             <div className="placeholder">Data Table</div>
           </div>
