@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react';
-import '../styles/pages/dashboard-suppliers.css';
 import TableWithControls from '../components/ui/TableWithControls';
 
 const DashboardSuppliers = () => {

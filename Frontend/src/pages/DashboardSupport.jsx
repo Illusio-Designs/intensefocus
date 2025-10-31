@@ -1,5 +1,4 @@
 import React from 'react';
-import '../styles/pages/dashboard-support.css';
 
 const DashboardSupport = () => {
   return (

@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from 'react';
-import '../styles/pages/dashboard-orders.css';
 import TableWithControls from '../components/ui/TableWithControls';
 import StatusBadge from '../components/ui/StatusBadge';
 import Button from '../components/ui/Button';

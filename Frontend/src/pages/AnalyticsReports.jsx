@@ -1,5 +1,4 @@
 import React from 'react';
-import '../styles/pages/dashboard-analytics.css';
 import SalesRevenueChart from '../components/charts/SalesRevenueChart';
 import Button from '../components/ui/Button';
 

@@ -177,7 +177,7 @@
 /* Table With Controls */
 .ui-table {
   background: #fff;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #E0E0E0;
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 2px 14px rgba(0, 0, 0, 0.04);
@@ -343,6 +343,8 @@
   padding: 24px 0;
 }
 .ui-table__footer {
+  border-top: 1px solid #E0E0E0;
+  border-radius: 12px;
   padding: 10px 16px;
   display: flex;
   align-items: center;
@@ -537,4 +539,15 @@ input[type="number"] {
 }
 .sr-legend--revenue::before {
   background: #34d399;
+}
+
+.card-full {
+  background: #fff;
+  border: 1px solid #E0E0E0;
+  border-radius: 12px;
+  padding: 0;
+  box-shadow: 0 2px 14px rgba(0,0,0,.04);
+  margin-bottom: 32px;
+  width: 100%;
+  overflow: hidden;
 }

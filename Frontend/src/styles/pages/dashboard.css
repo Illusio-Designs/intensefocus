@@ -1,23 +1,89 @@
-.dash-page { width: 100%; }
-.dash-container { display: flex; flex-direction: column; gap: 16px; }
-.dash-row { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
-.dash-row.header-row { align-items: center; grid-template-columns: 1fr auto; }
+.dash-page {
+  width: 100%;
+}
+.dash-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.dash-row {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 16px;
+}
+.dash-row.header-row {
+  align-items: center;
+  grid-template-columns: 1fr auto;
+}
 
-.dash-card { background: #ffffff; border: 1px solid #E0E0E0; border-radius: 12px; padding: 16px; grid-column: span 6; }
-.dash-card.metric { grid-column: span 3; }
-.dash-card.tall { grid-column: span 9; }
-.dash-card.full { grid-column: 1 / -1; }
+.dash-card {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 16px;
+  grid-column: span 6;
+}
+.dash-card.metric {
+  grid-column: span 3;
+}
+.dash-card.tall {
+  grid-column: span 9;
+}
+.dash-card.full {
+  grid-column: 1 / -1;
+}
 
-.dash-card h4 { font-size: 12px; color: #00000099; margin: 0 0 8px 0; }
-.metric-value { font-size: 18px; font-weight: 600; color: #000; }
-.metric-sub { font-size: 12px; color: #0ea86b; }
-.metric-sub.red { color: #e24d4d; }
+.dash-card h4 {
+  font-size: 12px;
+  color: #00000099;
+  margin: 0 0 8px 0;
+}
+.metric-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: #000;
+}
+.metric-sub {
+  font-size: 12px;
+  color: #0ea86b;
+}
+.metric-sub.red {
+  color: #e24d4d;
+}
 
-.placeholder { height: 200px; background: #f5f6f8; border: 1px dashed #dcdfe6; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #9aa1b3; }
-.btn-col { display: flex; flex-direction: column; gap: 8px; }
-.primary { background: #0d0a34; color: #fff; border: none; border-radius: 8px; padding: 10px 12px; cursor: pointer; }
-.primary:hover { background: #16124f; }
+.placeholder {
+  height: 200px;
+  background: #f5f6f8;
+  border: 1px dashed #dcdfe6;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9aa1b3;
+}
+.btn-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.primary {
+  background: #0d0a34;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+.primary:hover {
+  background: #16124f;
+}
 
-.page-title { font-size: 16px; font-weight: 600; margin: 0; }
-.row-actions { display: flex; gap: 8px; }
-
+.page-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+.row-actions {
+  display: flex;
+  gap: 8px;
+}
