@@ -1,29 +1,37 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import '../styles/pages/dashboard-suppliers.css';
+import TableWithControls from '../components/ui/TableWithControls';
 
 const DashboardSuppliers = () => {
+  const columns = useMemo(() => ([
+    { key: 'code', label: 'SUPPLIER CODE' },
+    { key: 'name', label: 'SUPPLIER NAME' },
+    { key: 'region', label: 'REGION' },
+    { key: 'contact', label: 'CONTACT' },
+  ]), []);
+
+  const rows = useMemo(() => (
+    Array.from({ length: 22 }).map((_, i) => ({
+      code: `SUP-${100 + i}`,
+      name: ['VisionCraft', 'LensCo', 'FrameWorks'][i % 3],
+      region: ['West', 'North', 'South'][i % 3],
+      contact: '+91-90000' + String(1000 + i),
+    }))
+  ), []);
+
   return (
     <div className="dash-page">
       <div className="dash-container">
-        <div className="dash-row header-row">
-          <h4 className="page-title">Suppliers</h4>
-          <div className="row-actions">
-            <button className="primary">Add Supplier</button>
-          </div>
-        </div>
-        <div className="dash-row">
-          <div className="dash-card">
-            <h4>Filters</h4>
-            <div className="filters">
-              <input className="input" placeholder="Search suppliers" />
-              <select className="input"><option>Region: All</option></select>
-            </div>
-          </div>
-        </div>
         <div className="dash-row">
           <div className="dash-card full">
-            <h4>Suppliers</h4>
-            <div className="placeholder">Table/List goes here</div>
+            <TableWithControls
+              title="Suppliers"
+              columns={columns}
+              rows={rows}
+              onAddNew={() => console.log('Add supplier')}
+              onExport={() => console.log('Export suppliers')}
+              searchPlaceholder="Search suppliers"
+            />
           </div>
         </div>
       </div>

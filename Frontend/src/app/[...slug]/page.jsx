@@ -7,8 +7,11 @@ function DynamicPageContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   
-  // Extract page from pathname - handle root path
-  const page = pathname === '/' ? 'home' : (pathname.slice(1) || 'home');
+  // Extract page from pathname and query - handle dashboard tabs via ?tab=
+  let page = pathname === '/' ? 'home' : (pathname.slice(1) || 'home');
+  if (pathname === '/dashboard') {
+    page = searchParams.get('tab') || 'dashboard';
+  }
   
   // Extract productId from query params if available
   const productId = searchParams.get('id') ? parseInt(searchParams.get('id')) : null;
