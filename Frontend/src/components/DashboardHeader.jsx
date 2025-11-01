@@ -1,11 +1,15 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import '../styles/components/DashboardHeader.css';
 import { FiMaximize, FiMinimize } from 'react-icons/fi';
+import { logout as authLogout } from '../services/authService';
+import { showLogoutSuccess } from '../services/notificationService';
 
 const DashboardHeader = ({ onPageChange, currentPage, isCollapsed }) => {
   const [userName, setUserName] = useState('Admin');
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+  const userMenuRef = useRef(null);
 
   useEffect(() => {
     try {
@@ -30,6 +34,19 @@ const DashboardHeader = ({ onPageChange, currentPage, isCollapsed }) => {
       document.removeEventListener('msfullscreenchange', handleFsChange);
     };
   }, []);
+
+  // Close user dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setIsUserDropdownOpen(false);
+      }
+    };
+    if (isUserDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isUserDropdownOpen]);
 
   const initials = useMemo(() => {
     const parts = (userName || '').trim().split(/\s+/);
@@ -83,14 +100,77 @@ const DashboardHeader = ({ onPageChange, currentPage, isCollapsed }) => {
               {isFullscreen ? <FiMinimize size={20} /> : <FiMaximize size={20} />}
               <span className="header-tooltip">{isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}</span>
             </button>
-            <button className="dashboard-avatar-btn has-tooltip" onClick={() => onPageChange('profile')} aria-label="Profile">
-              {avatarUrl ? (
-                <img src={avatarUrl} alt={userName} className="dashboard-avatar-image" />
-              ) : (
-                <span className="dashboard-avatar-initials">{initials}</span>
+            <div className="dashboard-user-menu" ref={userMenuRef} style={{ position: 'relative' }}>
+              <button
+                className="dashboard-avatar-btn has-tooltip"
+                onClick={() => setIsUserDropdownOpen((v) => !v)}
+                aria-label="User Menu"
+                title="User Menu"
+              >
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt={userName} className="dashboard-avatar-image" />
+                ) : (
+                  <span className="dashboard-avatar-initials">{initials}</span>
+                )}
+                <span className="header-tooltip">User Menu</span>
+              </button>
+              {isUserDropdownOpen && (
+                <div
+                  className="dashboard-user-dropdown"
+                  style={{
+                    position: 'absolute',
+                    right: 0,
+                    top: 'calc(100% + 8px)',
+                    minWidth: 180,
+                    background: '#fff',
+                    border: '1px solid #E0E0E0',
+                    borderRadius: 10,
+                    boxShadow: '0 2px 12px rgba(24,18,101,.07)',
+                    padding: 8,
+                    zIndex: 100,
+                  }}
+                >
+                  <button
+                    className="dropdown-item"
+                    style={{
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: '8px 10px',
+                      border: 'none',
+                      background: 'transparent',
+                      cursor: 'pointer',
+                      borderRadius: 8,
+                    }}
+                    onClick={() => {
+                      setIsUserDropdownOpen(false);
+                      onPageChange('settings');
+                    }}
+                  >
+                    Edit Profile
+                  </button>
+                  <button
+                    className="dropdown-item"
+                    style={{
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: '8px 10px',
+                      border: 'none',
+                      background: 'transparent',
+                      cursor: 'pointer',
+                      borderRadius: 8,
+                    }}
+                    onClick={() => {
+                      setIsUserDropdownOpen(false);
+                      authLogout();
+                      showLogoutSuccess();
+                      onPageChange('');
+                    }}
+                  >
+                    Log out
+                  </button>
+                </div>
               )}
-              <span className="header-tooltip">Profile</span>
-            </button>
+            </div>
           </div>
         </div>
       </div>
