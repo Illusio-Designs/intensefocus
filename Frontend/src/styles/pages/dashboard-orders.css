@@ -18,7 +18,7 @@
 }
 
 .orders-card .metric-value {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 600;
   color: #000;
   margin-bottom: 8px;
@@ -27,14 +27,19 @@
 
 .orders-card .metric-sub {
   font-size: 12px;
-  color: #0ea86b;
+  font-weight: 500;
+  color: #181265; /* neutral */
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
+.orders-card .metric-sub.green {
+  color: #077D55; /* profit */
+}
+
 .orders-card .metric-sub.red {
-  color: #e24d4d;
+  color: #D91F11; /* loss */
 }
 
 .orders-card .metric-sub svg {

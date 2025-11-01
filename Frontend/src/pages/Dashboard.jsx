@@ -9,7 +9,7 @@ const Dashboard = () => {
           <div className="dash-card metric">
             <h4>Total Sales (This Month)</h4>
             <div className="metric-value">₹12,45,000</div>
-            <div className="metric-sub">↑ 12% vs last month</div>
+            <div className="metric-sub green">↑ 12% vs last month</div>
           </div>
           <div className="dash-card metric">
             <h4>Total Orders</h4>

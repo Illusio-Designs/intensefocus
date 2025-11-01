@@ -41,16 +41,20 @@
   margin: 0 0 8px 0;
 }
 .metric-value {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
   color: #000;
 }
 .metric-sub {
   font-size: 12px;
-  color: #0ea86b;
+  font-weight: 500;
+  color: #181265; /* neutral */
+}
+.metric-sub.green {
+  color: #077D55; /* profit */
 }
 .metric-sub.red {
-  color: #e24d4d;
+  color: #D91F11; /* loss */
 }
 
 .placeholder {
