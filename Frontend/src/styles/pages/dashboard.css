@@ -29,15 +29,33 @@
 .dash-card.tall {
   grid-column: span 9;
 }
+.dash-card.side {
+  grid-column: span 3;
+}
 .dash-card.full {
   padding: 0;
   grid-column: 1 / -1;
+}
+
+/* Equalize heights for chart and quick actions */
+.dash-card.equal {
+  height: 340px;
+  display: flex;
+  flex-direction: column;
+}
+.dash-card.equal > *:last-child {
+  /* chart or content area grows */
+  flex: 1 1 auto;
 }
 
 .dash-card h4 {
   font-size: 12px;
   color: #00000099;
   margin: 0 0 8px 0;
+}
+/* Chart header spacing */
+.chart-header .chart-period-select {
+  min-width: 120px;
 }
 .metric-value {
   font-size: 20px;
@@ -69,7 +87,7 @@
 .btn-col {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 .primary {
   background: #0d0a34;
@@ -78,6 +96,15 @@
   border-radius: 8px;
   padding: 10px 12px;
   cursor: pointer;
+}
+/* Quick Action buttons centered text with Spoof Trial */
+.btn-col .ui-btn.ui-btn--primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  font-family: "Spoof Trial", sans-serif;
+  font-weight: 600;
 }
 .primary:hover {
   background: #16124f;
