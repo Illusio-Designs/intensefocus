@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import '../styles/components/DashboardHeader.css';
+import { FiMaximize, FiMinimize } from 'react-icons/fi';
 
 const DashboardHeader = ({ onPageChange, currentPage, isCollapsed }) => {
   const [userName, setUserName] = useState('Admin');
   const [avatarUrl, setAvatarUrl] = useState(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
     try {
@@ -14,12 +16,40 @@ const DashboardHeader = ({ onPageChange, currentPage, isCollapsed }) => {
     } catch (_) {}
   }, []);
 
+  useEffect(() => {
+    const handleFsChange = () => {
+      const fsEl = document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
+      setIsFullscreen(!!fsEl);
+    };
+    document.addEventListener('fullscreenchange', handleFsChange);
+    document.addEventListener('webkitfullscreenchange', handleFsChange);
+    document.addEventListener('msfullscreenchange', handleFsChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFsChange);
+      document.removeEventListener('webkitfullscreenchange', handleFsChange);
+      document.removeEventListener('msfullscreenchange', handleFsChange);
+    };
+  }, []);
+
   const initials = useMemo(() => {
     const parts = (userName || '').trim().split(/\s+/);
     const first = parts[0]?.[0] || '';
     const second = parts[1]?.[0] || '';
     return `${first}${second}`.toUpperCase();
   }, [userName]);
+
+  const toggleFullscreen = () => {
+    const doc = document;
+    const docEl = document.documentElement;
+    const fsEl = doc.fullscreenElement || doc.webkitFullscreenElement || doc.msFullscreenElement;
+    if (!fsEl) {
+      const req = docEl.requestFullscreen || docEl.webkitRequestFullscreen || docEl.msRequestFullscreen;
+      if (req) req.call(docEl);
+    } else {
+      const exit = doc.exitFullscreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
+      if (exit) exit.call(doc);
+    }
+  };
 
   return (
     <header className={`dashboard-header ${isCollapsed ? 'collapsed' : 'expanded'}`}>
@@ -39,9 +69,9 @@ const DashboardHeader = ({ onPageChange, currentPage, isCollapsed }) => {
               <img src="/images/icons/bell.webp" alt="Notifications" className="dashboard-icon-image" />
               <span className="header-tooltip">Notifications</span>
             </button>
-            <button className="dashboard-icon-btn has-tooltip" aria-label="Messages">
-              <img src="/images/icons/chat.webp" alt="Messages" className="dashboard-icon-image" />
-              <span className="header-tooltip">Messages</span>
+            <button className="dashboard-icon-btn has-tooltip" aria-label={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'} onClick={toggleFullscreen}>
+              {isFullscreen ? <FiMinimize size={20} /> : <FiMaximize size={20} />}
+              <span className="header-tooltip">{isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}</span>
             </button>
             <button className="dashboard-avatar-btn has-tooltip" onClick={() => onPageChange('profile')} aria-label="Profile">
               {avatarUrl ? (
