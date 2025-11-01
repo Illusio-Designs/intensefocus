@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo, useState, useRef } from "react";
+import React, { useMemo, useState, useRef, useEffect } from "react";
 import Button from "./Button";
 import DropdownSelector from "./DropdownSelector";
 import Pagination from "./Pagination";
@@ -14,7 +14,6 @@ export default function TableWithControls({
   onExport,
   dateRange = null,
   onDateChange,
-  searchPlaceholder = "Search…",
   rowSizeOptions = [8, 16, 24],
   selectable = true,
   addNewText = "Add New",
@@ -22,6 +21,17 @@ export default function TableWithControls({
 }) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
+
+  // Listen to global search from DashboardHeader
+  useEffect(() => {
+    const handler = (e) => {
+      const q = (e.detail?.query || "").trim();
+      setPage(1);
+      setQuery(q);
+    };
+    window.addEventListener("globalSearchChanged", handler);
+    return () => window.removeEventListener("globalSearchChanged", handler);
+  }, []);
   const [pageSize, setPageSize] = useState(rowSizeOptions[0]);
   const [visible, setVisible] = useState(
     () =>
@@ -96,33 +106,6 @@ export default function TableWithControls({
 
       <div className="ui-table__controls">
         <div className="ui-table__control-row">
-          <div className="ui-table__search">
-            <div className="ui-search">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M21 21L16.5 16.5M19 10.5C19 15.194 15.194 19 10.5 19C5.806 19 2 15.194 2 10.5C2 5.806 5.806 2 10.5 2C15.194 2 19 5.806 19 10.5Z"
-                  stroke="#000000"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              <input
-                className="ui-input"
-                placeholder={searchPlaceholder}
-                value={query}
-                onChange={(e) => {
-                  setPage(1);
-                  setQuery(e.target.value);
-                }}
-              />
-            </div>
-          </div>
-
           <div className="ui-table__right">
             {onDateChange && (
               <div className="ui-pill">
@@ -313,7 +296,7 @@ export default function TableWithControls({
      
     </div> <div className="ui-table__footer">
         <div className="ui-table__count">
-          Showing {pageRows.length} Of {filteredRows.length} {itemName}
+          Showing {pageRows.length} Of {sortedRows.length} {itemName}
         </div>
         <div className="ui-table__pager">
           <Pagination
