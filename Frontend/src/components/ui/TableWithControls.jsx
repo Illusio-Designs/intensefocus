@@ -82,6 +82,7 @@ export default function TableWithControls({
   };
 
   return (
+    <div className="ui-table-container">
     <div className="ui-table">
       <div className="ui-table__header">
         <h4 className="ui-table__title">{title}</h4>
@@ -435,7 +436,8 @@ export default function TableWithControls({
         </table>
       </div>
 
-      <div className="ui-table__footer">
+     
+    </div> <div className="ui-table__footer">
         <div className="ui-table__count">
           Showing {pageRows.length} Of {filteredRows.length} {itemName}
         </div>

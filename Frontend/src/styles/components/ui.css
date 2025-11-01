@@ -175,10 +175,13 @@
 }
 
 /* Table With Controls */
-.ui-table {
+.ui-table-container{
   background: #fff;
   border: 1px solid #E0E0E0;
   border-radius: 12px;
+}
+
+.ui-table {
   padding: 20px;
   overflow: hidden;
   box-shadow: 0 2px 14px rgba(0, 0, 0, 0.04);
@@ -365,11 +368,10 @@
   padding: 24px 0;
 }
 .ui-table__footer {
-  background: linear-gradient(0deg, #FFFFFF, #FFFFFF),
-linear-gradient(0deg, rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.02));
+  background: #00000005;
   border-top: 1px solid #E0E0E0;
   border-radius: 12px;
-  padding: 10px 16px;
+  padding: 10px 20px;
   display: flex;
   align-items: center;
   position: relative;
