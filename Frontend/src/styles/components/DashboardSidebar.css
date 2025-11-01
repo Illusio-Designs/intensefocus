@@ -38,6 +38,24 @@
 .dashboard-sidebar-nav {
   flex: 1;
   padding: 8px 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0; /* allow flex child to shrink and enable scrolling */
+}
+
+/* Optional: scrollbar styling */
+.dashboard-sidebar-nav::-webkit-scrollbar {
+  width: 0px;
+}
+.dashboard-sidebar-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+.dashboard-sidebar-nav::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+}
+.dashboard-sidebar-nav:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
 }
 
 .dashboard-sidebar-nav ul {

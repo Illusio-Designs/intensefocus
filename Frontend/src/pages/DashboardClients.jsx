@@ -24,12 +24,12 @@ const DashboardClients = () => {
         <div className="dash-row">
           <div className="dash-card full">
             <TableWithControls
-              title="Clients"
+              title="Party"
               columns={columns}
               rows={rows}
-              onAddNew={() => console.log('Add client')}
-              onExport={() => console.log('Export clients')}
-              searchPlaceholder="Search clients"
+              onAddNew={() => console.log('Add party')}
+              onExport={() => console.log('Export party')}
+              searchPlaceholder="Search party"
             />
           </div>
         </div>
