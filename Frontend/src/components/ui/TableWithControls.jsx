@@ -169,79 +169,6 @@ export default function TableWithControls({
               className="ui-select ui-pill"
             />
 
-            <div className="ui-manage-cols">
-              <details>
-                <summary className="ui-manage-cols__summary">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                    style={{ width: "20px" }}
-                  >
-                    <rect
-                      x="3"
-                      y="3"
-                      width="7"
-                      height="7"
-                      rx="1"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <rect
-                      x="14"
-                      y="3"
-                      width="7"
-                      height="7"
-                      rx="1"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <rect
-                      x="3"
-                      y="14"
-                      width="7"
-                      height="7"
-                      rx="1"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <rect
-                      x="14"
-                      y="14"
-                      width="7"
-                      height="7"
-                      rx="1"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                  <span style={{ fontFamily: "Spoof Trial" }}>
-                    Manage Columns
-                  </span>
-                </summary>
-                <div className="ui-manage-cols__menu">
-                  {columns.map((c) => (
-                    <label key={c.key} className="ui-checkbox">
-                      <input
-                        type="checkbox"
-                        checked={visible.has(c.key)}
-                        onChange={() => toggleColumn(c.key)}
-                      />
-                      <span>{c.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </details>
-            </div>
-
             {/* Filter Dropdown - appear below filter icon if open */}
             <div style={{position:'relative', display:'inline-block'}}>
               <button
@@ -278,14 +205,6 @@ export default function TableWithControls({
                 </div>
               )}
             </div>
-            {/* More menu icon, three vertical dots (Lucide/Material style) */}
-            <button className="ui-pill" title="More" style={{ borderRadius: "50%", padding: "8px 6px" }}>
-              <svg width="25" height="25" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="6" r="1.5"/>
-                <circle cx="12" cy="12" r="1.5"/>
-                <circle cx="12" cy="18" r="1.5"/>
-              </svg>
-            </button>
           </div>
         </div>
       </div>
@@ -339,51 +258,6 @@ export default function TableWithControls({
                         }}
                       >
                         <span>{c.label}</span>
-                        <span className="sort" aria-hidden>
-                          {/* Linear chevron style arrows, always visible, only solid if active */}
-                          <svg
-                            className={`sort-arrow up${active && sortDir === "asc" ? " active" : ""}`}
-                            width="18"
-                            height="18"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                          >
-                            <path
-                              d="M12 7.25V17"
-                              stroke={active && sortDir === "asc" ? "#181265" : "#000000"}
-                              strokeWidth={active && sortDir === "asc" ? 2.5 : 1.5}
-                              strokeLinecap="round"
-                            />
-                            <path
-                              d="M8.5 10.5L12 7L15.5 10.5"
-                              stroke={active && sortDir === "asc" ? "#181265" : "#000000"}
-                              strokeWidth={active && sortDir === "asc" ? 2.5 : 1.5}
-                              strokeLinecap="round"
-                              fill="none"
-                            />
-                          </svg>
-                          <svg
-                            className={`sort-arrow down${active && sortDir === "desc" ? " active" : ""}`}
-                            width="18"
-                            height="18"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                          >
-                            <path
-                              d="M12 16.75V7"
-                              stroke={active && sortDir === "desc" ? "#181265" : "#000000"}
-                              strokeWidth={active && sortDir === "desc" ? 2.5 : 1.5}
-                              strokeLinecap="round"
-                            />
-                            <path
-                              d="M8.5 14L12 17.5L15.5 14"
-                              stroke={active && sortDir === "desc" ? "#181265" : "#000000"}
-                              strokeWidth={active && sortDir === "desc" ? 2.5 : 1.5}
-                              strokeLinecap="round"
-                              fill="none"
-                            />
-                          </svg>
-                        </span>
                       </button>
                     </th>
                   );
