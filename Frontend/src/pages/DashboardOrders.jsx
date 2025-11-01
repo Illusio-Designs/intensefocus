@@ -109,12 +109,10 @@ const DashboardOrders = () => {
               title="Order Overview"
               columns={columns}
               rows={filteredRowsByTab}
-              onAddNew={() => setOpen(true)}
               onExport={() => console.log('export')}
-              searchPlaceholder="Search..."
+              exportText="Export All Orders Data"
               dateRange={dateRange}
               onDateChange={setDateRange}
-              addNewText="Add New Order"
               itemName="Order"
             />
           </div>

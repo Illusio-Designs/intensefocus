@@ -27,9 +27,10 @@ const DashboardDistributor = () => {
               title="Distributors"
               columns={columns}
               rows={rows}
-              onAddNew={() => console.log('Add distributor')}
-              onExport={() => console.log('Export distributors')}
-              searchPlaceholder="Search distributors"
+              onAddNew={() => console.log('Add New Distributor')}
+              addNewText="Add New Distributor"
+              onExport={() => console.log('Export All Distributors Data')}
+              exportText="Export All Distributors Data"
             />
           </div>
         </div>

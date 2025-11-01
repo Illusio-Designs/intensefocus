@@ -29,8 +29,9 @@ const DashboardManage = () => {
               columns={columns}
               rows={rows}
               onAddNew={() => console.log('Add manage item')}
+              addNewText="Add Item"
               onExport={() => console.log('Export manage items')}
-              searchPlaceholder="Search manage items"
+              exportText="Export All Data"
             />
           </div>
         </div>

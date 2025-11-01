@@ -17,6 +17,7 @@ export default function TableWithControls({
   rowSizeOptions = [8, 16, 24],
   selectable = true,
   addNewText = "Add New",
+  exportText = "Export All Data",
   itemName = "Item",
 }) {
   const [query, setQuery] = useState("");
@@ -98,7 +99,7 @@ export default function TableWithControls({
         <h4 className="ui-table__title">{title}</h4>
         <div className="ui-table__actions">
           <Button variant="secondary" onClick={onExport}>
-            Export All Data
+            {exportText}
           </Button>
           {onAddNew && <Button onClick={onAddNew}>{addNewText}</Button>}
         </div>

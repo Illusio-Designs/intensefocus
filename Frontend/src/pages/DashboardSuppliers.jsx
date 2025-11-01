@@ -28,7 +28,9 @@ const DashboardSuppliers = () => {
               columns={columns}
               rows={rows}
               onAddNew={() => console.log('Add salesman')}
+              addNewText="Add New Salesman"
               onExport={() => console.log('Export salesmen')}
+              exportText="Export All Salesmen Data"
               searchPlaceholder="Search salesmen"
             />
           </div>

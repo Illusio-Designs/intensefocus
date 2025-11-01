@@ -32,7 +32,9 @@ const DashboardProducts = () => {
               columns={columns}
               rows={rows}
               onAddNew={() => console.log('Add product')}
+              addNewText="Add New Product"
               onExport={() => console.log('Export products')}
+              exportText="Export All Products Data"
               searchPlaceholder="Search products"
             />
           </div>

@@ -25,18 +25,23 @@
   background: #181265;
   color: #fff;
   border-color: #181265;
+  font-size: 18px;
+  font-weight: 700;
 }
 .ui-btn--primary:hover {
-  background: #0f0a54;
+  background: #ffffff;
+  color: #181265;
 }
 .ui-btn--secondary {
+  font-size: 18px;
+  font-weight: 700;
   background: #fff;
   color: #181265;
-  border-color: #18126533;
-  box-shadow: 0 1px 0 0 #0000000f inset;
+  border: 1px solid #181265;
 }
 .ui-btn--secondary:hover {
-  border-color: #181265;
+  background: #181265;
+  color: #ffffff;
 }
 .ui-btn--ghost {
   background: transparent;
@@ -49,6 +54,9 @@
 }
 .ui-btn__icon {
   display: inline-flex;
+}
+.ui-btn__label{
+  font-family: Spoof Trial;
 }
 
 /* Inputs, Select */

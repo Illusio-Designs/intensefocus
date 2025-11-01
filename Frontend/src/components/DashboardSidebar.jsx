@@ -1,6 +1,6 @@
 import React from 'react';
 import '../styles/components/DashboardSidebar.css';
-import { FiUsers, FiSliders } from 'react-icons/fi';
+import { FiUsers, FiSliders, FiInbox } from 'react-icons/fi';
 
 const DashboardSidebar = ({ onPageChange, currentPage, isCollapsed, onToggleCollapse }) => {
   const sidebarIcons = {
@@ -18,11 +18,13 @@ const DashboardSidebar = ({ onPageChange, currentPage, isCollapsed, onToggleColl
   const reactSidebarIcons = {
     salesmen: FiUsers,
     manage: FiSliders,
+    tray: FiInbox,
   };
   const menuItems = [
     { id: 'dashboard', text: 'Dashboard' },
     { id: 'dashboard-products', text: 'Products' },
     { id: 'orders', text: 'Orders' },
+    { id: 'tray', text: 'Tray' },
     { id: 'party', text: 'Party' },
     { id: 'salesmen', text: 'Salesmen' },
     { id: 'distributor', text: 'Distributor' },

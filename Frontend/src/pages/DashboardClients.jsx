@@ -27,9 +27,10 @@ const DashboardClients = () => {
               title="Party"
               columns={columns}
               rows={rows}
-              onAddNew={() => console.log('Add party')}
-              onExport={() => console.log('Export party')}
-              searchPlaceholder="Search party"
+              onAddNew={() => console.log('Add New party')}
+              addNewText="Add New Party"
+              onExport={() => console.log('Export All Party Data')}
+              exportText="Export All Party Data"
             />
           </div>
         </div>
