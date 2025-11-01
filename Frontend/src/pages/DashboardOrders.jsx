@@ -3,9 +3,12 @@ import TableWithControls from '../components/ui/TableWithControls';
 import StatusBadge from '../components/ui/StatusBadge';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
+import '../styles/pages/dashboard-orders.css';
 
 const DashboardOrders = () => {
   const [open, setOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('All');
+  const [dateRange, setDateRange] = useState('Feb 24, 2023 - Mar 15, 2023');
 
   const columns = useMemo(() => ([
     { key: 'orderId', label: 'ORDER ID' },
@@ -18,9 +21,6 @@ const DashboardOrders = () => {
       <div style={{display:'flex',gap:10}}>
         <button className="ui-btn ui-btn--ghost ui-btn--sm" title="View">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 12C1 12 5 5 12 5C19 5 23 12 23 12C23 12 19 19 12 19C5 19 1 12 1 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2"/></svg>
-        </button>
-        <button className="ui-btn ui-btn--ghost ui-btn--sm" title="Edit">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 20H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M16.5 3.5C17.3284 2.67157 18.6716 2.67157 19.5 3.5C20.3284 4.32843 20.3284 5.67157 19.5 6.5L7 19L3 20L4 16L16.5 3.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
         </button>
         <button className="ui-btn ui-btn--ghost ui-btn--sm" title="Delete">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 6H5H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M19 6L18.132 19.142C18.0573 20.253 17.1311 21.1 16.018 21H7.982C6.86886 21.1 5.94267 20.253 5.868 19.142L5 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M8 6V4C8 3.44772 8.44772 3 9 3H15C15.5523 3 16 3.44772 16 4V6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -40,18 +40,82 @@ const DashboardOrders = () => {
     }))
   ), []);
 
+  const filteredRowsByTab = useMemo(() => {
+    if (activeTab === 'All') return rows;
+    return rows.filter(row => row.status === activeTab.toUpperCase());
+  }, [rows, activeTab]);
+
   return (
     <div className="dash-page">
       <div className="dash-container">
+        {/* Summary Cards */}
+        <div className="dash-row orders-summary">
+          <div className="dash-card metric orders-card">
+            <h4>Total Orders</h4>
+            <div className="metric-value">845 Orders</div>
+            <div className="metric-sub">Retail 620 | Bulk 225</div>
+          </div>
+          <div className="dash-card metric orders-card">
+            <h4>Pending Orders</h4>
+            <div className="metric-value">549</div>
+            <div className="metric-sub">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M18 15L12 9L6 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              12% vs last month
+            </div>
+          </div>
+          <div className="dash-card metric orders-card">
+            <h4>Completed Orders</h4>
+            <div className="metric-value">₹2,10,000</div>
+            <div className="metric-sub red">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              10% vs last month
+            </div>
+          </div>
+          <div className="dash-card metric orders-card">
+            <h4>Total Revenue</h4>
+            <div className="metric-value">₹12,45,000</div>
+            <div className="metric-sub">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M18 15L12 9L6 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              12% vs last month
+            </div>
+          </div>
+        </div>
+
+        {/* Order Status Tabs */}
+        <div className="dash-row">
+          <div className="order-tabs-container">
+            {['All', 'Pending', 'Processing', 'Hold by Trey', 'Partially Dispatch', 'Dispatch', 'Completed', 'Cancel'].map(tab => (
+              <button
+                key={tab}
+                className={`order-tab ${activeTab === tab ? 'active' : ''}`}
+                onClick={() => setActiveTab(tab)}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Order Overview Table */}
         <div className="dash-row">
           <div className="dash-card full">
             <TableWithControls
               title="Order Overview"
               columns={columns}
-              rows={rows}
+              rows={filteredRowsByTab}
               onAddNew={() => setOpen(true)}
               onExport={() => console.log('export')}
-              searchPlaceholder="Search orders"
+              searchPlaceholder="Search..."
+              dateRange={dateRange}
+              onDateChange={setDateRange}
+              addNewText="Add New Order"
+              itemName="Order"
             />
           </div>
         </div>
