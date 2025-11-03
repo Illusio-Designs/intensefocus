@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import '../styles/pages/dashboard.css';
 import SalesRevenueChart from '../components/charts/SalesRevenueChart';
+import RowActions from '../components/ui/RowActions';
+import StatusBadge from '../components/ui/StatusBadge';
 
 const Dashboard = () => {
   const [period, setPeriod] = useState('Monthly');
@@ -69,19 +71,72 @@ const Dashboard = () => {
 
         <div className="dash-row">
           <div className="dash-card">
-            <h4 style={{color: '#000000', fontSize: '16px', fontWeight: '700'}}>Top Selling Products</h4>
-            <div className="placeholder">List</div>
+            <h4 className="card-title">Top Selling Products</h4>
+            <div className="mini-list">
+              {[
+                {img:'/images/products/spac1.webp', name:'Anti-Fog Safety Goggles', units:'320 Units'},
+                {img:'/images/products/spac2.webp', name:'Anti-Fog Safety Goggles', units:'275 Units'},
+                {img:'/images/products/spac3.webp', name:'Anti-Fog Safety Goggles', units:'145 Units'},
+              ].map((p,i)=> (
+                <div key={i} className="row">
+                  <img src={p.img} alt={p.name} className="prod-icon" />
+                  <div className="name">{p.name}</div>
+                  <div className="units">{p.units}</div>
+                </div>
+              ))}
+            </div>
           </div>
           <div className="dash-card">
-            <h4 style={{color: '#000000', fontSize: '16px', fontWeight: '700'}}>Inventory Alerts</h4>
-            <div className="placeholder">Table</div>
+            <h4 className="card-title">Inventory Alerts</h4>
+            <div className="inv-list">
+              {[
+                {tag:'LOW STOCKS', type:'warn', img:'/images/products/spac1.webp', name:'Anti-Fog Safety Goggles', left:'43 Left'},
+                {tag:'OUT OF STOCKS', type:'danger', img:'/images/products/spac2.webp', name:'Anti-Fog Safety Goggles', left:'0 Left'},
+                {tag:'OUT OF STOCKS', type:'danger', img:'/images/products/spac3.webp', name:'Anti-Fog Safety Goggles', left:'0 Left'},
+              ].map((r,i)=> (
+                <div key={i} className="row">
+                  <span className={`stock-badge ${r.type}`}>{r.tag}</span>
+                  <img src={r.img} alt={r.name} className="prod-icon" />
+                  <div className="name">{r.name}</div>
+                  <div className="units">{r.left}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
         <div className="dash-row">
           <div className="dash-card" style={{gridColumn:'span 12'}}>
             <h4 style={{color: '#000000', fontSize: '16px', fontWeight: '700'}}>Order Overview</h4>
-            <div className="placeholder">Data Table</div>
+            <div className="ui-table__scroll">
+              <table style={{width:'100%', borderCollapse:'separate', borderSpacing:0}}>
+                <thead>
+                  <tr>
+                    {['ORDER ID','CLIENT NAME','PRODUCT','QTY','STATUS','VALUE','ACTION'].map((h)=> (
+                      <th key={h} style={{textAlign:'left', padding:'14px 0', fontSize:12, color:'#000', borderBottom:'1px solid #E0E0E0'}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    {id:'#250985', client:'XYZ Optical', product:'Italian Glasses', qty:200, status:'PROCESSING', value:'₹85,000'},
+                    {id:'#250985', client:'ABC Pharma', product:'Safety Goggles', qty:500, status:'PENDING', value:'₹1,50,000'},
+                  ].map((r,i)=> (
+                    <tr key={i}>
+                      <td style={{padding:'14px 0'}}>{r.id}</td>
+                      <td style={{padding:'14px 0'}}>{r.client}</td>
+                      <td style={{padding:'14px 0', color:'#6b7280'}}>{r.product}</td>
+                      <td style={{padding:'14px 0'}}>{r.qty}</td>
+                      <td style={{padding:'14px 0'}}><StatusBadge status={r.status.toLowerCase()}>{r.status}</StatusBadge></td>
+                      <td style={{padding:'14px 0'}}>{r.value}</td>
+                      <td style={{padding:'14px 0'}}>
+                        <RowActions onView={()=>console.log('view', r)} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>

@@ -53,6 +53,60 @@
   color: #00000099;
   margin: 0 0 8px 0;
 }
+.card-title {
+  color: #000000;
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+/* Mini list blocks */
+.mini-list .row,
+.inv-list .row {
+  display: grid;
+  grid-template-columns: 70px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+.inv-list .row {
+  grid-template-columns: auto 70px 1fr auto;
+}
+.mini-list .row:last-child,
+.inv-list .row:last-child {
+  border-bottom: none;
+}
+.prod-icon {
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  display: block;
+}
+.mini-list .name,
+.inv-list .name {
+  color: #111827;
+  font-weight: 500;
+}
+.mini-list .units,
+.inv-list .units {
+  color: #6b7280;
+  font-size: 12px;
+}
+.stock-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.stock-badge.warn {
+  background: #f5c518;
+  color: #000;
+}
+.stock-badge.danger {
+  background: #e24d4d;
+  color: #fff;
+}
 /* Chart header spacing */
 .chart-header .chart-period-select {
   min-width: 120px;
@@ -68,10 +122,10 @@
   color: #181265; /* neutral */
 }
 .metric-sub.green {
-  color: #077D55; /* profit */
+  color: #077d55; /* profit */
 }
 .metric-sub.red {
-  color: #D91F11; /* loss */
+  color: #d91f11; /* loss */
 }
 
 .placeholder {
