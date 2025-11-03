@@ -7,6 +7,7 @@ import '../styles/pages/dashboard-orders.css';
 
 const DashboardOrders = () => {
   const [open, setOpen] = useState(false);
+  const [editRow, setEditRow] = useState(null);
   const [activeTab, setActiveTab] = useState('All');
   const [dateRange, setDateRange] = useState('Feb 24, 2023 - Mar 15, 2023');
 
@@ -17,10 +18,13 @@ const DashboardOrders = () => {
     { key: 'qty', label: 'QTY' },
     { key: 'status', label: 'STATUS', render: (v) => <StatusBadge status={String(v).toLowerCase()}>{v}</StatusBadge> },
     { key: 'value', label: 'VALUE' },
-    { key: 'action', label: 'ACTION', render: () => (
+    { key: 'action', label: 'ACTION', render: (_v, row) => (
       <div style={{display:'flex',gap:10}}>
         <button className="ui-btn ui-btn--ghost ui-btn--sm" title="View">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 12C1 12 5 5 12 5C19 5 23 12 23 12C23 12 19 19 12 19C5 19 1 12 1 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2"/></svg>
+        </button>
+        <button className="ui-btn ui-btn--ghost ui-btn--sm" title="Edit" onClick={() => setEditRow(row)}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 20h9" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
         </button>
         <button className="ui-btn ui-btn--ghost ui-btn--sm" title="Delete">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 6H5H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M19 6L18.132 19.142C18.0573 20.253 17.1311 21.1 16.018 21H7.982C6.86886 21.1 5.94267 20.253 5.868 19.142L5 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M8 6V4C8 3.44772 8.44772 3 9 3H15C15.5523 3 16 3.44772 16 4V6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -110,6 +114,8 @@ const DashboardOrders = () => {
               columns={columns}
               rows={filteredRowsByTab}
               onExport={() => console.log('export')}
+              onAddNew={() => setOpen(true)}
+              addNewText="Add New Order"
               exportText="Export All Orders Data"
               dateRange={dateRange}
               onDateChange={setDateRange}
@@ -125,22 +131,51 @@ const DashboardOrders = () => {
           <Button onClick={() => setOpen(false)}>Save</Button>
         </>
       )}>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-          <div>
-            <label>Client</label>
+        <div className="ui-form">
+          <div className="form-group">
+            <label className="ui-label">Client</label>
             <input className="ui-input" placeholder="Client name" />
           </div>
-          <div>
-            <label>Product</label>
+          <div className="form-group">
+            <label className="ui-label">Product</label>
             <input className="ui-input" placeholder="Product" />
           </div>
-          <div>
-            <label>Quantity</label>
+          <div className="form-group">
+            <label className="ui-label">Quantity</label>
             <input type="number" className="ui-input" defaultValue={200} />
           </div>
-          <div>
-            <label>Status</label>
+          <div className="form-group">
+            <label className="ui-label">Status</label>
             <select className="ui-select" defaultValue="PENDING">
+              <option>PENDING</option>
+              <option>PROCESSING</option>
+              <option>COMPLETED</option>
+            </select>
+          </div>
+        </div>
+      </Modal>
+      <Modal open={!!editRow} onClose={() => setEditRow(null)} title="Edit Order" footer={(
+        <>
+          <Button variant="secondary" onClick={() => setEditRow(null)}>Cancel</Button>
+          <Button onClick={() => setEditRow(null)}>Update</Button>
+        </>
+      )}>
+        <div className="ui-form">
+          <div className="form-group">
+            <label className="ui-label">Client</label>
+            <input className="ui-input" defaultValue={editRow?.client} />
+          </div>
+          <div className="form-group">
+            <label className="ui-label">Product</label>
+            <input className="ui-input" defaultValue={editRow?.product} />
+          </div>
+          <div className="form-group">
+            <label className="ui-label">Quantity</label>
+            <input type="number" className="ui-input" defaultValue={editRow?.qty} />
+          </div>
+          <div className="form-group">
+            <label className="ui-label">Status</label>
+            <select className="ui-select" defaultValue={editRow?.status}>
               <option>PENDING</option>
               <option>PROCESSING</option>
               <option>COMPLETED</option>

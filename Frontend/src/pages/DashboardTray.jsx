@@ -1,9 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import TableWithControls from '../components/ui/TableWithControls';
+import Modal from '../components/ui/Modal';
 import '../styles/pages/dashboard.css';
 
 const DashboardTray = () => {
   const [dateRange, setDateRange] = useState('Feb 25, 2025 - Mar 25, 2025');
+  const [openAdd, setOpenAdd] = useState(false);
+  const [editRow, setEditRow] = useState(null);
 
   const columns = useMemo(() => ([
     { key: 'trayId', label: 'TRAY ID' },
@@ -11,6 +14,9 @@ const DashboardTray = () => {
     { key: 'items', label: 'ITEMS' },
     { key: 'assignedTo', label: 'ASSIGNED TO' },
     { key: 'status', label: 'STATUS' },
+    { key: 'action', label: 'ACTION', render: (_v, row) => (
+      <button className="ui-btn ui-btn--ghost ui-btn--sm" onClick={() => setEditRow(row)}>Edit</button>
+    ) },
   ]), []);
 
   const rows = useMemo(() => (
@@ -32,7 +38,7 @@ const DashboardTray = () => {
               title="Tray Management"
               columns={columns}
               rows={rows}
-              onAddNew={() => console.log('Add tray')}
+              onAddNew={() => setOpenAdd(true)}
               addNewText="Add New Tray"
               onExport={() => console.log('Export trays')}
               exportText="Export All Trays Data"
@@ -43,6 +49,74 @@ const DashboardTray = () => {
           </div>
         </div>
       </div>
+      <Modal
+        open={openAdd}
+        onClose={() => setOpenAdd(false)}
+        title="Add New Tray"
+        footer={(
+          <>
+            <button className="ui-btn ui-btn--secondary" onClick={() => setOpenAdd(false)}>Cancel</button>
+            <button className="ui-btn ui-btn--primary" onClick={() => setOpenAdd(false)}>Save</button>
+          </>
+        )}
+      >
+        <div className="ui-form">
+          <div className="form-group">
+            <label className="ui-label">Title</label>
+            <input className="ui-input" placeholder="Tray title" />
+          </div>
+          <div className="form-group">
+            <label className="ui-label">Assigned To</label>
+            <input className="ui-input" placeholder="Team" />
+          </div>
+          <div className="form-group">
+            <label className="ui-label">Items</label>
+            <input className="ui-input" placeholder="0" />
+          </div>
+          <div className="form-group">
+            <label className="ui-label">Status</label>
+            <select className="ui-select" defaultValue="OPEN">
+              <option>OPEN</option>
+              <option>IN-PROGRESS</option>
+              <option>CLOSED</option>
+            </select>
+          </div>
+        </div>
+      </Modal>
+      <Modal
+        open={!!editRow}
+        onClose={() => setEditRow(null)}
+        title="Edit Tray"
+        footer={(
+          <>
+            <button className="ui-btn ui-btn--secondary" onClick={() => setEditRow(null)}>Cancel</button>
+            <button className="ui-btn ui-btn--primary" onClick={() => setEditRow(null)}>Update</button>
+          </>
+        )}
+      >
+        <div className="ui-form">
+          <div className="form-group">
+            <label className="ui-label">Title</label>
+            <input className="ui-input" defaultValue={editRow?.title} />
+          </div>
+          <div className="form-group">
+            <label className="ui-label">Assigned To</label>
+            <input className="ui-input" defaultValue={editRow?.assignedTo} />
+          </div>
+          <div className="form-group">
+            <label className="ui-label">Items</label>
+            <input className="ui-input" defaultValue={editRow?.items} />
+          </div>
+          <div className="form-group">
+            <label className="ui-label">Status</label>
+            <select className="ui-select" defaultValue={editRow?.status}>
+              <option>OPEN</option>
+              <option>IN-PROGRESS</option>
+              <option>CLOSED</option>
+            </select>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

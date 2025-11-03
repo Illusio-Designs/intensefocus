@@ -2,17 +2,23 @@ import React, { useMemo, useState } from "react";
 import "../styles/pages/dashboard-analytics.css";
 import Button from "../components/ui/Button";
 import TableWithControls from "../components/ui/TableWithControls";
+import Modal from "../components/ui/Modal";
 
 const AnalyticsReports = () => {
   const [dateRange, setDateRange] = useState("Feb 25, 2025 - Mar 25, 2025");
 
   // Columns similar to other pages (serial id, client, type of checking, reason)
+  const [editRow, setEditRow] = useState(null);
+  const [openAdd, setOpenAdd] = useState(false);
   const columns = useMemo(
     () => [
       { key: "serial", label: "SERIAL ID" },
       { key: "client", label: "CLIENT NAME" },
       { key: "type", label: "TYPE OF CHECKING" },
       { key: "reason", label: "REASON" },
+      { key: 'action', label: 'ACTION', render: (_v, row) => (
+        <button className="ui-btn ui-btn--ghost ui-btn--sm" onClick={() => setEditRow(row)}>Edit</button>
+      ) },
     ],
     []
   );
@@ -61,7 +67,7 @@ const AnalyticsReports = () => {
                   title="Today's Visit"
                   columns={columns}
                   rows={rows}
-                  onAddNew={() => console.log('Add New Visit')}
+                  onAddNew={() => setOpenAdd(true)}
                   addNewText="Add New Visit"
                   onExport={() => console.log('Export All Data')}
                   exportText="Export All Data"
@@ -69,6 +75,58 @@ const AnalyticsReports = () => {
               </div>
             </div>
           </div>
+          <Modal
+            open={openAdd}
+            onClose={() => setOpenAdd(false)}
+            title="Add New Visit"
+            footer={(
+              <>
+                <button className="ui-btn ui-btn--secondary" onClick={() => setOpenAdd(false)}>Cancel</button>
+                <button className="ui-btn ui-btn--primary" onClick={() => setOpenAdd(false)}>Save</button>
+              </>
+            )}
+          >
+            <div className="ui-form">
+              <div className="form-group">
+                <label className="ui-label">Client</label>
+                <input className="ui-input" placeholder="Client name" />
+              </div>
+              <div className="form-group">
+                <label className="ui-label">Type of Checking</label>
+                <input className="ui-input" placeholder="Order / Visit" />
+              </div>
+              <div className="form-group form-group--full">
+                <label className="ui-label">Reason</label>
+                <input className="ui-input" placeholder="Reason" />
+              </div>
+            </div>
+          </Modal>
+          <Modal
+            open={!!editRow}
+            onClose={() => setEditRow(null)}
+            title="Edit Visit"
+            footer={(
+              <>
+                <button className="ui-btn ui-btn--secondary" onClick={() => setEditRow(null)}>Cancel</button>
+                <button className="ui-btn ui-btn--primary" onClick={() => setEditRow(null)}>Update</button>
+              </>
+            )}
+          >
+            <div className="ui-form">
+              <div className="form-group">
+                <label className="ui-label">Client</label>
+                <input className="ui-input" defaultValue={editRow?.client} />
+              </div>
+              <div className="form-group">
+                <label className="ui-label">Type of Checking</label>
+                <input className="ui-input" defaultValue={editRow?.type} />
+              </div>
+              <div className="form-group form-group--full">
+                <label className="ui-label">Reason</label>
+                <input className="ui-input" defaultValue={editRow?.reason} />
+              </div>
+            </div>
+          </Modal>
         </div>
       </div>
     </div>

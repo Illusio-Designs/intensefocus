@@ -15,7 +15,6 @@ import Register from './Register';
 // Public Pages
 import Home from './Home';
 import About from './About';
-import Contact from './Contact';
 import Cart from './Cart';
 import Products from './Products';
 import ProductDetail from './ProductDetail';
@@ -144,8 +143,6 @@ const App = ({ initialPage = 'home', productId: initialProductId = null }) => {
         return <About />;
       case 'privacy-policy':
         return <PrivacyPolicy />;
-      case 'contact':
-        return <Contact />;
       case 'cart':
         return <Cart onPageChange={handlePageChange} />;
       

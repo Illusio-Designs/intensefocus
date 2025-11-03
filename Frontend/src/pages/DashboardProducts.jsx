@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import '../styles/pages/dashboard-products.css';
 import '../styles/pages/dashboard-orders.css';
 import TableWithControls from '../components/ui/TableWithControls';
+import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
 
 const DashboardProducts = () => {
@@ -12,6 +13,9 @@ const DashboardProducts = () => {
     { key: 'brand', label: 'BRAND' },
     { key: 'stock', label: 'STOCK' },
     { key: 'price', label: 'PRICE' },
+    { key: 'action', label: 'ACTION', render: (_, row) => (
+      <button className="ui-btn ui-btn--ghost ui-btn--sm" onClick={() => setEditRow(row)}>Edit</button>
+    ) },
   ]), []);
 
   const rows = useMemo(() => (
@@ -24,6 +28,8 @@ const DashboardProducts = () => {
       hasUploadedMedia: i % 3 !== 0, // Alternate between uploaded and unuploaded
     }))
   ), []);
+  const [openAdd, setOpenAdd] = useState(false);
+  const [editRow, setEditRow] = useState(null);
 
   const filteredRowsByTab = useMemo(() => {
     if (activeTab === 'All') return rows;
@@ -54,7 +60,7 @@ const DashboardProducts = () => {
               title="Products"
               columns={columns}
               rows={filteredRowsByTab}
-              onAddNew={() => console.log('Add product')}
+              onAddNew={() => setOpenAdd(true)}
               addNewText="Add New Product"
               onExport={() => console.log('Export products')}
               exportText="Export All Products Data"
@@ -63,6 +69,66 @@ const DashboardProducts = () => {
           </div>
         </div>
       </div>
+      <Modal
+        open={openAdd}
+        onClose={() => setOpenAdd(false)}
+        title="Add New Product"
+        footer={(
+          <>
+            <button className="ui-btn ui-btn--secondary" onClick={() => setOpenAdd(false)}>Cancel</button>
+            <button className="ui-btn ui-btn--primary" onClick={() => setOpenAdd(false)}>Save</button>
+          </>
+        )}
+      >
+        <div className="ui-form">
+          <div className="form-group">
+            <label className="ui-label">Product Name</label>
+            <input className="ui-input" placeholder="Name" />
+          </div>
+          <div className="form-group">
+            <label className="ui-label">Brand</label>
+            <input className="ui-input" placeholder="Brand" />
+          </div>
+          <div className="form-group">
+            <label className="ui-label">Price</label>
+            <input className="ui-input" placeholder="₹0" />
+          </div>
+          <div className="form-group">
+            <label className="ui-label">Stock</label>
+            <input className="ui-input" placeholder="0" />
+          </div>
+        </div>
+      </Modal>
+      <Modal
+        open={!!editRow}
+        onClose={() => setEditRow(null)}
+        title="Edit Product"
+        footer={(
+          <>
+            <button className="ui-btn ui-btn--secondary" onClick={() => setEditRow(null)}>Cancel</button>
+            <button className="ui-btn ui-btn--primary" onClick={() => setEditRow(null)}>Update</button>
+          </>
+        )}
+      >
+        <div className="ui-form">
+          <div className="form-group">
+            <label className="ui-label">Product Name</label>
+            <input className="ui-input" defaultValue={editRow?.name} />
+          </div>
+          <div className="form-group">
+            <label className="ui-label">Brand</label>
+            <input className="ui-input" defaultValue={editRow?.brand} />
+          </div>
+          <div className="form-group">
+            <label className="ui-label">Price</label>
+            <input className="ui-input" defaultValue={editRow?.price} />
+          </div>
+          <div className="form-group">
+            <label className="ui-label">Stock</label>
+            <input className="ui-input" defaultValue={editRow?.stock} />
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
