@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import TableWithControls from '../components/ui/TableWithControls';
 import Modal from '../components/ui/Modal';
+import RowActions from '../components/ui/RowActions';
 
 const DashboardClients = () => {
   const [openAdd, setOpenAdd] = useState(false);
@@ -11,7 +12,7 @@ const DashboardClients = () => {
     { key: 'type', label: 'TYPE' },
     { key: 'city', label: 'CITY' },
     { key: 'action', label: 'ACTION', render: (_v, row) => (
-      <button className="ui-btn ui-btn--ghost ui-btn--sm" onClick={() => setEditRow(row)}>Edit</button>
+      <RowActions onView={() => console.log('view party', row)} onEdit={() => setEditRow(row)} onDelete={() => console.log('delete party', row)} />
     ) },
   ]), []);
 

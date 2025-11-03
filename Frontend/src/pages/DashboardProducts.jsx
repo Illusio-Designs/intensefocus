@@ -4,6 +4,7 @@ import '../styles/pages/dashboard-orders.css';
 import TableWithControls from '../components/ui/TableWithControls';
 import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
+import RowActions from '../components/ui/RowActions';
 
 const DashboardProducts = () => {
   const [activeTab, setActiveTab] = useState('All');
@@ -13,8 +14,8 @@ const DashboardProducts = () => {
     { key: 'brand', label: 'BRAND' },
     { key: 'stock', label: 'STOCK' },
     { key: 'price', label: 'PRICE' },
-    { key: 'action', label: 'ACTION', render: (_, row) => (
-      <button className="ui-btn ui-btn--ghost ui-btn--sm" onClick={() => setEditRow(row)}>Edit</button>
+    { key: 'action', label: 'ACTION', render: (_v, row) => (
+      <RowActions onView={() => console.log('view product', row)} onEdit={() => setEditRow(row)} onDelete={() => console.log('delete product', row)} />
     ) },
   ]), []);
 

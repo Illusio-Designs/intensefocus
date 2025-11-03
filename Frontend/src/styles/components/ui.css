@@ -45,6 +45,9 @@
 }
 .ui-btn--ghost {
   background: transparent;
+  color: #000000;
+}
+.ui-btn--ghost:hover{
   color: #181265;
 }
 .ui-btn--danger {
@@ -76,6 +79,39 @@
 }
 .ui-input--date {
   min-width: 220px;
+}
+
+/* Tooltips (sidebar-like) */
+.has-tt { position: relative; }
+.has-tt .ui-tt {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%) translateY(4px);
+  background: #0d0a34;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.18);
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s ease, transform .15s ease;
+}
+.has-tt:hover .ui-tt {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.has-tt .ui-tt::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  transform: translateX(-50%);
+  border-style: solid;
+  border-width: 6px;
+  border-color: #0d0a34 transparent transparent transparent;
 }
 
 /* Badges */

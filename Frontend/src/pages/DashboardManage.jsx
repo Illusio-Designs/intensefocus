@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import TableWithControls from '../components/ui/TableWithControls';
 import Modal from '../components/ui/Modal';
+import RowActions from '../components/ui/RowActions';
 import '../styles/pages/dashboard-orders.css';
 
 const DashboardManage = () => {
@@ -11,8 +12,8 @@ const DashboardManage = () => {
     { key: 'type', label: 'TYPE' },
     { key: 'name', label: 'NAME' },
     { key: 'details', label: 'DETAILS' },
-    { key: 'action', label: 'ACTION', render: (_, row) => (
-      <button className="ui-btn ui-btn--ghost ui-btn--sm" onClick={() => setEditRow(row)}>Edit</button>
+    { key: 'action', label: 'ACTION', render: (_v, row) => (
+      <RowActions onEdit={() => setEditRow(row)} onDownload={() => console.log('download item', row)} onDelete={() => console.log('delete item', row)} />
     ) },
   ]), []);
 

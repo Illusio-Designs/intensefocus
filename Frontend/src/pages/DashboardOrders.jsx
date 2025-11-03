@@ -3,6 +3,7 @@ import TableWithControls from '../components/ui/TableWithControls';
 import StatusBadge from '../components/ui/StatusBadge';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
+import RowActions from '../components/ui/RowActions';
 import '../styles/pages/dashboard-orders.css';
 
 const DashboardOrders = () => {
@@ -19,17 +20,7 @@ const DashboardOrders = () => {
     { key: 'status', label: 'STATUS', render: (v) => <StatusBadge status={String(v).toLowerCase()}>{v}</StatusBadge> },
     { key: 'value', label: 'VALUE' },
     { key: 'action', label: 'ACTION', render: (_v, row) => (
-      <div style={{display:'flex',gap:10}}>
-        <button className="ui-btn ui-btn--ghost ui-btn--sm" title="View">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 12C1 12 5 5 12 5C19 5 23 12 23 12C23 12 19 19 12 19C5 19 1 12 1 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2"/></svg>
-        </button>
-        <button className="ui-btn ui-btn--ghost ui-btn--sm" title="Edit" onClick={() => setEditRow(row)}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 20h9" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-        </button>
-        <button className="ui-btn ui-btn--ghost ui-btn--sm" title="Delete">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 6H5H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M19 6L18.132 19.142C18.0573 20.253 17.1311 21.1 16.018 21H7.982C6.86886 21.1 5.94267 20.253 5.868 19.142L5 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M8 6V4C8 3.44772 8.44772 3 9 3H15C15.5523 3 16 3.44772 16 4V6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-        </button>
-      </div>
+      <RowActions onView={() => console.log('view', row)} onEdit={() => setEditRow(row)} onDownload={() => console.log('download', row)} onDelete={() => console.log('delete', row)} />
     ) },
   ]), []);
 

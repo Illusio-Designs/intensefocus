@@ -3,6 +3,7 @@ import "../styles/pages/dashboard-analytics.css";
 import Button from "../components/ui/Button";
 import TableWithControls from "../components/ui/TableWithControls";
 import Modal from "../components/ui/Modal";
+import RowActions from "../components/ui/RowActions";
 
 const AnalyticsReports = () => {
   const [dateRange, setDateRange] = useState("Feb 25, 2025 - Mar 25, 2025");
@@ -17,7 +18,7 @@ const AnalyticsReports = () => {
       { key: "type", label: "TYPE OF CHECKING" },
       { key: "reason", label: "REASON" },
       { key: 'action', label: 'ACTION', render: (_v, row) => (
-        <button className="ui-btn ui-btn--ghost ui-btn--sm" onClick={() => setEditRow(row)}>Edit</button>
+        <RowActions onView={() => console.log('view visit', row)} onEdit={() => setEditRow(row)} onDelete={() => console.log('delete visit', row)} />
       ) },
     ],
     []
