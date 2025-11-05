@@ -15,6 +15,7 @@
 .hero-background {
   position: absolute;
   top: 0;
+  bottom: 0;
   left: -3px;
   height: auto;
   z-index: 1;
@@ -25,6 +26,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
 }
 
 .hero-left-image {
@@ -51,7 +53,9 @@
   text-align: center;
   color: white;
   max-width: 900px;
+  width: 100%;
   padding: 80px 20px;
+  box-sizing: border-box;
 }
 
 .hero-content h1 {
@@ -100,6 +104,7 @@
 .banner-slider {
   overflow: hidden;
   position: relative;
+  background: #0d0a34;
 }
 
 .banner-slider::before {
@@ -152,7 +157,6 @@
     transform: translateX(calc(-200px * 5)); /* Move by half the track width */
   }
 }
-
 
 .features-section {
   padding: 60px 20px;
@@ -254,7 +258,8 @@
 /* Collection Filters */
 .collection-filters {
   display: flex;
-  gap: 40px;
+  flex-wrap: wrap;
+  gap: 0px 35px;
   max-width: 1400px;
   margin: 0 auto 50px;
   overflow-x: auto;
@@ -308,7 +313,7 @@
 /* Products Grid */
 .products-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 30px;
   max-width: 1400px;
   margin: 0 auto;
@@ -331,7 +336,7 @@
 
 .product-image {
   width: 100%;
-  height: 250px;
+  height: 200px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -456,7 +461,12 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(304.14deg, #0D0A34 21.59%, rgba(13, 10, 52, 0.4) 72.31%, #0D0A34 89.86%);
+  background: linear-gradient(
+    304.14deg,
+    #0d0a34 21.59%,
+    rgba(13, 10, 52, 0.4) 72.31%,
+    #0d0a34 89.86%
+  );
   opacity: 1;
   z-index: 1;
 }
@@ -523,8 +533,8 @@
 }
 
 .b2b-advantage-container {
-  background: #140F51;
-  border: 1px solid #FFFFFF1A;
+  background: #140f51;
+  border: 1px solid #ffffff1a;
   border-radius: 12px;
   padding: 40px;
   display: grid;
@@ -547,19 +557,31 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(0deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.16)),
-              linear-gradient(316.82deg, rgba(255, 255, 255, 0.46) 0%, rgba(255, 255, 255, 0) 50%);
+  background: linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.16),
+      rgba(255, 255, 255, 0.16)
+    ),
+    linear-gradient(
+      316.82deg,
+      rgba(255, 255, 255, 0.46) 0%,
+      rgba(255, 255, 255, 0) 50%
+    );
   border-radius: 50%;
   position: relative;
 }
 
 .b2b-icon::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   border-radius: 50%;
   padding: 1px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, rgba(153, 153, 153, 0.7) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.7) 0%,
+    rgba(153, 153, 153, 0.7) 100%
+  );
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
@@ -583,7 +605,7 @@
 
 /* FAQ Section Styles */
 .faq-section {
-  background: #0D0A34;
+  background: #0d0a34;
   padding: 0 6% 100px 6%;
 }
 
@@ -675,3 +697,225 @@
   }
 }
 
+/* Responsive hero adjustments */
+@media (max-width: 1024px) {
+  .hero-content {
+    padding: 120px 20px 60px;
+    max-width: 760px;
+  }
+  .hero-background {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -30%;
+    height: auto;
+    z-index: 1;
+    right: -3px;
+  }
+  .hero-content h1 {
+    font-size: 2.6rem;
+  }
+  .hero-side-image {
+    width: 160px;
+    left: -16px;
+  }
+  .slider-image {
+    width: 260px;
+    height: 300px;
+  }
+  .cta-button-border {
+    margin-left: -21.3%;
+  }
+  .about-image img {
+    width: 85%;
+  }
+  .b2b-advantage-container {
+    padding: 20px;
+  }
+  .b2b-advantage-card h3 {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .hero-content {
+    max-width: 500px;
+  }
+  .hero-content h1 {
+    font-size: 1.95rem;
+    line-height: 1.2;
+    margin-bottom: 12px;
+  }
+  .hero-content p {
+    font-size: 1rem;
+    margin-bottom: 16px;
+    max-width: 680px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .hero-background {
+    left: -58%;
+}
+  .cta-button {
+    font-size: 1rem;
+  }
+  .cta-button-border {
+    padding: 22px 72px;
+    margin-left: -30.3%;
+  }
+  .slider-image {
+    width: 220px;
+    height: 260px;
+  }
+  .b2b-advantage-container {
+    gap: 20px;
+  }
+  .b2b-icon {
+    width: 60px;
+    height: 60px;
+  }
+  .b2b-icon img {
+    width: 30px;
+    height: 30px;
+  }
+  .b2b-advantage-card h3 {
+    font-size: 18px;
+  }
+  .b2b-advantage-title, .faq-title, .collection-header h2,.products-header h2 {
+    font-size: 2rem;
+}
+.about-image {
+  width: 200%;
+}
+.about-image img {
+  width: 100%;
+}
+.about-content {
+  margin-left: -90%;
+  padding: 0 40px 0 0;
+}
+
+.about-goggles-icon {
+  display: none;
+}
+}
+
+@media (max-width: 426px) {
+  .hero-content h1 {
+    font-size: 1.6rem;
+    line-height: 1.15;
+  }
+  .hero-content p {
+    font-size: 0.95rem;
+  }
+  .hero-background {
+    left: -155%;
+}
+.hero-left-image {
+  top: 55%;
+}
+.cta-button-border {
+  margin-left: -36.3%;
+}
+.hero-side-image {
+  width: 140px;
+}
+  .products-grid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+}
+.product-name {
+  font-size: 15px;
+}
+.color-swatch {
+  width: 25px;
+  height: 25px;
+}
+.view-more-button {
+  padding: 13px 20px;
+  font-size: 12px;
+}
+.about-content h2 {
+  font-size: 1.5rem;
+}
+.about-content p {
+  font-size: 16px;
+  line-height: 1.5;
+}
+.b2b-advantage-container{
+  grid-template-columns: repeat(1, 1fr);
+}
+
+.faq-question-content {
+  gap: 10px;
+}
+.faq-title {
+  margin-bottom: 0px;
+}
+.faq-toggle {
+  width: 35px;
+  height: 35px;
+  font-size: 20px;
+}
+.faq-question h3 {
+  font-size: 18px;
+}
+.faq-answer p {
+  font-size: 16px;
+}
+}
+
+@media (max-width: 384px) {
+  .hero-background {
+    left: -195%;
+}
+.cta-button-border {
+  margin-left: -40.3%;
+}
+  .hero-content h1 {
+    font-size: 1.45rem;
+  }
+  .product-image {
+    height: 80px !important;
+}
+  .product-name {
+    font-size: 14px;
+}
+.view-more-button {
+  padding: 13px 0px;
+  font-size: 11px;
+}
+.b2b-advantage-title, .faq-title, .collection-header h2, .products-header h2 {
+  font-size: 1.5rem;
+}
+.view-all-button {
+  gap: 10px;
+  padding: 0;
+}
+.arrow-with-star {
+  width: 35px;
+  height: 35px;
+}
+.collection-filters {
+  gap: 0px 20px;
+}
+}
+
+@media (max-width: 376px) {
+  .product-name {
+    font-size: 13px;
+}
+}
+
+@media (max-width: 320px) {
+  .hero-content h1 {
+    font-size: 1.25rem;
+  }
+  .hero-content p {
+    font-size: 0.9rem;
+  }
+  .slider-image {
+    width: 160px;
+    height: 180px;
+  }
+}

@@ -224,23 +224,44 @@ const ProductDetail = ({ productId: propProductId = null }) => {
     // When variation is selected, ensure it's reflected in the display
   }, [selectedVariation]);
 
-  // Slider logic - always show 3 cards per row in grid
-  // For 4 variations: show first 3 in slider (no scrolling), 4th with details below
-  // For 5 variations: show first 3, then 4th-5th when scrolled, 5th also with details below
-  // For 6 variations: show first 3, then 4th-6th when scrolled, 6th also with details below
-  const cardsPerRow = 3;
-  const needsSliderArrows = totalVariations > 3; // Only need arrows for more than 3 variations
+  // Responsive slider logic: adjust how many cards are visible per row
+  const [cardsPerRow, setCardsPerRow] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const w = window.innerWidth;
+      if (w <= 426) return 1;
+      if (w <= 768) return 2;
+      return 3;
+    }
+    return 3;
+  });
 
-  // For 4 variations: maxPos = 0 (no scrolling, just show first 3)
-  // For 5 variations: maxPos = 1 (can scroll to see 4th-5th)
-  // For 6 variations: maxPos = 1 (can scroll to see 4th-6th)
-  const maxSliderPosition = totalVariations > 4 ? 1 : 0;
+  useEffect(() => {
+    const handleResize = () => {
+      const w = window.innerWidth;
+      let newCards = 3;
+      if (w <= 426) newCards = 1;
+      else if (w <= 768) newCards = 2;
+      else newCards = 3;
+      setCardsPerRow(newCards);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Keep sliderPosition valid when cardsPerRow or totalVariations change
+  useEffect(() => {
+    const maxPos = Math.max(0, Math.ceil(totalVariations / cardsPerRow) - 1);
+    if (sliderPosition > maxPos) setSliderPosition(maxPos);
+  }, [cardsPerRow, totalVariations]);
+
+  const needsSliderArrows = totalVariations > cardsPerRow;
+  const maxSliderPosition = Math.max(0, Math.ceil(totalVariations / cardsPerRow) - 1);
 
   const scrollSlider = (direction) => {
-    const newPosition =
-      direction === "next"
-        ? Math.min(sliderPosition + 1, maxSliderPosition)
-        : Math.max(sliderPosition - 1, 0);
+    const newPosition = direction === 'next'
+      ? Math.min(sliderPosition + 1, maxSliderPosition)
+      : Math.max(sliderPosition - 1, 0);
     setSliderPosition(newPosition);
   };
 
@@ -249,32 +270,10 @@ const ProductDetail = ({ productId: propProductId = null }) => {
   };
 
   const getVisibleVariations = () => {
-    if (viewMode === "list") {
-      return productVariations;
-    }
-    // Grid view:
-    // - For 4 variations: show first 3 (indices 0-2)
-    // - For 5 variations: show first 3 (indices 0-2) or last 2 (indices 3-4) when scrolled
-    // - For 6 variations: show first 3 (indices 0-2) or last 3 (indices 3-5) when scrolled
-    if (totalVariations === 4) {
-      // Show first 3 variations in boxes, 4th as main product below (no arrows)
-      return productVariations.slice(0, 3);
-    } else if (totalVariations === 5) {
-      // Show first 3 or last 3 in slider
-      if (sliderPosition === 0) {
-        return productVariations.slice(0, 3);
-      } else {
-        return productVariations.slice(2, 5);
-      }
-    } else if (totalVariations === 6) {
-      // Show first 3 or last 3 in slider
-      if (sliderPosition === 0) {
-        return productVariations.slice(0, 3);
-      } else {
-        return productVariations.slice(3, 6);
-      }
-    }
-    return productVariations.slice(0, Math.min(3, totalVariations));
+    if (viewMode === 'list') return productVariations;
+    // Grid view: show a window of productVariations according to cardsPerRow and sliderPosition
+    const start = sliderPosition * cardsPerRow;
+    return productVariations.slice(start, start + cardsPerRow);
   };
 
   const getDisplayVariation = () => {

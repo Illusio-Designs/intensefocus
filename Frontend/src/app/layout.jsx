@@ -31,6 +31,8 @@ export default function RootLayout({ children }) {
           type="font/otf"
           crossOrigin="anonymous"
         />
+        {/* Prevent browser pinch-zoom on mobile */}
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
         <meta name="color-scheme" content="light only" />
       </head>
       <body className="antialiased" style={{colorScheme: 'light'}}>

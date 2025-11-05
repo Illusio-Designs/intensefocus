@@ -1,6 +1,6 @@
 /* Breadcrumb Styles */
 .breadcrumb {
-  background: #0D0A34;
+  background: #0d0a34;
   padding: 100px 5% 0;
   position: relative;
   z-index: 999;
@@ -19,6 +19,7 @@
   gap: 8px;
   font-size: 16px;
   color: rgba(255, 255, 255, 0.8);
+  flex-wrap: wrap;
 }
 
 .breadcrumb-item {
@@ -41,6 +42,30 @@
   align-items: center;
   color: rgba(255, 255, 255, 0.6);
   margin: 0 4px;
+}
+
+/* Make separators smaller on very small screens to save space */
+@media (max-width: 426px) {
+  .breadcrumb-separator svg {
+    width: 14px;
+    height: 14px;
+  }
+  .breadcrumb-separator {
+    margin: 0 3px;
+  }
+}
+
+/* Truncate very long breadcrumb items */
+.breadcrumb-item {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.breadcrumb-item.active {
+  max-width: none;
+  white-space: normal;
+  font-weight: 600;
 }
 
 /* Continue Shopping Button */
@@ -72,11 +97,46 @@
 
 /* Responsive */
 @media (max-width: 768px) {
-  .breadcrumb {
-    padding: 10px 5%;
-  }
-  
   .breadcrumb-content {
     font-size: 13px;
+  }
+}
+
+/* Additional breakpoints for better breadcrumb responsiveness */
+@media (max-width: 1024px) {
+  .breadcrumb-content {
+    font-size: 15px;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 426px) {
+  .breadcrumb-container {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .breadcrumb-content {
+    font-size: 12px;
+    gap: 6px;
+  }
+  .continue-shopping-btn {
+    padding: 8px 18px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 384px) {
+  .breadcrumb-content {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 320px) {
+  .breadcrumb {
+    padding: 8px 4% 0;
+  }
+  .breadcrumb-content {
+    font-size: 11px;
   }
 }

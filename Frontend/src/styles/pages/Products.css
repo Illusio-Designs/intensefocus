@@ -33,6 +33,11 @@
   display: none; /* Chrome, Safari, Opera */
 }
 
+/* Floating filter toggle: hidden by default, only shown on small screens */
+.filter-toggle-btn {
+  display: none;
+}
+
 .filter-header {
   display: flex;
   justify-content: space-between;
@@ -367,16 +372,6 @@
   gap: 12px;
 }
 
-.color-swatch {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  cursor: pointer;
-  border: 2px solid transparent;
-  transition: all 0.3s ease;
-  position: relative;
-}
-
 .color-swatch:hover {
   transform: scale(1.1);
 }
@@ -410,6 +405,8 @@
   gap: 30px;
 }
 
+.products-grid-container .product-card { box-sizing: border-box; }
+
 /* Reuse product card styles from Home.css */
 .products-grid-container .product-card {
   background: white;
@@ -428,7 +425,6 @@
 
 .products-grid-container .product-image {
   width: 100%;
-  height: 250px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -508,4 +504,124 @@
   width: 100%;
   left: 4px;
 }
+
+/* Responsive breakpoints requested: 1024, 768, 426, 384, 320 */
+
+/* Desktop / large tablets */
+@media (max-width: 1024px) {
+  .products-grid-container {
+    grid-template-columns: repeat(2, 1fr); /* show 2 products on the right */
+  }
+  .filter-sidebar {
+    width: 300px;
+  }
+}
+
+/* Tablet and below: show mobile-filter toggle and centered modal for filters */
+@media (max-width: 768px) {
+  .products-container {
+    display: block; /* stack filter and products */
+  }
+
+  /* hide the sidebar and surface a floating filter button instead */
+  .filter-sidebar {
+    display: none;
+  }
+
+  .filter-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 28px;
+    background: #181265; /* brand primary */
+    color: #ffffff;
+    padding: 12px 18px;
+    border-radius: 28px;
+    z-index: 1200;
+    box-shadow: 0 8px 24px rgba(13,10,52,0.45);
+    border: none;
+    cursor: pointer;
+    font-weight: 700;
+  }
+
+  .products-grid-container {
+    gap: 18px;
+    padding: 0 16px 100px 16px;
+  }
+
+  /* reduce main padding so grid fits better on smaller widths */
+  .products-main { padding: 0; }
+
+  /* centralized modal overlay for filters */
+  .mobile-filter-modal {
+    display: none; /* toggled via JS - class 'open' will show it */
+    position: fixed;
+    inset: 0;
+    background: rgba(13, 10, 52, 0.6);
+    z-index: 1500;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .mobile-filter-modal.open {
+    display: flex;
+  }
+
+  .mobile-filter-modal .filter-sidebar {
+    display: block;
+    width: min(520px, 95%);
+    max-height: calc(100vh - 80px);
+    position: relative;
+    top: auto;
+    left: auto;
+    border-radius: 12px;
+    padding: 20px;
+    overflow-y: auto;
+  }
+}
+
+/* Small devices */
+@media (max-width: 500px) {
+  .products-grid-container {
+    grid-template-columns: repeat(2, 1fr); /* show 2 per row on small phones */
+    gap: 12px;
+    padding: 0 0 100px 0;
+  }
+
+  .product-image {
+    height: 120px;
+  }
+
+  /* smaller product cards on tiny screens */
+  .products-grid-container .product-card {
+    padding: 14px;
+  }
+
+  .products-grid-container .product-name { font-size: 1rem; }
+
+  .filter-toggle-btn {
+    bottom: 18px;
+    padding: 10px 14px;
+  }
+}
+
+/* Very small phones adjustments (384 / 320) */
+@media (max-width: 384px) {
+  .products-grid-container {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .products-grid-container .view-more-button {
+    padding: 12px 20px;
+    font-size: 12px;
+}
+
+  .hero-content h1 { font-size: 1.6rem; }
+}
+
 

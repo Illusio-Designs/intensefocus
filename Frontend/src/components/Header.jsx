@@ -9,6 +9,7 @@ const Header = ({ onPageChange, currentPage }) => {
   const [cartCount, setCartCount] = useState(0);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const dropdownRef = useRef(null);
 
   useEffect(() => {
@@ -76,6 +77,18 @@ const Header = ({ onPageChange, currentPage }) => {
     };
   }, [isUserDropdownOpen]);
 
+  // Close mobile menu on resize to desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 768 && isMenuOpen) {
+        setIsMenuOpen(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isMenuOpen]);
+
   // Handle user icon click
   const handleUserIconClick = () => {
     if (loggedIn) {
@@ -109,7 +122,24 @@ const Header = ({ onPageChange, currentPage }) => {
   return (
     <header className={`header ${isScrolled ? 'scrolled' : ''}`}>
       <div className="header-content">
-        <nav className="nav-menu">
+        {/* mobile backdrop */}
+        <div className={`mobile-backdrop ${isMenuOpen ? 'open' : ''}`} onClick={() => setIsMenuOpen(false)} />
+
+        <nav className={`nav-menu ${isMenuOpen ? 'mobile open' : ''}`}>
+          {/* mobile drawer header (logo + close) */}
+          {isMenuOpen && (
+            <div className="mobile-drawer-header">
+              <div className="mobile-logo" onClick={() => { setIsMenuOpen(false); if (onPageChange) onPageChange(''); else window.location.href = '/'; }}>
+                <img src="/images/logo/logo.webp" alt="Stallion" className="logo-image" />
+              </div>
+              <button className="icon-btn drawer-close-btn" onClick={() => setIsMenuOpen(false)} aria-label="Close menu">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
+          )}
           {navItems.map((item) => (
             <a 
               key={item.id}
@@ -119,6 +149,8 @@ const Header = ({ onPageChange, currentPage }) => {
                 e.preventDefault();
                 if (onPageChange) onPageChange(item.id);
                 else window.location.href = item.id === '' ? '/' : `/${item.id}`;
+                // close mobile menu after navigation
+                setIsMenuOpen(false);
               }}
             >
               {item.text}
@@ -169,9 +201,11 @@ const Header = ({ onPageChange, currentPage }) => {
                 </div>
               )}
             </div>
-            <button className="icon-btn menu-btn" title="Menu">
-              <img src="/images/icons/menu.webp" alt="Menu" className="icon-image" />
-            </button>
+            {!isMenuOpen && (
+              <button className="icon-btn menu-btn" title="Menu" onClick={() => setIsMenuOpen(true)}>
+                <img src="/images/icons/menu.webp" alt="Menu" className="icon-image" />
+              </button>
+            )}
           </div>
         </div>
       </div>
