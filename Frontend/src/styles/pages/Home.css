@@ -823,6 +823,9 @@
 .hero-side-image {
   width: 140px;
 }
+.collection-header {
+  flex-direction: column;
+}
   .products-grid {
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 15px;
