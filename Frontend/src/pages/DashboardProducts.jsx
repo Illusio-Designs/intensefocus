@@ -34,7 +34,7 @@ const DashboardProducts = () => {
 
   const filteredRowsByTab = useMemo(() => {
     if (activeTab === 'All') return rows;
-    if (activeTab === 'Uploaded Media Gallery') return rows.filter(row => row.hasUploadedMedia);
+    if (activeTab === 'Media Gallery') return rows.filter(row => row.hasUploadedMedia);
     if (activeTab === 'Unuploaded Media Gallery') return rows.filter(row => !row.hasUploadedMedia);
     return rows;
   }, [rows, activeTab]);
@@ -44,7 +44,7 @@ const DashboardProducts = () => {
       <div className="dash-container">
         <div className="dash-row">
           <div className="order-tabs-container">
-            {['All', 'Uploaded Media Gallery', 'Unuploaded Media Gallery'].map(tab => (
+            {['All', 'Media Gallery', 'Unuploaded Media Gallery'].map(tab => (
               <button
                 key={tab}
                 className={`order-tab ${activeTab === tab ? 'active' : ''}`}
@@ -63,8 +63,8 @@ const DashboardProducts = () => {
               rows={filteredRowsByTab}
               onAddNew={() => setOpenAdd(true)}
               addNewText="Add New Product"
-              onExport={() => console.log('Export products')}
-              exportText="Export All Products Data"
+              onImport={() => console.log('Import products')}
+              importText="Import All Products Data"
               searchPlaceholder="Search products"
             />
           </div>

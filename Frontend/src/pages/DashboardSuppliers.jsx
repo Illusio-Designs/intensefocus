@@ -4,6 +4,7 @@ import Modal from '../components/ui/Modal';
 import RowActions from '../components/ui/RowActions';
 
 const DashboardSuppliers = () => {
+  const [activeTab, setActiveTab] = useState('All');
   const [openAdd, setOpenAdd] = useState(false);
   const [editRow, setEditRow] = useState(null);
   const columns = useMemo(() => ([
@@ -22,22 +23,43 @@ const DashboardSuppliers = () => {
       name: ['VisionCraft', 'LensCo', 'FrameWorks'][i % 3],
       region: ['West', 'North', 'South'][i % 3],
       contact: '+91-90000' + String(1000 + i),
+      isActive: i % 2 === 0,
     }))
   ), []);
+
+  const filteredRowsByTab = useMemo(() => {
+    if (activeTab === 'All') return rows;
+    if (activeTab === 'Activate') return rows.filter(r => r.isActive);
+    if (activeTab === 'Deactivate') return rows.filter(r => !r.isActive);
+    return rows;
+  }, [rows, activeTab]);
 
   return (
     <div className="dash-page">
       <div className="dash-container">
         <div className="dash-row">
+          <div className="order-tabs-container">
+            {['All', 'Activate', 'Deactivate'].map(tab => (
+              <button
+                key={tab}
+                className={`order-tab ${activeTab === tab ? 'active' : ''}`}
+                onClick={() => setActiveTab(tab)}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="dash-row">
           <div className="dash-card full">
             <TableWithControls
               title="Salesmen"
               columns={columns}
-              rows={rows}
+              rows={filteredRowsByTab}
               onAddNew={() => setOpenAdd(true)}
               addNewText="Add New Salesman"
-              onExport={() => console.log('Export salesmen')}
-              exportText="Export All Salesmen Data"
+              onImport={() => console.log('Import salesmen')}
+              importText="Import All Salesmen Data"
               searchPlaceholder="Search salesmen"
             />
           </div>

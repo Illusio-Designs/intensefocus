@@ -28,11 +28,11 @@ const DashboardManage = () => {
     { type: 'Collection', name: 'Classic', details: 'Evergreen collection', hasUploadedMedia: false },
   ]), []);
 
+  const tabs = useMemo(() => (['All', ...Array.from(new Set(rows.map(r => r.type)))]), [rows]);
+
   const filteredRowsByTab = useMemo(() => {
     if (activeTab === 'All') return rows;
-    if (activeTab === 'Uploaded Media Gallery') return rows.filter(row => row.hasUploadedMedia);
-    if (activeTab === 'Unuploaded Media Gallery') return rows.filter(row => !row.hasUploadedMedia);
-    return rows;
+    return rows.filter(row => row.type === activeTab);
   }, [rows, activeTab]);
 
   return (
@@ -40,7 +40,7 @@ const DashboardManage = () => {
       <div className="dash-container">
         <div className="dash-row">
           <div className="order-tabs-container">
-            {['All', 'Uploaded Media Gallery', 'Unuploaded Media Gallery'].map(tab => (
+            {tabs.map(tab => (
               <button
                 key={tab}
                 className={`order-tab ${activeTab === tab ? 'active' : ''}`}
@@ -59,8 +59,8 @@ const DashboardManage = () => {
               rows={filteredRowsByTab}
               onAddNew={() => setOpenAdd(true)}
               addNewText="Add Item"
-              onExport={() => console.log('Export manage items')}
-              exportText="Export All Data"
+              onImport={() => console.log('Import manage items')}
+              importText="Import All Data"
             />
           </div>
         </div>

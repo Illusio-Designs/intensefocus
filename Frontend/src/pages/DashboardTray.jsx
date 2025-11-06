@@ -41,8 +41,8 @@ const DashboardTray = () => {
               rows={rows}
               onAddNew={() => setOpenAdd(true)}
               addNewText="Add New Tray"
-              onExport={() => console.log('Export trays')}
-              exportText="Export All Trays Data"
+              onImport={() => console.log('Import trays')}
+              importText="Import All Trays Data"
               dateRange={dateRange}
               onDateChange={setDateRange}
               itemName="Tray"

@@ -4,6 +4,7 @@ import Modal from '../components/ui/Modal';
 import RowActions from '../components/ui/RowActions';
 
 const DashboardClients = () => {
+  const [activeTab, setActiveTab] = useState('All');
   const [openAdd, setOpenAdd] = useState(false);
   const [editRow, setEditRow] = useState(null);
   const columns = useMemo(() => ([
@@ -22,22 +23,43 @@ const DashboardClients = () => {
       name: i % 2 ? 'XYZ Optical' : 'ABC Pharma',
       type: i % 3 ? 'Retail' : 'Enterprise',
       city: ['Mumbai', 'Delhi', 'Pune'][i % 3],
+      isActive: i % 2 === 0,
     }))
   ), []);
+
+  const filteredRowsByTab = useMemo(() => {
+    if (activeTab === 'All') return rows;
+    if (activeTab === 'Activate') return rows.filter(r => r.isActive);
+    if (activeTab === 'Deactivate') return rows.filter(r => !r.isActive);
+    return rows;
+  }, [rows, activeTab]);
 
   return (
     <div className="dash-page">
       <div className="dash-container">
         <div className="dash-row">
+          <div className="order-tabs-container">
+            {['All', 'Activate', 'Deactivate'].map(tab => (
+              <button
+                key={tab}
+                className={`order-tab ${activeTab === tab ? 'active' : ''}`}
+                onClick={() => setActiveTab(tab)}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="dash-row">
           <div className="dash-card full">
             <TableWithControls
               title="Party"
               columns={columns}
-              rows={rows}
+              rows={filteredRowsByTab}
               onAddNew={() => setOpenAdd(true)}
               addNewText="Add New Party"
-              onExport={() => console.log('Export All Party Data')}
-              exportText="Export All Party Data"
+              onImport={() => console.log('Import All Party Data')}
+              importText="Import All Party Data"
             />
           </div>
         </div>

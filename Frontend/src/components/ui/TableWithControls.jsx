@@ -12,12 +12,14 @@ export default function TableWithControls({
   defaultVisible = null, // array of keys
   onAddNew,
   onExport,
+  onImport,
   dateRange = null,
   onDateChange,
   rowSizeOptions = [8, 16, 24],
   selectable = true,
   addNewText = "Add New",
   exportText = "Export All Data",
+  importText = "Import All Data",
   itemName = "Item",
 }) {
   const [query, setQuery] = useState("");
@@ -98,8 +100,8 @@ export default function TableWithControls({
       <div className="ui-table__header">
         <h4 className="ui-table__title">{title}</h4>
         <div className="ui-table__actions">
-          <Button variant="secondary" onClick={onExport}>
-            {exportText}
+          <Button variant="secondary" onClick={onImport || onExport}>
+            {importText || exportText}
           </Button>
           {onAddNew && <Button onClick={onAddNew}>{addNewText}</Button>}
         </div>

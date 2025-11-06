@@ -70,8 +70,8 @@ const AnalyticsReports = () => {
                   rows={rows}
                   onAddNew={() => setOpenAdd(true)}
                   addNewText="Add New Visit"
-                  onExport={() => console.log('Export All Data')}
-                  exportText="Export All Data"
+                  onImport={() => console.log('Import All Data')}
+                  importText="Import All Data"
                 />
               </div>
             </div>
