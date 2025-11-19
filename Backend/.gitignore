@@ -73,3 +73,5 @@ backups/
 
 # Test files
 test-*.html 
+/lib/generated/prisma
+/generated

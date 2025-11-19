@@ -1,0 +1,226 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+    provider = "prisma-client"
+    output   = "../generated/prisma"
+}
+
+datasource db {
+    provider = "mysql"
+    url      = env("DATABASE_URL")
+}
+
+model User {
+    id            String    @id @default(uuid())
+    mobile        String    @unique
+    name          String
+    profile_image String?
+    role_id       Int
+    role_type     String    @default("Unknown")
+    flag          Int
+    last_login    DateTime?
+    createdAt     DateTime  @default(now())
+    updatedAt     DateTime  @updatedAt
+    role          RoleType  @relation("RoleById", fields: [role_id], references: [id])
+    roleByType    RoleType  @relation("RoleByType", fields: [role_type], references: [type])
+}
+
+model RoleType {
+    id          Int      @id @default(autoincrement())
+    type        String   @unique
+    flag        Int      @default(1)
+    description String?
+    status      String   @default("active")
+    subrole     Json?
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+    users       User[]   @relation("RoleById")
+    usersByType User[]   @relation("RoleByType")
+}
+
+model Brand {
+    id               Int       @id @default(autoincrement())
+    name             String    @unique
+    description      String?
+    logo             String?
+    status           Boolean   @default(true)
+    meta_title       String?
+    meta_description String?
+    meta_keywords    String?
+    sort_order       Int       @default(0)
+    createdAt        DateTime  @default(now())
+    updatedAt        DateTime  @updatedAt
+    products         Product[]
+}
+
+model Product {
+    id                Int            @id @default(autoincrement())
+    name              String         @unique
+    description       String?
+    price             Float          @default(0)
+    sale_price        Float          @default(0)
+    brand_id          Int?
+    collection_id     Int?
+    shape_id          Int?
+    gender_id         Int?
+    lens_material_id  Int?
+    lens_color_id     Int?
+    frame_material_id Int?
+    frame_color_id    Int?
+    type_id           Int?
+    sku               String?        @unique
+    stock_quantity    Int?           @default(0)
+    featured          Boolean        @default(false)
+    status            Boolean        @default(true)
+    meta_title        String?
+    meta_description  String?
+    meta_keywords     String?
+    brand             Brand?         @relation(fields: [brandId], references: [id])
+    brandId           Int?
+    collection        Collection?    @relation(fields: [collection_id], references: [id])
+    shape             Shape?         @relation(fields: [shape_id], references: [id])
+    gender            Gender?        @relation(fields: [gender_id], references: [id])
+    lensMaterial      LensMaterial?  @relation(fields: [lens_material_id], references: [id])
+    lensColor         LensColor?     @relation(fields: [lens_color_id], references: [id])
+    frameMaterial     FrameMaterial? @relation(fields: [frame_material_id], references: [id])
+    frameColor        FrameColor?    @relation(fields: [frame_color_id], references: [id])
+    type              Type?          @relation(fields: [type_id], references: [id])
+    createdAt         DateTime       @default(now())
+    updatedAt         DateTime       @updatedAt
+    productImages     ProductImage[]
+}
+
+model ProductImage {
+    id         Int      @id @default(autoincrement())
+    product_id Int
+    image      String
+    sort_order Int      @default(0)
+    status     Boolean  @default(true)
+    is_primary Boolean  @default(false)
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
+    product    Product  @relation(fields: [productId], references: [id])
+    productId  Int
+}
+
+model Shape {
+    id          Int       @id @default(autoincrement())
+    name        String    @unique
+    description String?
+    status      Boolean   @default(true)
+    sort_order  Int       @default(0)
+    createdAt   DateTime  @default(now())
+    updatedAt   DateTime  @updatedAt
+    products    Product[]
+}
+
+model Gender {
+    id          Int       @id @default(autoincrement())
+    name        String    @unique
+    description String?
+    status      Boolean   @default(true)
+    sort_order  Int       @default(0)
+    createdAt   DateTime  @default(now())
+    updatedAt   DateTime  @updatedAt
+    products    Product[]
+}
+
+model LensMaterial {
+    id          Int       @id @default(autoincrement())
+    name        String    @unique
+    description String?
+    status      Boolean   @default(true)
+    sort_order  Int       @default(0)
+    createdAt   DateTime  @default(now())
+    updatedAt   DateTime  @updatedAt
+    products    Product[]
+}
+
+model FrameMaterial {
+    id          Int       @id @default(autoincrement())
+    name        String    @unique
+    description String?
+    status      Boolean   @default(true)
+    sort_order  Int       @default(0)
+    createdAt   DateTime  @default(now())
+    updatedAt   DateTime  @updatedAt
+    products    Product[]
+}
+
+model FrameColor {
+    id          Int       @id @default(autoincrement())
+    name        String    @unique
+    description String?
+    color_code  String?
+    status      Boolean   @default(true)
+    sort_order  Int       @default(0)
+    createdAt   DateTime  @default(now())
+    updatedAt   DateTime  @updatedAt
+    products    Product[]
+}
+
+model LensColor {
+    id          Int       @id @default(autoincrement())
+    name        String    @unique
+    description String?
+    status      Boolean   @default(true)
+    color_code  String?
+    sort_order  Int       @default(0)
+    createdAt   DateTime  @default(now())
+    updatedAt   DateTime  @updatedAt
+    products    Product[]
+}
+
+model Type {
+    id          Int       @id @default(autoincrement())
+    name        String    @unique
+    description String?
+    status      Boolean   @default(true)
+    sort_order  Int       @default(0)
+    createdAt   DateTime  @default(now())
+    updatedAt   DateTime  @updatedAt
+    products    Product[]
+}
+
+model Collection {
+    id               Int       @id @default(autoincrement())
+    name             String    @unique
+    description      String?
+    image            String?
+    status           Boolean   @default(true)
+    sort_order       Int       @default(0)
+    meta_title       String?
+    meta_description String?
+    meta_keywords    String?
+    createdAt        DateTime  @default(now())
+    updatedAt        DateTime  @updatedAt
+    products         Product[]
+}
+
+model Slider {
+    id          Int      @id @default(autoincrement())
+    title       String
+    subtitle    String?
+    description String?
+    image       String
+    button_text String?
+    button_link String?
+    status      Boolean  @default(true)
+    sort_order  Int      @default(0)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+}
+
+model State {
+    id         Int      @id @default(autoincrement())
+    name       String   @unique
+    code       String?
+    country_id Int
+    status     Boolean  @default(true)
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
+}

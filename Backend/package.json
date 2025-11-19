@@ -2,37 +2,47 @@
   "name": "intensefocus-backend",
   "version": "1.0.0",
   "description": "Node.js backend for IntenseFocus Optical E-commerce application",
-  "main": "app/server.js",
-  "scripts": {
-    "start": "node app/server.js",
-    "dev": "nodemon app/server.js"
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "./lib/app.ts",
+  "directories": {
+    "lib": "lib"
   },
-  "keywords": [
-    "nodejs",
-    "express",
-    "sequelize",
-    "mysql",
-    "ecommerce",
-    "optical",
-    "intensefocus"
-  ],
-  "author": "Maharshi",
-  "license": "MIT",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only ./lib/app.ts",
+    "prisma_generate": "prisma generate",
+    "prisma_push": "prisma db push"
+  },
   "dependencies": {
-    "axios": "^1.11.0",
+    "@prisma/client": "^6.19.0",
+    "axios": "^1.13.2",
+    "bcrypt": "^6.0.0",
+    "body-parser": "^1.20.3",
+    "compression": "^1.8.1",
     "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
-    "express": "^4.18.2",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "http": "^0.0.1-security",
+    "http-status": "^2.1.0",
+    "joi": "^17.13.3",
     "jsonwebtoken": "^9.0.2",
-    "multer": "^1.4.5-lts.1",
-    "mysql2": "^3.6.5",
-    "sequelize": "^6.35.0",
-    "sharp": "^0.32.6"
+    "multer": "^2.0.2",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
-    "nodemon": "^3.0.2"
-  },
-  "engines": {
-    "node": ">=14.0.0"
+    "@types/compression": "^1.7.5",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/multer": "^2.0.0",
+    "@types/node": "^20.11.26",
+    "@typescript-eslint/eslint-plugin": "^6.20.0",
+    "@typescript-eslint/parser": "^6.20.0",
+    "eslint": "^8.56.0",
+    "prisma": "^6.19.0",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.3.3"
   }
 }
