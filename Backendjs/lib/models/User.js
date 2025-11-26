@@ -44,6 +44,14 @@ const User = sequelize.define('User', {
   last_login: {
     type: DataTypes.DATE,
     allowNull: true
+  },
+  role_id: {
+    type: DataTypes.UUID,
+    allowNull: false,
+    references: {
+      model: 'roles',
+      key: 'role_id'
+    }
   }
 }, {
   tableName: 'users',
@@ -69,12 +77,8 @@ User.prototype.generateToken = async function () {
   const Role = require('./Role');
 
   // Get user roles
-  const userRoles = await UserRole.findAll({
+  const userRole = await UserRole.findOne({
     where: { user_id: this.user_id },
-    include: [{
-      model: Role,
-      as: 'role'
-    }]
   });
 
   const roles = userRoles.map(ur => ur.role ? ur.role.role_name : null).filter(Boolean);

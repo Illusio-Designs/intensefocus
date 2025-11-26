@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../constants/database');
+const AuditLog = require('../models/AuditLog');
 
 class DatabaseManager {
     static async initialize() {
@@ -50,6 +51,14 @@ class DatabaseManager {
                     last_login: {
                         type: DataTypes.DATE,
                         allowNull: true
+                    },
+                    role_id: {
+                        type: DataTypes.UUID,
+                        allowNull: false,
+                        references: {
+                            model: 'roles',
+                            key: 'role_id'
+                        }
                     }
                 },
                 roles: {
@@ -108,7 +117,47 @@ class DatabaseManager {
                             key: 'user_id'
                         }
                     }
-                }
+                },
+                audit_logs: {
+                    id: {
+                        type: DataTypes.INTEGER,
+                        primaryKey: true,
+                        autoIncrement: true
+                    },
+                    user_id: {
+                        type: DataTypes.INTEGER,
+                        allowNull: true
+                    },
+                    action: {
+                        type: DataTypes.STRING,
+                        allowNull: true
+                    },
+                    table_name: {
+                        type: DataTypes.STRING,
+                        allowNull: true
+                    },
+                    record_id: {
+                        type: DataTypes.INTEGER,
+                        allowNull: true
+                    },
+                    old_values: {
+                        type: DataTypes.JSON,
+                        allowNull: true
+                    },
+                    new_values: {
+                        type: DataTypes.JSON,
+                        allowNull: true
+                    },
+                    ip_address: {
+                        type: DataTypes.STRING,
+                        allowNull: true
+                    },
+                    created_at: {
+                        type: DataTypes.DATE,
+                        allowNull: false,
+                        defaultValue: DataTypes.NOW
+                    }
+                },
             };
 
             // Default roles
@@ -192,7 +241,8 @@ class DatabaseManager {
                     full_name: 'Superadmin',
                     email: 'office.intensefocus.01@gmail.com',
                     phone: '9179388646',
-                    is_active: true
+                    is_active: true,
+                    role_id: adminRole.role_id
                 });
 
                 // Assign role to admin user
