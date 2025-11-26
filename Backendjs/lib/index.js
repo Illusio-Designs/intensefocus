@@ -30,7 +30,7 @@ const routeManager = require('./routes/routeManager');
 app.use('/api', routeManager);
 
 app.get('/health', (req, res) => {
-    res.json({ status: 'OK', message: 'Server is running' });
+    res.json({ status: 'OK', message: 'Server is running Now..' });
 });
 
 app.use((err, req, res, next) => {

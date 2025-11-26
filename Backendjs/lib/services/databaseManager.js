@@ -6,7 +6,8 @@ class DatabaseManager {
     static async initialize() {
         try {
             console.log('🔄 Checking database tables...');
-
+            await sequelize.authenticate();
+            console.log('✅ Database connected successfully');
             // Define table schemas
             const schemas = {
                 users: {
@@ -170,16 +171,34 @@ class DatabaseManager {
                 { role_name: 'product_manager', description: 'Manages product catalog' },
                 { role_name: 'party_manager', description: 'Manages parties' },
                 { role_name: 'distributor_manager', description: 'Manages distributors' },
-                { role_name: 'salesman', description: 'Field salesman mapped to zones' }
+                { role_name: 'salesman', description: 'Field salesman mapped to zones' },
+                { role_name: 'admin', description: 'Super admin' },
+                { role_name: 'party', description: 'Party' },
+                { role_name: 'distributor', description: 'Distributor' },
             ];
 
-            // Check and create tables
-            for (const [tableName, schema] of Object.entries(schemas)) {
+            // Define table creation order (respecting foreign key dependencies)
+            // roles must be created before users, users before user_roles
+            const tableOrder = ['roles', 'users', 'user_roles', 'audit_logs'];
+
+            // First pass: Create tables without foreign keys
+            for (const tableName of tableOrder) {
+                const schema = schemas[tableName];
+                if (!schema) continue;
+
                 const tableExists = await this.checkTableExists(tableName);
 
                 if (!tableExists) {
                     console.log(`📦 Creating table: ${tableName}`);
-                    await sequelize.getQueryInterface().createTable(tableName, schema);
+
+                    // Create schema without foreign key references for initial creation
+                    const schemaWithoutFKs = {};
+                    for (const [columnName, columnDef] of Object.entries(schema)) {
+                        const { references, ...columnDefWithoutFK } = columnDef;
+                        schemaWithoutFKs[columnName] = columnDefWithoutFK;
+                    }
+
+                    await sequelize.getQueryInterface().createTable(tableName, schemaWithoutFKs);
 
                     // Insert default roles if creating roles table
                     if (tableName === 'roles') {
@@ -196,20 +215,75 @@ class DatabaseManager {
                             console.log('⚠️ Error creating default roles:', error.message);
                         }
                     }
-
-                    // Unique constraint on (user_id, role_id) is handled by the model definition
-                    // No need to create it separately as Sequelize handles it
                 } else {
                     console.log(`✅ Table exists: ${tableName}`);
 
-                    // Check and add missing columns
+                    // Check and add missing columns (without foreign keys)
                     const currentColumns = await this.getTableColumns(tableName);
                     for (const [columnName, columnDef] of Object.entries(schema)) {
                         if (!currentColumns.includes(columnName)) {
                             console.log(`📝 Adding column: ${tableName}.${columnName}`);
-                            await sequelize.getQueryInterface().addColumn(tableName, columnName, columnDef);
+                            const { references, ...columnDefWithoutFK } = columnDef;
+                            await sequelize.getQueryInterface().addColumn(tableName, columnName, columnDefWithoutFK);
                         }
                     }
+                }
+            }
+
+            // Second pass: Add foreign key constraints after all tables exist
+            for (const tableName of tableOrder) {
+                const schema = schemas[tableName];
+                if (!schema) continue;
+
+                try {
+                    // Check for foreign key columns and add constraints if they don't exist
+                    for (const [columnName, columnDef] of Object.entries(schema)) {
+                        if (columnDef.references) {
+                            const tableExists = await this.checkTableExists(tableName);
+                            const referencedTable = columnDef.references.model;
+                            const referencedKey = columnDef.references.key;
+
+                            if (tableExists && await this.checkTableExists(referencedTable)) {
+                                try {
+                                    // Check if foreign key already exists
+                                    const [foreignKeys] = await sequelize.query(`
+                                        SELECT CONSTRAINT_NAME 
+                                        FROM information_schema.KEY_COLUMN_USAGE 
+                                        WHERE TABLE_SCHEMA = DATABASE()
+                                        AND TABLE_NAME = ?
+                                        AND COLUMN_NAME = ?
+                                        AND REFERENCED_TABLE_NAME IS NOT NULL
+                                    `, {
+                                        replacements: [tableName, columnName]
+                                    });
+
+                                    if (foreignKeys.length === 0) {
+                                        console.log(`🔗 Adding foreign key: ${tableName}.${columnName} -> ${referencedTable}.${referencedKey}`);
+                                        await sequelize.getQueryInterface().addConstraint(tableName, {
+                                            fields: [columnName],
+                                            type: 'foreign key',
+                                            name: `fk_${tableName}_${columnName}`,
+                                            references: {
+                                                table: referencedTable,
+                                                field: referencedKey
+                                            },
+                                            onDelete: 'RESTRICT',
+                                            onUpdate: 'CASCADE'
+                                        });
+                                    }
+                                } catch (fkError) {
+                                    // Foreign key might already exist or there's a constraint issue
+                                    if (!fkError.message.includes('Duplicate key name') &&
+                                        !fkError.message.includes('already exists') &&
+                                        !fkError.message.includes('Duplicate foreign key')) {
+                                        console.log(`⚠️ Warning adding foreign key ${tableName}.${columnName}:`, fkError.message);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.log(`⚠️ Warning processing foreign keys for ${tableName}:`, error.message);
                 }
             }
 
@@ -220,7 +294,7 @@ class DatabaseManager {
 
             const adminExists = await User.findOne({
                 where: {
-                    email: 'office.intensefocus.01@gmail.com'
+                    email: 'illusiodesigns@gmail.com'
                 }
             });
 
@@ -239,8 +313,8 @@ class DatabaseManager {
 
                 const adminUser = await User.create({
                     full_name: 'Superadmin',
-                    email: 'office.intensefocus.01@gmail.com',
-                    phone: '9179388646',
+                    email: 'illusiodesigns@gmail.com',
+                    phone: '7600046416',
                     is_active: true,
                     role_id: adminRole.role_id
                 });

@@ -4,3 +4,4 @@ node_modules
 deploy.sh
 /generated/prisma
 prisma/generated
+package-lock.json
