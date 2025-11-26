@@ -7,7 +7,8 @@
   "type": "commonjs",
   "main": "lib/index.js",
   "scripts": {
-    "dev": "node --watch ./lib/index.js"
+    "dev": "node --watch ./lib/index.js",
+    "clearDb": "node lib/clearDb.js"
   },
   "dependencies": {
     "axios": "^1.13.2",

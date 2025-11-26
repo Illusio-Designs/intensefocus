@@ -15,39 +15,6 @@ router.get('/docs', (req, res) => {
         endpoints: {
             // Authentication endpoints
             auth: '/api/auth',
-            // Core endpoints
-            users: '/api/users',
-            brands: '/api/brands',
-            products: '/api/products',
-            collections: '/api/collections',
-            sliders: '/api/sliders',
-            states: '/api/states',
-            shapes: '/api/shapes',
-            genders: '/api/genders',
-            lensMaterials: '/api/lens-materials',
-            lensColors: '/api/lens-colors',
-            frameMaterials: '/api/frame-materials',
-            frameColors: '/api/frame-colors',
-            types: '/api/types',
-            roleTypes: '/api/role-types',
-            cities: '/api/cities',
-            zones: '/api/zones',
-            productImages: '/api/product-images',
-
-            // Business endpoints
-            allotedOrders: '/api/alloted-orders',
-            distributorBrands: '/api/distributor-brands',
-            salesmanTargets: '/api/salesman-targets',
-            distributorWorkingStates: '/api/distributor-working-states',
-            retailorWorkingStates: '/api/retailor-working-states',
-            trayAllotments: '/api/tray-allotments',
-            productsImages: '/api/products-images',
-            orderDetails: '/api/order-details',
-            notifications: '/api/notifications',
-            loginHistory: '/api/login-history',
-
-            // Authentication endpoints
-            msg91: '/api/msg91'
         }
     });
 });
