@@ -81,7 +81,11 @@ class DatabaseManager {
                         type: DataTypes.DATE,
                         allowNull: false,
                         defaultValue: DataTypes.NOW
-                    }
+                    }, is_office_role: {
+                        type: DataTypes.BOOLEAN,
+                        allowNull: false,
+                        defaultValue: false
+                    },
                 },
                 user_roles: {
                     user_role_id: {
@@ -126,7 +130,7 @@ class DatabaseManager {
                         autoIncrement: true
                     },
                     user_id: {
-                        type: DataTypes.INTEGER,
+                        type: DataTypes.UUID,
                         allowNull: true
                     },
                     action: {
@@ -138,7 +142,7 @@ class DatabaseManager {
                         allowNull: true
                     },
                     record_id: {
-                        type: DataTypes.INTEGER,
+                        type: DataTypes.UUID,
                         allowNull: true
                     },
                     old_values: {
@@ -163,18 +167,18 @@ class DatabaseManager {
 
             // Default roles
             const defaultRoles = [
-                { role_name: 'sales_manager', description: 'Manages sales operations and team' },
-                { role_name: 'expense_manager', description: 'Manages company expenses' },
-                { role_name: 'tray_manager', description: 'Manages tray inventory' },
-                { role_name: 'order_manager', description: 'Manages customer orders' },
-                { role_name: 'reports_manager', description: 'Manages reports' },
-                { role_name: 'product_manager', description: 'Manages product catalog' },
-                { role_name: 'party_manager', description: 'Manages parties' },
-                { role_name: 'distributor_manager', description: 'Manages distributors' },
-                { role_name: 'salesman', description: 'Field salesman mapped to zones' },
-                { role_name: 'admin', description: 'Super admin' },
-                { role_name: 'party', description: 'Party' },
-                { role_name: 'distributor', description: 'Distributor' },
+                { role_name: 'sales_manager', description: 'Manages sales operations and team', is_office_role: true },
+                { role_name: 'expense_manager', description: 'Manages company expenses', is_office_role: true },
+                { role_name: 'tray_manager', description: 'Manages tray inventory', is_office_role: true },
+                { role_name: 'order_manager', description: 'Manages customer orders', is_office_role: true },
+                { role_name: 'reports_manager', description: 'Manages reports', is_office_role: true },
+                { role_name: 'product_manager', description: 'Manages product catalog', is_office_role: true },
+                { role_name: 'party_manager', description: 'Manages parties', is_office_role: true },
+                { role_name: 'distributor_manager', description: 'Manages distributors', is_office_role: true },
+                { role_name: 'salesman', description: 'Field salesman mapped to zones', is_office_role: false },
+                { role_name: 'admin', description: 'Super admin', is_office_role: true },
+                { role_name: 'party', description: 'Party', is_office_role: false },
+                { role_name: 'distributor', description: 'Distributor', is_office_role: false },
             ];
 
             // Define table creation order (respecting foreign key dependencies)

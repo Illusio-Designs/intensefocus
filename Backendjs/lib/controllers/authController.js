@@ -118,7 +118,9 @@ class AuthController {
             if (!phoneNumber || !fullName || !roleId) {
                 return res.status(400).json({ error: 'Phone number, full name and role id are required' });
             }
-
+            console.log("phoneNumber", phoneNumber);
+            console.log("fullName", fullName);
+            console.log("roleId", roleId);
             const existingUser = await User.findOne({
                 where: {
                     phone: phoneNumber,

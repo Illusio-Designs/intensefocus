@@ -20,7 +20,12 @@ const Role = sequelize.define('Role', {
         type: DataTypes.DATE,
         allowNull: false,
         defaultValue: DataTypes.NOW
-    }
+    },
+    is_office_role: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false
+    },
 }, {
     tableName: 'roles',
     timestamps: true,

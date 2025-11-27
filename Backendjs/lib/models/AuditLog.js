@@ -8,7 +8,7 @@ const AuditLog = sequelize.define('AuditLog', {
         autoIncrement: true
     },
     user_id: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.UUID,
         allowNull: true
     },
     action: {
@@ -20,7 +20,7 @@ const AuditLog = sequelize.define('AuditLog', {
         allowNull: true
     },
     record_id: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.UUID,
         allowNull: true
     },
     old_values: {
@@ -44,6 +44,7 @@ const AuditLog = sequelize.define('AuditLog', {
     tableName: 'audit_logs',
     timestamps: true,
     createdAt: 'created_at',
+    updatedAt: false
 });
 
 module.exports = AuditLog;
