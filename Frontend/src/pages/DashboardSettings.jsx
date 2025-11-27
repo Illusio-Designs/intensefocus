@@ -204,22 +204,16 @@ const DashboardSettings = () => {
     // Try to update via API if we have the required data
     if (currentUserId && currentRoleId) {
       try {
-        // Convert avatar data URL to URL string if it's a data URL
-        // For now, we'll send empty string if it's a data URL (would need image upload API)
-        let profileImage = '';
-        if (avatar && !avatar.startsWith('data:')) {
-          profileImage = avatar;
-        } else if (avatar && avatar.startsWith('data:')) {
-          // If it's a data URL, we'd need to upload it first
-          // For now, we'll skip it or you can implement image upload
-          // profileImage = await uploadImage(avatar);
-          console.warn('Data URL images need to be uploaded first. Skipping profile image update.');
-        }
+        // Send the avatar as image_url (can be a URL or data URL)
+        // Backend expects image_url field for profile image
+        const imageUrl = avatar || '';
 
         const userData = {
           name: userName.trim(),
-          profile_image: profileImage,
+          email: email.trim() || '',
+          profile_image: '', // Legacy field, kept empty
           is_active: isActive,
+          image_url: imageUrl,
           role_id: currentRoleId,
         };
 

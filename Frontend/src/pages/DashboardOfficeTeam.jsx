@@ -270,8 +270,10 @@ const DashboardOfficeTeam = () => {
     try {
       const userData = {
         name: editFormData.fullName,
-        profile_image: editRow.profile_image || '',
+        email: editRow.email || '',
+        profile_image: '', // Legacy field, kept empty
         is_active: editFormData.isActive,
+        image_url: editRow.profile_image || '',
         role_id: editFormData.roleId,
       };
 

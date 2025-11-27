@@ -228,19 +228,23 @@ export const getUsers = async () => {
  * @param {string} userId - User ID (UUID)
  * @param {Object} userData - User data to update
  * @param {string} userData.name - User's full name
- * @param {string} userData.profile_image - Profile image URL or empty string
+ * @param {string} userData.email - User's email address
+ * @param {string} userData.profile_image - Profile image (legacy field, can be empty)
+ * @param {string} userData.image_url - Profile image URL or data URL
  * @param {boolean} userData.is_active - Whether user is active
  * @param {string} userData.role_id - Role ID (UUID)
  * @returns {Promise<Object>} Response with message
  */
 export const updateUser = async (userId, userData) => {
-  const { name, profile_image, is_active, role_id } = userData;
+  const { name, email, profile_image, image_url, is_active, role_id } = userData;
   return apiRequest(`/users/${userId}`, {
     method: 'PUT',
     body: {
       name,
+      email: email || '',
       profile_image: profile_image || '',
       is_active,
+      image_url: image_url || '',
       role_id,
     },
     includeAuth: true,
