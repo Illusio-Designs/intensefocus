@@ -4,13 +4,17 @@ const path = require('path');
 const dotenv = require('dotenv');
 const sequelize = require('./constants/database');
 const DatabaseManager = require('./services/databaseManager');
+
 dotenv.config();
 
 const app = express();
 
-// CORS Configuration
+// CORS Configuration with multiple origins
 const corsOptions = {
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: [
+        process.env.CORS_ORIGIN || 'http://localhost:3000',
+        'https://stallion-seven.vercel.app'
+    ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
@@ -19,11 +23,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
-
-// // Serve static HTML files for testing
-// app.use(express.static(path.join(__dirname, '..')));
 
 // Import and use the route manager
 const routeManager = require('./routes/routeManager');
@@ -35,16 +35,8 @@ app.get('/health', (req, res) => {
 
 app.use((err, req, res, next) => {
     console.error(err.stack);
-    res.status(500).json({
-        error: 'Something went wrong!',
-        message: err.message
-    });
+    res.status(500).json({ error: 'Something went wrong!', message: err.message });
 });
-
-// // Catch-all 404 handler - must be last
-// app.all('*', (req, res) => {
-//     res.status(404).json({ error: 'Route not found' });
-// });
 
 const PORT = process.env.PORT || 3000;
 
@@ -54,19 +46,32 @@ const startServer = async () => {
         console.log('🚀 Starting Database Manager...');
         await DatabaseManager.initialize();
         console.log('✅ Database Manager completed!\n');
-        // Start the server
-        app.listen(PORT, () => {
-            console.log(`🚀 Server is running on port ${PORT}`);
+
+        // Check if server is already listening (for LiteSpeed/OpenLiteSpeed environments)
+        if (!app.listening) {
+            // Start the server
+            app.listen(PORT, () => {
+                console.log(`🚀 Server is running on port ${PORT}`);
+                console.log(`🏥 Health check: http://localhost:${PORT}/health`);
+                console.log(`📚 API Documentation: http://localhost:${PORT}/api/docs`);
+            });
+        } else {
+            console.log(`🚀 Server already listening on port ${PORT}`);
             console.log(`🏥 Health check: http://localhost:${PORT}/health`);
             console.log(`📚 API Documentation: http://localhost:${PORT}/api/docs`);
-        });
+        }
     } catch (error) {
         console.error('❌ Error starting server:', error);
-        process.exit(1);
+        // Don't exit in production environments where the server might already be running
+        if (process.env.NODE_ENV !== 'production') {
+            process.exit(1);
+        }
     }
 };
 
-// Start the server
-startServer();
+// Only start the server if not already started (important for LiteSpeed Node)
+if (require.main === module) {
+    startServer();
+}
 
-module.exports = app; 
+module.exports = app;
