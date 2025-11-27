@@ -3,10 +3,11 @@ const router = express.Router();
 
 // Import all route files
 const authRoutes = require('./auth');
+const rolesRoutes = require('./roles');
 
 // Mount routes
 router.use('/auth', authRoutes);
-
+router.use('/roles', rolesRoutes);
 // API documentation route
 router.get('/docs', (req, res) => {
     res.json({
