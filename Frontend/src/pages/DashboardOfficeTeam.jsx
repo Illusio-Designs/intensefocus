@@ -1,4 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import PhoneInput from 'react-phone-input-2';
+import 'react-phone-input-2/lib/style.css';
 import TableWithControls from '../components/ui/TableWithControls';
 import Modal from '../components/ui/Modal';
 import RowActions from '../components/ui/RowActions';
@@ -246,12 +248,20 @@ const DashboardOfficeTeam = () => {
           </div>
           <div className="form-group form-group--full">
             <label className="ui-label">Phone Number *</label>
-            <input 
-              className="ui-input" 
-              placeholder="+91-9876543210 or 9876543210"
+            <PhoneInput
+              country={'in'}
               value={formData.phoneNumber}
-              onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
-              required
+              onChange={(value) => handleInputChange('phoneNumber', value)}
+              inputProps={{
+                required: true,
+                placeholder: 'Enter your phone number',
+              }}
+              containerClass="phone-input-container"
+              inputClass="phone-input-field"
+              buttonClass="phone-input-button"
+              dropdownClass="phone-input-dropdown"
+              disableDropdown={false}
+              disableCountryGuess={false}
             />
           </div>
           <div className="form-group form-group--full">

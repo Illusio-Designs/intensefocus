@@ -255,6 +255,153 @@
   width: 100%;
 }
 
+/* Phone Input Styling - Same as login page */
+.ui-form .form-group .phone-input-container {
+  position: relative !important;
+  width: 100% !important;
+  border: 1px solid #E0E0E0 !important;
+  border-radius: 6px !important;
+  transition: border-color 0.2s, box-shadow 0.2s !important;
+  background: white !important;
+  display: block !important;
+}
+
+.ui-form .form-group .phone-input-container:focus-within {
+  border-color: #0D0A34 !important;
+  box-shadow: 0 0 0 3px rgba(13, 10, 52, 0.1) !important;
+}
+
+/* Flag dropdown button container */
+.ui-form .form-group .phone-input-container .flag-dropdown {
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  background: white !important;
+  border: none !important;
+  border-right: 1px solid #E0E0E0 !important;
+  border-radius: 6px 0 0 6px !important;
+  padding: 0 !important;
+  width: auto !important;
+  min-width: 90px !important;
+  height: 42px !important;
+  z-index: 2 !important;
+}
+
+.ui-form .form-group .phone-input-container:focus-within .flag-dropdown {
+  border-right-color: #0D0A34 !important;
+}
+
+.ui-form .form-group .phone-input-container .flag-dropdown.open {
+  background: white !important;
+  z-index: 3 !important;
+}
+
+/* Selected flag display */
+.ui-form .form-group .phone-input-container .selected-flag {
+  background: white !important;
+  padding: 0 12px !important;
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  cursor: pointer !important;
+}
+
+.ui-form .form-group .phone-input-container .selected-flag:hover {
+  background: #f5f5f5 !important;
+}
+
+.ui-form .form-group .phone-input-container .selected-flag .selected-dial-code {
+  margin-right: 4px !important;
+  font-size: 14px !important;
+  color: #000 !important;
+  flex-shrink: 0 !important;
+}
+
+.ui-form .form-group .phone-input-container .selected-flag .arrow {
+  border-top-color: #666 !important;
+  border-left-color: transparent !important;
+  border-right-color: transparent !important;
+  margin-left: auto !important;
+  margin-top: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  border-width: 4px 4px 0 4px !important;
+  position: relative !important;
+  top: 2px !important;
+  flex-shrink: 0 !important;
+}
+
+.ui-form .form-group .phone-input-container .selected-flag .arrow.up {
+  border-bottom-color: #666 !important;
+  border-top-color: transparent !important;
+  border-width: 0 4px 4px 4px !important;
+  top: -2px !important;
+}
+
+/* Phone number input field */
+.ui-form .form-group .phone-input-container .phone-input-field {
+  padding-left: 105px !important;
+  padding-right: 16px !important;
+  padding-top: 12px !important;
+  padding-bottom: 12px !important;
+  border: none !important;
+  border-radius: 6px !important;
+  font-size: 14px !important;
+  color: #000 !important;
+  background: white !important;
+  width: 100% !important;
+  height: 42px !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+}
+
+.ui-form .form-group .phone-input-container .phone-input-field:focus {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.ui-form .form-group .phone-input-container .phone-input-field::placeholder {
+  color: #999 !important;
+}
+
+/* Country dropdown list */
+.ui-form .form-group .phone-input-container .country-list {
+  position: absolute !important;
+  top: calc(100% + 4px) !important;
+  left: 0 !important;
+  right: 0 !important;
+  max-height: 200px !important;
+  overflow-y: auto !important;
+  border: 1px solid #E0E0E0 !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+  z-index: 1000 !important;
+  background: white !important;
+  width: auto !important;
+  min-width: 200px !important;
+}
+
+.ui-form .form-group .phone-input-container .country-list .country {
+  padding: 8px 12px !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.ui-form .form-group .phone-input-container .country-list .country:hover,
+.ui-form .form-group .phone-input-container .country-list .country.highlight {
+  background: #f5f5f5 !important;
+}
+
+.ui-form .form-group .phone-input-container .country-list .country.active {
+  background: #e8e8ff !important;
+}
+
 /* Table With Controls */
 .ui-table-container{
   background: #ffffff;
