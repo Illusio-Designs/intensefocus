@@ -21,6 +21,7 @@ export default function TableWithControls({
   exportText = "Export All Data",
   importText = "Import All Data",
   itemName = "Item",
+  showSerialNumber = true, // Show serial number column by default
 }) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -37,12 +38,16 @@ export default function TableWithControls({
   }, []);
   const [pageSize, setPageSize] = useState(rowSizeOptions[0]);
   const [visible, setVisible] = useState(
-    () =>
-      new Set(
-        defaultVisible && defaultVisible.length
-          ? defaultVisible
-          : columns.map((c) => c.key)
-      )
+    () => {
+      const baseKeys = defaultVisible && defaultVisible.length
+        ? defaultVisible
+        : columns.map((c) => c.key);
+      // Always include serial number if enabled
+      if (showSerialNumber) {
+        return new Set(['__serialNumber', ...baseKeys]);
+      }
+      return new Set(baseKeys);
+    }
   );
   const [selected, setSelected] = useState(new Set());
   const [sortBy, setSortBy] = useState(null); // key
@@ -227,6 +232,11 @@ export default function TableWithControls({
                   />
                 </th>
               )}
+              {showSerialNumber && visible.has('__serialNumber') && (
+                <th style={{ width: '80px' }}>
+                  <span className="ui-th">SR NO</span>
+                </th>
+              )}
               {columns
                 .filter((c) => visible.has(c.key))
                 .map((c) => {
@@ -258,6 +268,7 @@ export default function TableWithControls({
                 <td
                   colSpan={
                     (selectable ? 1 : 0) +
+                    (showSerialNumber && visible.has('__serialNumber') ? 1 : 0) +
                     columns.filter((c) => visible.has(c.key)).length
                   }
                   className="ui-empty"
@@ -266,34 +277,40 @@ export default function TableWithControls({
                 </td>
               </tr>
             )}
-            {pageRows.map((row, idx) => (
-              <tr key={idx}>
-                {selectable && (
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={selected.has((page - 1) * pageSize + idx)}
-                      onChange={(e) => {
-                        const next = new Set(selected);
-                        if (e.target.checked)
-                          next.add((page - 1) * pageSize + idx);
-                        else next.delete((page - 1) * pageSize + idx);
-                        setSelected(next);
-                      }}
-                    />
-                  </td>
-                )}
-                {columns
-                  .filter((c) => visible.has(c.key))
-                  .map((c) => (
-                    <td key={c.key}>
-                      {c.render
-                        ? c.render(row[c.key], row)
-                        : String(row[c.key] ?? "")}
+            {pageRows.map((row, idx) => {
+              const serialNumber = (page - 1) * pageSize + idx + 1;
+              return (
+                <tr key={idx}>
+                  {selectable && (
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selected.has((page - 1) * pageSize + idx)}
+                        onChange={(e) => {
+                          const next = new Set(selected);
+                          if (e.target.checked)
+                            next.add((page - 1) * pageSize + idx);
+                          else next.delete((page - 1) * pageSize + idx);
+                          setSelected(next);
+                        }}
+                      />
                     </td>
-                  ))}
-              </tr>
-            ))}
+                  )}
+                  {showSerialNumber && visible.has('__serialNumber') && (
+                    <td>{serialNumber}</td>
+                  )}
+                  {columns
+                    .filter((c) => visible.has(c.key))
+                    .map((c) => (
+                      <td key={c.key}>
+                        {c.render
+                          ? c.render(row[c.key], row)
+                          : String(row[c.key] ?? "")}
+                      </td>
+                    ))}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

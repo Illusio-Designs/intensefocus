@@ -15,18 +15,31 @@ const DashboardHeader = ({ onPageChange, currentPage, isCollapsed }) => {
     try {
       // Get user from auth service
       const user = getUser();
+      const storedName = typeof window !== 'undefined' ? window.localStorage.getItem('userName') : null;
+      const storedAvatar = typeof window !== 'undefined' ? window.localStorage.getItem('userAvatarUrl') : null;
+      
       if (user) {
-        const name = user.full_name || user.fullName || user.name || user.email || 'User';
+        const name = storedName || user.full_name || user.fullName || user.name || user.email || 'User';
         setUserName(name);
-        if (user.avatar || user.avatarUrl) {
-          setAvatarUrl(user.avatar || user.avatarUrl);
+        
+        // Only set avatar if it's a valid uploaded image (non-empty string)
+        // Check localStorage first (most up-to-date), then user object
+        const avatar = storedAvatar || user.avatar || user.avatarUrl || null;
+        if (avatar && avatar.trim() !== '') {
+          setAvatarUrl(avatar);
+        } else {
+          // Clear avatar if empty or invalid
+          setAvatarUrl(null);
         }
       } else {
         // Fallback to localStorage for backward compatibility
-        const storedName = typeof window !== 'undefined' ? window.localStorage.getItem('userName') : null;
-        const storedAvatar = typeof window !== 'undefined' ? window.localStorage.getItem('userAvatarUrl') : null;
         if (storedName) setUserName(storedName);
-        if (storedAvatar) setAvatarUrl(storedAvatar);
+        // Only set avatar if it's a valid uploaded image
+        if (storedAvatar && storedAvatar.trim() !== '') {
+          setAvatarUrl(storedAvatar);
+        } else {
+          setAvatarUrl(null);
+        }
       }
     } catch (_) {}
   };

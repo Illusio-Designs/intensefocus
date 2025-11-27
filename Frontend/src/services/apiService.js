@@ -210,6 +210,55 @@ export const getRoles = async () => {
   });
 };
 
+// ==================== USER ENDPOINTS ====================
+
+/**
+ * Get all users
+ * @returns {Promise<Array>} Array of user objects
+ */
+export const getUsers = async () => {
+  return apiRequest('/users', {
+    method: 'GET',
+    includeAuth: true,
+  });
+};
+
+/**
+ * Update user
+ * @param {string} userId - User ID (UUID)
+ * @param {Object} userData - User data to update
+ * @param {string} userData.name - User's full name
+ * @param {string} userData.profile_image - Profile image URL or empty string
+ * @param {boolean} userData.is_active - Whether user is active
+ * @param {string} userData.role_id - Role ID (UUID)
+ * @returns {Promise<Object>} Response with message
+ */
+export const updateUser = async (userId, userData) => {
+  const { name, profile_image, is_active, role_id } = userData;
+  return apiRequest(`/users/${userId}`, {
+    method: 'PUT',
+    body: {
+      name,
+      profile_image: profile_image || '',
+      is_active,
+      role_id,
+    },
+    includeAuth: true,
+  });
+};
+
+/**
+ * Delete user
+ * @param {string} userId - User ID (UUID)
+ * @returns {Promise<Object>} Response with message
+ */
+export const deleteUser = async (userId) => {
+  return apiRequest(`/users/${userId}`, {
+    method: 'DELETE',
+    includeAuth: true,
+  });
+};
+
 // Export base URL for reference (use getBaseURL() for dynamic access)
 export { BASE_URL, getBaseURL };
 

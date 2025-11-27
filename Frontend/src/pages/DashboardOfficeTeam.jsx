@@ -5,7 +5,8 @@ import TableWithControls from '../components/ui/TableWithControls';
 import Modal from '../components/ui/Modal';
 import RowActions from '../components/ui/RowActions';
 import DropdownSelector from '../components/ui/DropdownSelector';
-import { register, getRoles } from '../services/apiService';
+import { register, getRoles, getUsers, updateUser, deleteUser } from '../services/apiService';
+import { showSuccess, showError } from '../services/notificationService';
 
 const DashboardOfficeTeam = () => {
   const [activeTab, setActiveTab] = useState('All');
@@ -17,6 +18,11 @@ const DashboardOfficeTeam = () => {
     fullName: '',
     phoneNumber: '',
     roleId: '',
+  });
+  const [editFormData, setEditFormData] = useState({
+    fullName: '',
+    roleId: '',
+    isActive: true,
   });
 
   // Fetch roles on component mount
@@ -48,6 +54,17 @@ const DashboardOfficeTeam = () => {
     fetchRoles();
   }, []);
 
+  // Update edit form data when editRow changes
+  useEffect(() => {
+    if (editRow) {
+      setEditFormData({
+        fullName: editRow.fullName || '',
+        roleId: editRow.roleId || '',
+        isActive: editRow.isActive !== undefined ? editRow.isActive : true,
+      });
+    }
+  }, [editRow]);
+
   // Function to format role name: capitalize first letter and replace underscores with spaces
   const formatRoleName = (name) => {
     if (!name) return '';
@@ -55,6 +72,32 @@ const DashboardOfficeTeam = () => {
       .split('_')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join(' ');
+  };
+
+  // Helper function to map users array to table rows format
+  const mapUsersToRows = (usersArray) => {
+    return usersArray.map(user => {
+      // Find role name for display
+      const userRole = roles.find(r => {
+        const roleId = r.role_id || r.id || r.roleId || r._id || r.uuid || r.ID;
+        return roleId === user.role_id;
+      });
+      const roleName = userRole 
+        ? formatRoleName(userRole.role_name || userRole.name || userRole.roleName || userRole.title || userRole.role || userRole.Name || userRole.RoleName)
+        : 'Unknown Role';
+      
+      return {
+        id: user.user_id || user.id,
+        fullName: user.full_name || user.fullName || user.name || '',
+        phoneNumber: user.phone || user.phoneNumber || '',
+        role: roleName,
+        roleId: user.role_id || user.roleId,
+        status: user.is_active ? 'Active' : 'Inactive',
+        isActive: user.is_active || false,
+        profile_image: user.profile_image || '',
+        email: user.email || '',
+      };
+    });
   };
 
   const roleOptions = useMemo(() => {
@@ -95,24 +138,68 @@ const DashboardOfficeTeam = () => {
   }, [roles]);
 
   const [rows, setRows] = useState([]);
+  const [users, setUsers] = useState([]);
+
+  // Fetch users on component mount and after operations
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        setLoading(true);
+        const response = await getUsers();
+        console.log('Users API Response:', response); // Debug log
+        
+        // Handle different response structures
+        let usersArray = [];
+        if (Array.isArray(response)) {
+          usersArray = response;
+        } else if (response && Array.isArray(response.data)) {
+          usersArray = response.data;
+        } else if (response && Array.isArray(response.users)) {
+          usersArray = response.users;
+        }
+        
+        setUsers(usersArray);
+        setRows(mapUsersToRows(usersArray));
+      } catch (error) {
+        console.error('Error fetching users:', error);
+        setUsers([]);
+        setRows([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    // Only fetch users if roles are loaded (to properly map role names)
+    if (roles.length > 0) {
+      fetchUsers();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roles]);
+
+  const filteredRowsByTab = useMemo(() => {
+    let filtered = [];
+    if (activeTab === 'All') {
+      filtered = rows;
+    } else if (activeTab === 'Activate') {
+      filtered = rows.filter(r => r.isActive);
+    } else if (activeTab === 'Deactivate') {
+      filtered = rows.filter(r => !r.isActive);
+    } else {
+      filtered = rows;
+    }
+    
+    return filtered;
+  }, [rows, activeTab]);
 
   const columns = useMemo(() => ([
-    { key: 'id', label: 'USER ID' },
     { key: 'fullName', label: 'FULL NAME' },
     { key: 'phoneNumber', label: 'PHONE NUMBER' },
     { key: 'role', label: 'ROLE' },
     { key: 'status', label: 'STATUS' },
     { key: 'action', label: 'ACTION', render: (_v, row) => (
-      <RowActions onView={() => console.log('view user', row)} onEdit={() => setEditRow(row)} onDelete={() => console.log('delete user', row)} />
+      <RowActions onEdit={() => setEditRow(row)} onDelete={() => handleDelete(row)} />
     ) },
   ]), []);
-
-  const filteredRowsByTab = useMemo(() => {
-    if (activeTab === 'All') return rows;
-    if (activeTab === 'Activate') return rows.filter(r => r.isActive);
-    if (activeTab === 'Deactivate') return rows.filter(r => !r.isActive);
-    return rows;
-  }, [rows, activeTab]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -152,12 +239,24 @@ const DashboardOfficeTeam = () => {
       });
       setOpenAdd(false);
       
-      // You might want to refresh the table data here
-      // For now, we'll just show a success message
-      alert('User registered successfully!');
+      // Refresh users list
+      const response = await getUsers();
+      let usersArray = [];
+      if (Array.isArray(response)) {
+        usersArray = response;
+      } else if (response && Array.isArray(response.data)) {
+        usersArray = response.data;
+      } else if (response && Array.isArray(response.users)) {
+        usersArray = response.users;
+      }
+      
+      setUsers(usersArray);
+      setRows(mapUsersToRows(usersArray));
+      
+      showSuccess('User registered successfully!');
     } catch (error) {
       console.error('Error registering user:', error);
-      alert(`Error: ${error.message || 'Failed to register user'}`);
+      showError(error.message || 'Failed to register user');
     } finally {
       setLoading(false);
     }
@@ -165,8 +264,69 @@ const DashboardOfficeTeam = () => {
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
-    // TODO: Implement edit functionality with update API
-    setEditRow(null);
+    if (!editRow) return;
+    
+    setLoading(true);
+    try {
+      const userData = {
+        name: editFormData.fullName,
+        profile_image: editRow.profile_image || '',
+        is_active: editFormData.isActive,
+        role_id: editFormData.roleId,
+      };
+
+      await updateUser(editRow.id, userData);
+      
+      // Refresh users list
+      const response = await getUsers();
+      let usersArray = [];
+      if (Array.isArray(response)) {
+        usersArray = response;
+      } else if (response && Array.isArray(response.data)) {
+        usersArray = response.data;
+      } else if (response && Array.isArray(response.users)) {
+        usersArray = response.users;
+      }
+      
+      setUsers(usersArray);
+      setRows(mapUsersToRows(usersArray));
+      setEditRow(null);
+      
+      showSuccess('User updated successfully!');
+    } catch (error) {
+      console.error('Error updating user:', error);
+      showError(error.message || 'Failed to update user');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (row) => {
+    setLoading(true);
+    try {
+      await deleteUser(row.id);
+      
+      // Refresh users list
+      const response = await getUsers();
+      let usersArray = [];
+      if (Array.isArray(response)) {
+        usersArray = response;
+      } else if (response && Array.isArray(response.data)) {
+        usersArray = response.data;
+      } else if (response && Array.isArray(response.users)) {
+        usersArray = response.users;
+      }
+      
+      setUsers(usersArray);
+      setRows(mapUsersToRows(usersArray));
+      
+      showSuccess('User deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      showError(error.message || 'Failed to delete user');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -277,38 +437,83 @@ const DashboardOfficeTeam = () => {
       </Modal>
       <Modal
         open={!!editRow}
-        onClose={() => setEditRow(null)}
+        onClose={() => {
+          setEditRow(null);
+          setEditFormData({
+            fullName: '',
+            roleId: '',
+            isActive: true,
+          });
+        }}
         title="Edit User"
         footer={(
           <>
-            <button className="ui-btn ui-btn--secondary" onClick={() => setEditRow(null)}>Cancel</button>
-            <button className="ui-btn ui-btn--primary" onClick={handleEditSubmit}>Update</button>
+            <button 
+              className="ui-btn ui-btn--secondary" 
+              onClick={() => {
+                setEditRow(null);
+                setEditFormData({
+                  fullName: '',
+                  roleId: '',
+                  isActive: true,
+                });
+              }}
+              disabled={loading}
+            >
+              Cancel
+            </button>
+            <button 
+              className="ui-btn ui-btn--primary" 
+              onClick={handleEditSubmit}
+              disabled={loading || !editFormData.fullName || !editFormData.roleId}
+            >
+              {loading ? 'Updating...' : 'Update'}
+            </button>
           </>
         )}
       >
         <form className="ui-form" onSubmit={handleEditSubmit}>
           <div className="form-group form-group--full">
-            <label className="ui-label">Full Name</label>
+            <label className="ui-label">Full Name *</label>
             <input 
               className="ui-input" 
-              defaultValue={editRow?.fullName}
+              placeholder="Enter full name"
+              value={editFormData.fullName}
+              onChange={(e) => setEditFormData(prev => ({ ...prev, fullName: e.target.value }))}
+              required
             />
           </div>
           <div className="form-group form-group--full">
             <label className="ui-label">Phone Number</label>
             <input 
               className="ui-input" 
-              defaultValue={editRow?.phoneNumber}
+              value={editRow?.phoneNumber || ''}
+              disabled
+              readOnly
+            />
+            <small style={{ color: '#666', fontSize: '12px' }}>Phone number cannot be changed</small>
+          </div>
+          <div className="form-group form-group--full">
+            <label className="ui-label">Role *</label>
+            <DropdownSelector
+              options={roleOptions}
+              value={editFormData.roleId}
+              onChange={(value) => setEditFormData(prev => ({ ...prev, roleId: value }))}
+              placeholder="Select a role"
             />
           </div>
           <div className="form-group form-group--full">
-            <label className="ui-label">Role</label>
-            <DropdownSelector
-              options={roleOptions}
-              value={editRow?.roleId || ''}
-              onChange={(value) => console.log('Role changed:', value)}
-              placeholder="Select a role"
-            />
+            <label className="ui-label">Status</label>
+            <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={editFormData.isActive}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+                />
+                <span>Active</span>
+              </label>
+            </div>
           </div>
         </form>
       </Modal>
