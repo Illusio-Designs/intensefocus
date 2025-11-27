@@ -100,9 +100,11 @@ export default function TableWithControls({
       <div className="ui-table__header">
         <h4 className="ui-table__title">{title}</h4>
         <div className="ui-table__actions">
-          <Button variant="secondary" onClick={onImport || onExport}>
-            {importText || exportText}
-          </Button>
+          {(onImport || onExport) && (
+            <Button variant="secondary" onClick={onImport || onExport}>
+              {importText || exportText}
+            </Button>
+          )}
           {onAddNew && <Button onClick={onAddNew}>{addNewText}</Button>}
         </div>
       </div>

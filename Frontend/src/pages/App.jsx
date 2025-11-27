@@ -27,6 +27,7 @@ import DashboardOrders from './DashboardOrders';
 import DashboardClients from './DashboardClients';
 import DashboardSuppliers from './DashboardSuppliers';
 import DashboardDistributor from './DashboardDistributor';
+import DashboardOfficeTeam from './DashboardOfficeTeam';
 import DashboardManage from './DashboardManage';
 import DashboardTray from './DashboardTray';
 import AnalyticsReports from './AnalyticsReports';
@@ -65,7 +66,7 @@ const App = ({ initialPage = 'home', productId: initialProductId = null }) => {
   const getLayoutFromPage = (page) => {
     if (['login', 'register'].includes(page)) {
       return 'auth';
-    } else if (['dashboard', 'dashboard-products', 'orders', 'tray', 'party', 'salesmen', 'distributor', 'manage', 'analytics', 'support', 'settings'].includes(page)) {
+    } else if (['dashboard', 'dashboard-products', 'orders', 'tray', 'party', 'salesmen', 'distributor', 'office-team', 'manage', 'analytics', 'support', 'settings'].includes(page)) {
       return 'dashboard';
     }
     return 'public';
@@ -98,7 +99,7 @@ const App = ({ initialPage = 'home', productId: initialProductId = null }) => {
   // Update URL when page or layout changes
   const handlePageChange = (page, productId = null) => {
     if (page === currentPage && productId === currentProductId) return;
-    const dashboardTabs = ['dashboard', 'dashboard-products', 'orders', 'tray', 'party', 'salesmen', 'distributor', 'manage', 'analytics', 'support', 'settings'];
+    const dashboardTabs = ['dashboard', 'dashboard-products', 'orders', 'tray', 'party', 'salesmen', 'distributor', 'office-team', 'manage', 'analytics', 'support', 'settings'];
     // For dashboard tabs, keep the same /dashboard route and switch ?tab=
     let url;
     if (dashboardTabs.includes(page)) {
@@ -161,6 +162,8 @@ const App = ({ initialPage = 'home', productId: initialProductId = null }) => {
         return <DashboardSuppliers />;
       case 'distributor':
         return <DashboardDistributor />;
+      case 'office-team':
+        return <DashboardOfficeTeam />;
       case 'manage':
         return <DashboardManage />;
       case 'analytics':

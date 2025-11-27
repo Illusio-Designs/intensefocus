@@ -18,8 +18,8 @@ export default function DropdownSelector({
       disabled={disabled}
     >
       {placeholder !== null && <option value="" disabled hidden>{placeholder}</option>}
-      {options.map((opt) => (
-        <option key={String(opt.value)} value={opt.value}>
+      {options.map((opt, index) => (
+        <option key={opt.value != null ? String(opt.value) : `opt-${index}`} value={opt.value}>
           {opt.label}
         </option>
       ))}
