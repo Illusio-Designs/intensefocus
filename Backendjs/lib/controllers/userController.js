@@ -67,11 +67,11 @@ class UserController {
                 return res.status(404).json({ error: 'Role not found' });
             }
             await user.update({
-                full_name: name,
-                phone: phone,
-                role_id: role_id,
-                is_active: is_active,
-                profile_image: image_url,
+                full_name: name || user.full_name,
+                phone: phone || user.phone,
+                role_id: role_id || user.role_id,
+                is_active: is_active || user.is_active,
+                profile_image: image_url || user.profile_image,
                 updated_at: new Date()
             });
             await AuditLog.create({
@@ -82,10 +82,11 @@ class UserController {
                 record_id: user.user_id,
                 old_values: user.toJSON(),
                 new_values: {
-                    full_name: name,
-                    phone: phone,
-                    role_id: role_id,
-                    is_active: is_active,
+                    full_name: name || user.full_name,
+                    phone: phone || user.phone,
+                    role_id: role_id || user.role_id,
+                    is_active: is_active || user.is_active,
+                    profile_image: image_url || user.profile_image,
                     updated_at: new Date()
                 },
                 ip_address: req.ip,
