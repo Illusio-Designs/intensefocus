@@ -57,7 +57,7 @@ class UserController {
     async updateUser(req, res) {
         try {
             const { id } = req.params;
-            const { name, is_active, phone, role_id } = req.body;
+            const { name, is_active, phone, role_id, image_url } = req.body;
             const user = await User.findByPk(id);
             if (!user) {
                 return res.status(404).json({ error: 'User not found' });
@@ -71,6 +71,7 @@ class UserController {
                 phone: phone,
                 role_id: role_id,
                 is_active: is_active,
+                profile_image: image_url,
                 updated_at: new Date()
             });
             await AuditLog.create({
