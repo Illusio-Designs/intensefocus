@@ -16,6 +16,7 @@ router.get('/docs', (req, res) => {
         endpoints: {
             // Authentication endpoints
             auth: '/api/auth',
+            roles: '/api/roles',
         }
     });
 });
