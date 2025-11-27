@@ -57,7 +57,7 @@ class UserController {
     async updateUser(req, res) {
         try {
             const { id } = req.params;
-            const { name, is_active, phone, role_id, image_url } = req.body;
+            const { name, is_active, phone, role_id, email, image_url } = req.body;
             const user = await User.findByPk(id);
             if (!user) {
                 return res.status(404).json({ error: 'User not found' });
@@ -69,6 +69,7 @@ class UserController {
             await user.update({
                 full_name: name || user.full_name,
                 phone: phone || user.phone,
+                email: email || user.email,
                 role_id: role_id || user.role_id,
                 is_active: is_active || user.is_active,
                 profile_image: image_url || user.profile_image,
