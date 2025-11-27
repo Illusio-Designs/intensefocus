@@ -9,15 +9,16 @@ export const metadata = {
   icons: {
     icon: '/favicon.png',
   },
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-  },
   other: {
     'color-scheme': 'light only',
   },
+};
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({ children }) {
@@ -31,8 +32,6 @@ export default function RootLayout({ children }) {
           type="font/otf"
           crossOrigin="anonymous"
         />
-        {/* Prevent browser pinch-zoom on mobile */}
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
         <meta name="color-scheme" content="light only" />
       </head>
       <body className="antialiased" style={{colorScheme: 'light'}}>

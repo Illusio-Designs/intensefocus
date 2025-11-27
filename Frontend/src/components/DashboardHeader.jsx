@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import '../styles/components/DashboardHeader.css';
 import { FiMaximize, FiMinimize } from 'react-icons/fi';
-import { logout as authLogout } from '../services/authService';
+import { logout as authLogout, getUser } from '../services/authService';
 import { showLogoutSuccess } from '../services/notificationService';
 
 const DashboardHeader = ({ onPageChange, currentPage, isCollapsed }) => {
@@ -11,13 +11,40 @@ const DashboardHeader = ({ onPageChange, currentPage, isCollapsed }) => {
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const userMenuRef = useRef(null);
 
-  useEffect(() => {
+  const updateUserInfo = () => {
     try {
-      const storedName = typeof window !== 'undefined' ? window.localStorage.getItem('userName') : null;
-      const storedAvatar = typeof window !== 'undefined' ? window.localStorage.getItem('userAvatarUrl') : null;
-      if (storedName) setUserName(storedName);
-      if (storedAvatar) setAvatarUrl(storedAvatar);
+      // Get user from auth service
+      const user = getUser();
+      if (user) {
+        const name = user.full_name || user.fullName || user.name || user.email || 'User';
+        setUserName(name);
+        if (user.avatar || user.avatarUrl) {
+          setAvatarUrl(user.avatar || user.avatarUrl);
+        }
+      } else {
+        // Fallback to localStorage for backward compatibility
+        const storedName = typeof window !== 'undefined' ? window.localStorage.getItem('userName') : null;
+        const storedAvatar = typeof window !== 'undefined' ? window.localStorage.getItem('userAvatarUrl') : null;
+        if (storedName) setUserName(storedName);
+        if (storedAvatar) setAvatarUrl(storedAvatar);
+      }
     } catch (_) {}
+  };
+
+  useEffect(() => {
+    updateUserInfo();
+    
+    // Listen for auth changes
+    const handleAuthChange = () => {
+      updateUserInfo();
+    };
+    
+    if (typeof window !== 'undefined') {
+      window.addEventListener('authChange', handleAuthChange);
+      return () => {
+        window.removeEventListener('authChange', handleAuthChange);
+      };
+    }
   }, []);
 
   useEffect(() => {
