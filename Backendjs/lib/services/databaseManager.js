@@ -339,13 +339,16 @@ class DatabaseManager {
             require('../models/State');
             require('../models/Cities');
             require('../models/Zone');
+            require('../models/Party');
+            require('../models/Distributor');
+            require('../models/Salesman');
 
             // List of tables that are manually managed (should not be auto-synced)
             const manuallyManagedTables = ['users', 'roles', 'user_roles', 'audit_logs'];
 
             // Define sync order for models with dependencies (parent tables first)
             // Country -> State -> Cities -> Zone
-            const modelSyncOrder = ['Country', 'State', 'Cities', 'Zone'];
+            const modelSyncOrder = ['Country', 'State', 'Cities', 'Zone', 'Party', 'Distributor', 'Salesman'];
 
             // Sync all models except the manually managed ones
             console.log('🔄 Syncing Sequelize models (excluding manually managed tables)...');
