@@ -23,7 +23,11 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+
+// Serve static HTML files for testing
+app.use(express.static(path.join(__dirname, '..')));
 
 // Import and use the route manager
 const routeManager = require('./routes/routeManager');

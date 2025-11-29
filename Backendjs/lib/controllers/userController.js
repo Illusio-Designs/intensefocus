@@ -1,4 +1,6 @@
 const { Op } = require('sequelize');
+const path = require('path');
+const fs = require('fs');
 const User = require('../models/User');
 const Role = require('../models/Role');
 const AuditLog = require('../models/AuditLog');
@@ -99,6 +101,60 @@ class UserController {
             res.status(500).json({ error: error.message });
         }
     }
+
+
+    // Upload profile image
+    async uploadProfileImage(req, res) {
+        try {
+            if (!req.fileInfo) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'No file uploaded'
+                });
+            }
+
+            const { id } = req.params;
+            const user = await User.findByPk(id);
+
+            if (!user) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'User not found'
+                });
+            }
+
+            // Delete old profile image if exists
+            if (user.profile_image) {
+                const oldImagePath = path.join(__dirname, '../uploads/profile', user.profile_image);
+                if (fs.existsSync(oldImagePath)) {
+                    fs.unlinkSync(oldImagePath);
+                }
+            }
+
+            // Update user with new image
+            await user.update({
+                profile_image: req.fileInfo.filename
+            });
+
+            res.status(200).json({
+                success: true,
+                message: 'Profile image uploaded successfully',
+                data: {
+                    profile_image: req.fileInfo.filename,
+                    path: req.fileInfo.path,
+                    size: req.fileInfo.size
+                }
+            });
+        } catch (error) {
+            console.log("error", error);
+            res.status(500).json({
+                success: false,
+                message: 'Error uploading profile image',
+                error: error.message
+            });
+        }
+    };
+
 }
 
 module.exports = new UserController();

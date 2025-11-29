@@ -1,6 +1,7 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../constants/database');
-const AuditLog = require('../models/AuditLog');
+const Country = require('../models/Country');
+const State = require('../models/State');
 
 class DatabaseManager {
     static async initialize() {
@@ -332,6 +333,71 @@ class DatabaseManager {
                 console.log('👤 Default admin user created');
             }
 
+            // Load all models that use Sequelize define() to ensure they're registered
+            console.log('📦 Loading Sequelize models...');
+            require('../models/Country');
+            require('../models/State');
+            require('../models/Cities');
+            require('../models/Zone');
+
+            // List of tables that are manually managed (should not be auto-synced)
+            const manuallyManagedTables = ['users', 'roles', 'user_roles', 'audit_logs'];
+
+            // Define sync order for models with dependencies (parent tables first)
+            // Country -> State -> Cities -> Zone
+            const modelSyncOrder = ['Country', 'State', 'Cities', 'Zone'];
+
+            // Sync all models except the manually managed ones
+            console.log('🔄 Syncing Sequelize models (excluding manually managed tables)...');
+
+            // First, get all models that should be synced
+            const allModels = Object.keys(sequelize.models).filter(modelName => {
+                const model = sequelize.models[modelName];
+                const tableName = model.tableName || model.name.toLowerCase() + 's';
+                return !manuallyManagedTables.includes(tableName);
+            });
+
+            // Sync models in dependency order first
+            for (const modelName of modelSyncOrder) {
+                if (allModels.includes(modelName) && sequelize.models[modelName]) {
+                    const model = sequelize.models[modelName];
+                    try {
+                        const tableName = model.tableName || model.name.toLowerCase() + 's';
+                        const tableExists = await this.checkTableExists(tableName);
+
+                        if (!tableExists) {
+                            console.log(`📦 Creating table from model: ${tableName}`);
+                            await model.sync({ alter: false });
+                        } else {
+                            console.log(`✅ Table exists: ${tableName}`);
+                        }
+                    } catch (error) {
+                        console.log(`⚠️ Warning syncing model ${modelName}:`, error.message);
+                    }
+                }
+            }
+
+            // Sync any remaining models that weren't in the ordered list
+            const remainingModels = allModels.filter(modelName => !modelSyncOrder.includes(modelName));
+            for (const modelName of remainingModels) {
+                const model = sequelize.models[modelName];
+                try {
+                    const tableName = model.tableName || model.name.toLowerCase() + 's';
+                    const tableExists = await this.checkTableExists(tableName);
+
+                    if (!tableExists) {
+                        console.log(`📦 Creating table from model: ${tableName}`);
+                        await model.sync({ alter: false });
+                    } else {
+                        console.log(`✅ Table exists: ${tableName}`);
+                    }
+                } catch (error) {
+                    console.log(`⚠️ Warning syncing model ${modelName}:`, error.message);
+                }
+            }
+
+            await Country.initializeDefaultCountries();
+            await State.initializeDefaultStates();
             console.log('✨ Database initialization completed');
             return true;
         } catch (error) {
