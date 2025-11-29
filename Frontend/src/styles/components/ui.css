@@ -176,6 +176,7 @@
 .ui-modal {
   width: 100%;
   max-width: 640px;
+  max-height: 90vh;
   background: #fff;
   border-radius: 14px;
   box-shadow: 0 24px 72px rgba(0, 0, 0, 0.28);
@@ -222,6 +223,11 @@
 }
 .ui-modal__body {
   padding: 20px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1;
+  min-height: 0;
+  scrollbar-width: none;
 }
 .ui-modal__footer {
   padding: 14px 20px;

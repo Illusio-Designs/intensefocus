@@ -175,6 +175,19 @@ const Login = ({ onPageChange }) => {
           if (user) {
             // Set authentication
             setAuth(user, loginResponse.token);
+            
+            // Save user name to localStorage for header display
+            const userName = user.full_name || user.fullName || user.name || user.email || '';
+            if (userName && typeof window !== 'undefined') {
+              window.localStorage.setItem('userName', userName);
+            }
+            
+            // Save profile image if available
+            const profileImage = user.profile_image || user.image_url || user.avatar || user.avatarUrl || '';
+            if (profileImage && profileImage.trim() !== '' && typeof window !== 'undefined') {
+              window.localStorage.setItem('userAvatarUrl', profileImage.trim());
+            }
+            
             showLoginSuccess();
             
             // Cleanup OTP widget

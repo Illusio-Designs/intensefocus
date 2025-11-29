@@ -4,6 +4,7 @@
  */
 
 import { sendOTP } from './msg91Service';
+import { logout } from './authService';
 
 /**
  * Get Base URL from environment variable
@@ -44,6 +45,9 @@ const getBaseURL = () => {
 // For dynamic access, use getBaseURL() function
 const BASE_URL = getBaseURL();
 
+// Flag to prevent infinite redirect loops
+let isRedirecting = false;
+
 /**
  * Get authentication token from localStorage
  */
@@ -79,7 +83,37 @@ const handleResponse = async (response) => {
 
   if (!response.ok) {
     const errorData = isJson ? await response.json() : { error: response.statusText };
-    throw new Error(errorData.error || errorData.message || 'An error occurred');
+    const errorMessage = errorData.error || errorData.message || 'An error occurred';
+    
+    // Check for token expiration (401 Unauthorized or "Token expired" message)
+    const isTokenExpired = response.status === 401 || 
+                          errorMessage.toLowerCase().includes('token expired') ||
+                          errorMessage.toLowerCase().includes('unauthorized') ||
+                          errorMessage.toLowerCase().includes('invalid token');
+    
+    if (isTokenExpired && typeof window !== 'undefined' && !isRedirecting) {
+      isRedirecting = true;
+      
+      // Clear authentication
+      logout();
+      
+      // Show user-friendly message
+      console.warn('Session expired. Please login again.');
+      
+      // Redirect to login page
+      // Check if we're not already on the login page to avoid infinite loops
+      const currentPath = window.location.pathname;
+      if (!currentPath.includes('/login')) {
+        window.location.href = '/login';
+      }
+      
+      // Reset flag after a delay
+      setTimeout(() => {
+        isRedirecting = false;
+      }, 1000);
+    }
+    
+    throw new Error(errorMessage);
   }
 
   return isJson ? await response.json() : await response.text();
@@ -95,10 +129,26 @@ const apiRequest = async (endpoint, options = {}) => {
   const baseUrl = getBaseURL();
   
   // Ensure endpoint starts with /
-  const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  let normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   
-  // Construct full URL - ensure no double slashes
-  const fullUrl = `${baseUrl}${normalizedEndpoint}`.replace(/([^:]\/)\/+/g, '$1');
+  // For GET requests with body, convert body to query parameters
+  // (Browsers don't support body in GET requests)
+  let fullUrl = `${baseUrl}${normalizedEndpoint}`;
+  if (method === 'GET' && body) {
+    const queryParams = new URLSearchParams();
+    Object.keys(body).forEach(key => {
+      if (body[key] !== null && body[key] !== undefined) {
+        queryParams.append(key, body[key]);
+      }
+    });
+    const queryString = queryParams.toString();
+    if (queryString) {
+      fullUrl += `?${queryString}`;
+    }
+  }
+  
+  // Ensure no double slashes
+  fullUrl = fullUrl.replace(/([^:]\/)\/+/g, '$1');
   
   console.log(`[API Request] ${method} ${fullUrl}`); // Debug log
   console.log(`[API Base URL] ${baseUrl}`); // Debug log
@@ -109,6 +159,7 @@ const apiRequest = async (endpoint, options = {}) => {
     credentials: 'include', // Include cookies for CORS
   };
 
+  // Add body for non-GET requests
   if (body && method !== 'GET') {
     config.body = JSON.stringify(body);
   }
@@ -258,6 +309,726 @@ export const updateUser = async (userId, userData) => {
  */
 export const deleteUser = async (userId) => {
   return apiRequest(`/users/${userId}`, {
+    method: 'DELETE',
+    includeAuth: true,
+  });
+};
+
+/**
+ * Upload profile image
+ * @param {string} userId - User ID (UUID)
+ * @param {File} profileImage - Profile image file
+ * @returns {Promise<Object>} Response with image data
+ */
+export const uploadProfileImage = async (userId, profileImage) => {
+  const baseUrl = getBaseURL();
+  const fullUrl = `${baseUrl}/users/${userId}/upload-profile`;
+  
+  const formData = new FormData();
+  formData.append('profile_image', profileImage);
+  
+  const token = getAuthToken();
+  const headers = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  const response = await fetch(fullUrl, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    body: formData,
+  });
+  
+  return await handleResponse(response);
+};
+
+// ==================== COUNTRY ENDPOINTS ====================
+
+/**
+ * Get all countries
+ * @returns {Promise<Array>} Array of country objects
+ */
+export const getCountries = async () => {
+  return apiRequest('/countries', {
+    method: 'GET',
+    includeAuth: true,
+  });
+};
+
+/**
+ * Create country
+ * @param {Object} countryData - Country data
+ * @param {string} countryData.name - Country name
+ * @param {string} countryData.code - Country code (e.g., "IN", "US")
+ * @param {string} countryData.phone_code - Phone code (e.g., "+91", "+1")
+ * @param {string} countryData.currency - Currency code (e.g., "INR", "USD")
+ * @returns {Promise<Object>} Created country object
+ */
+export const createCountry = async (countryData) => {
+  const { name, code, phone_code, currency } = countryData;
+  return apiRequest('/countries/', {
+    method: 'POST',
+    body: { name, code, phone_code, currency },
+    includeAuth: true,
+  });
+};
+
+/**
+ * Update country
+ * @param {string} countryId - Country ID (UUID)
+ * @param {Object} countryData - Country data to update
+ * @param {string} countryData.name - Country name
+ * @param {string} countryData.code - Country code
+ * @param {string} countryData.phone_code - Phone code
+ * @param {string} countryData.currency - Currency code
+ * @returns {Promise<Object>} Response with message
+ */
+export const updateCountry = async (countryId, countryData) => {
+  const { name, code, phone_code, currency } = countryData;
+  return apiRequest(`/countries/${countryId}`, {
+    method: 'PUT',
+    body: { name, code, phone_code, currency },
+    includeAuth: true,
+  });
+};
+
+/**
+ * Delete country
+ * @param {string} countryId - Country ID (UUID)
+ * @returns {Promise<Object>} Response with message
+ */
+export const deleteCountry = async (countryId) => {
+  return apiRequest(`/countries/${countryId}`, {
+    method: 'DELETE',
+    includeAuth: true,
+  });
+};
+
+// ==================== STATE ENDPOINTS ====================
+
+/**
+ * Get states by country
+ * @param {string} countryId - Country ID (UUID)
+ * @returns {Promise<Array>} Array of state objects
+ */
+export const getStates = async (countryId) => {
+  // Use GET to /states/get with country_id (will be converted to query parameter)
+  const response = await apiRequest('/states/', {
+    method: 'GET',
+    body: { country_id: countryId },
+    includeAuth: true,
+  });
+  
+  // Ensure we always return an array
+  if (Array.isArray(response)) {
+    return response;
+  }
+  // Handle case where response might be wrapped in data property
+  if (response && Array.isArray(response.data)) {
+    return response.data;
+  }
+  // Return empty array if response is unexpected
+  return [];
+};
+
+/**
+ * Create state
+ * @param {Object} stateData - State data
+ * @param {string} stateData.name - State name
+ * @param {string} stateData.code - State code (e.g., "GJ", "MH")
+ * @param {string} stateData.country_id - Country ID (UUID)
+ * @returns {Promise<Object>} Created state object
+ */
+export const createState = async (stateData) => {
+  const { name, code, country_id } = stateData;
+  return apiRequest('/states/', {
+    method: 'POST',
+    body: { name, code, country_id },
+    includeAuth: true,
+  });
+};
+
+/**
+ * Update state
+ * @param {string} stateId - State ID (UUID)
+ * @param {Object} stateData - State data to update
+ * @param {string} stateData.name - State name
+ * @param {string} stateData.code - State code
+ * @param {string} stateData.country_id - Country ID (UUID)
+ * @returns {Promise<Object>} Response with message
+ */
+export const updateState = async (stateId, stateData) => {
+  const { name, code, country_id } = stateData;
+  return apiRequest(`/states/${stateId}`, {
+    method: 'PUT',
+    body: { name, code, country_id },
+    includeAuth: true,
+  });
+};
+
+/**
+ * Delete state
+ * @param {string} stateId - State ID (UUID)
+ * @returns {Promise<Object>} Response with message
+ */
+export const deleteState = async (stateId) => {
+  return apiRequest(`/states/${stateId}`, {
+    method: 'DELETE',
+    includeAuth: true,
+  });
+};
+
+// ==================== CITY ENDPOINTS ====================
+
+/**
+ * Get cities by state
+ * @param {string} stateId - State ID (UUID)
+ * @returns {Promise<Array>} Array of city objects
+ */
+export const getCities = async (stateId) => {
+  return apiRequest('/cities/', {
+    method: 'GET',
+    body: { state_id: stateId },
+    includeAuth: true,
+  });
+};
+
+/**
+ * Create city
+ * @param {Object} cityData - City data
+ * @param {string} cityData.name - City name
+ * @param {string} cityData.state_id - State ID (UUID)
+ * @returns {Promise<Object>} Created city object
+ */
+export const createCity = async (cityData) => {
+  const { name, state_id } = cityData;
+  return apiRequest('/cities/', {
+    method: 'POST',
+    body: { name, state_id },
+    includeAuth: true,
+  });
+};
+
+/**
+ * Update city
+ * @param {string} cityId - City ID (UUID)
+ * @param {Object} cityData - City data to update
+ * @param {string} cityData.name - City name
+ * @param {string} cityData.state_id - State ID (UUID)
+ * @returns {Promise<Object>} Response with message
+ */
+export const updateCity = async (cityId, cityData) => {
+  const { name, state_id } = cityData;
+  return apiRequest(`/cities/${cityId}`, {
+    method: 'PUT',
+    body: { name, state_id },
+    includeAuth: true,
+  });
+};
+
+/**
+ * Delete city
+ * @param {string} cityId - City ID (UUID)
+ * @returns {Promise<Object>} Response with message
+ */
+export const deleteCity = async (cityId) => {
+  return apiRequest(`/cities/${cityId}`, {
+    method: 'DELETE',
+    includeAuth: true,
+  });
+};
+
+// ==================== ZONE ENDPOINTS ====================
+
+/**
+ * Get zones by city
+ * @param {string} cityId - City ID (UUID)
+ * @returns {Promise<Array>} Array of zone objects
+ */
+export const getZones = async (cityId) => {
+  return apiRequest('/zones/', {
+    method: 'GET',
+    body: { city_id: cityId },
+    includeAuth: true,
+  });
+};
+
+/**
+ * Create zone
+ * @param {Object} zoneData - Zone data
+ * @param {string} zoneData.name - Zone name
+ * @param {string} zoneData.description - Zone description
+ * @param {string} zoneData.city_id - City ID (UUID)
+ * @param {string} zoneData.state_id - State ID (UUID)
+ * @param {string} zoneData.country_id - Country ID (UUID)
+ * @param {string} zoneData.zone_code - Zone code
+ * @returns {Promise<Object>} Created zone object
+ */
+export const createZone = async (zoneData) => {
+  const { name, description, city_id, state_id, country_id, zone_code } = zoneData;
+  return apiRequest('/zones/', {
+    method: 'POST',
+    body: { name, description, city_id, state_id, country_id, zone_code },
+    includeAuth: true,
+  });
+};
+
+/**
+ * Update zone
+ * @param {string} zoneId - Zone ID (UUID)
+ * @param {Object} zoneData - Zone data to update
+ * @param {string} zoneData.name - Zone name
+ * @param {string} zoneData.description - Zone description
+ * @param {string} zoneData.city_id - City ID (UUID)
+ * @param {string} zoneData.state_id - State ID (UUID)
+ * @param {string} zoneData.country_id - Country ID (UUID)
+ * @param {string} zoneData.zone_code - Zone code
+ * @returns {Promise<Object>} Response with message
+ */
+export const updateZone = async (zoneId, zoneData) => {
+  const { name, description, city_id, state_id, country_id, zone_code } = zoneData;
+  return apiRequest(`/zones/${zoneId}`, {
+    method: 'PUT',
+    body: { name, description, city_id, state_id, country_id, zone_code },
+    includeAuth: true,
+  });
+};
+
+/**
+ * Delete zone
+ * @param {string} zoneId - Zone ID (UUID)
+ * @returns {Promise<Object>} Response with message
+ */
+export const deleteZone = async (zoneId) => {
+  return apiRequest(`/zones/${zoneId}`, {
+    method: 'DELETE',
+    includeAuth: true,
+  });
+};
+
+// ==================== DISTRIBUTOR ENDPOINTS ====================
+
+/**
+ * Get distributors by country
+ * @param {string} countryId - Country ID (UUID)
+ * @returns {Promise<Array>} Array of distributor objects
+ */
+export const getDistributors = async (countryId) => {
+  return apiRequest('/distributors/', {
+    method: 'GET',
+    body: { country_id: countryId },
+    includeAuth: true,
+  });
+};
+
+/**
+ * Create distributor
+ * @param {Object} distributorData - Distributor data
+ * @param {string} distributorData.distributor_name - Distributor name
+ * @param {string} distributorData.trade_name - Trade name
+ * @param {string} distributorData.contact_person - Contact person name
+ * @param {string} distributorData.email - Email address
+ * @param {string} distributorData.phone - Phone number
+ * @param {string} distributorData.address - Address
+ * @param {string} distributorData.country_id - Country ID (UUID)
+ * @param {string} distributorData.state_id - State ID (UUID)
+ * @param {string} distributorData.city_id - City ID (UUID)
+ * @param {string} distributorData.zone_id - Zone ID (UUID)
+ * @param {string} distributorData.pincode - Pincode
+ * @param {string} distributorData.gstin - GSTIN (optional)
+ * @param {string} distributorData.pan - PAN (optional)
+ * @param {string} distributorData.territory - Territory
+ * @param {number} distributorData.commission_rate - Commission rate
+ * @returns {Promise<Object>} Created distributor object
+ */
+export const createDistributor = async (distributorData) => {
+  const {
+    distributor_name,
+    trade_name,
+    contact_person,
+    email,
+    phone,
+    address,
+    country_id,
+    state_id,
+    city_id,
+    zone_id,
+    pincode,
+    gstin,
+    pan,
+    territory,
+    commission_rate,
+  } = distributorData;
+  return apiRequest('/distributors/', {
+    method: 'POST',
+    body: {
+      distributor_name,
+      trade_name,
+      contact_person,
+      email,
+      phone,
+      address,
+      country_id,
+      state_id,
+      city_id,
+      zone_id,
+      pincode,
+      gstin: gstin || '',
+      pan: pan || '',
+      territory,
+      commission_rate,
+    },
+    includeAuth: true,
+  });
+};
+
+/**
+ * Update distributor
+ * @param {string} distributorId - Distributor ID (UUID)
+ * @param {Object} distributorData - Distributor data to update
+ * @param {string} distributorData.distributor_name - Distributor name
+ * @param {string} distributorData.trade_name - Trade name
+ * @param {string} distributorData.contact_person - Contact person name
+ * @param {string} distributorData.email - Email address
+ * @param {string} distributorData.phone - Phone number
+ * @param {string} distributorData.address - Address
+ * @param {string} distributorData.country_id - Country ID (UUID)
+ * @param {string} distributorData.state_id - State ID (UUID)
+ * @param {string} distributorData.city_id - City ID (UUID)
+ * @param {string} distributorData.zone_id - Zone ID (UUID)
+ * @param {string} distributorData.pincode - Pincode
+ * @param {string} distributorData.gstin - GSTIN (optional)
+ * @param {string} distributorData.pan - PAN (optional)
+ * @param {string} distributorData.territory - Territory
+ * @param {number} distributorData.commission_rate - Commission rate
+ * @param {boolean} distributorData.is_active - Whether distributor is active
+ * @returns {Promise<Object>} Response with message
+ */
+export const updateDistributor = async (distributorId, distributorData) => {
+  const {
+    distributor_name,
+    trade_name,
+    contact_person,
+    email,
+    phone,
+    address,
+    country_id,
+    state_id,
+    city_id,
+    zone_id,
+    pincode,
+    gstin,
+    pan,
+    territory,
+    commission_rate,
+    is_active,
+  } = distributorData;
+  return apiRequest(`/distributors/${distributorId}`, {
+    method: 'PUT',
+    body: {
+      distributor_name,
+      trade_name,
+      contact_person,
+      email,
+      phone,
+      address,
+      country_id,
+      state_id,
+      city_id,
+      zone_id,
+      pincode,
+      gstin: gstin || '',
+      pan: pan || '',
+      territory,
+      commission_rate,
+      is_active,
+    },
+    includeAuth: true,
+  });
+};
+
+/**
+ * Delete distributor
+ * @param {string} distributorId - Distributor ID (UUID)
+ * @returns {Promise<Object>} Response with message
+ */
+export const deleteDistributor = async (distributorId) => {
+  return apiRequest(`/distributors/${distributorId}`, {
+    method: 'DELETE',
+    includeAuth: true,
+  });
+};
+
+// ==================== PARTY ENDPOINTS ====================
+
+/**
+ * Get all parties
+ * @returns {Promise<Array>} Array of party objects
+ */
+export const getParties = async () => {
+  return apiRequest('/parties/', {
+    method: 'GET',
+    includeAuth: true,
+  });
+};
+
+/**
+ * Create party
+ * @param {Object} partyData - Party data
+ * @param {string} partyData.party_name - Party name
+ * @param {string} partyData.trade_name - Trade name
+ * @param {string} partyData.contact_person - Contact person name
+ * @param {string} partyData.email - Email address
+ * @param {string} partyData.phone - Phone number
+ * @param {string} partyData.address - Address
+ * @param {string} partyData.country_id - Country ID (UUID)
+ * @param {string} partyData.state_id - State ID (UUID)
+ * @param {string} partyData.city_id - City ID (UUID)
+ * @param {string} partyData.zone_id - Zone ID (UUID)
+ * @param {string} partyData.pincode - Pincode
+ * @param {string} partyData.gstin - GSTIN (optional)
+ * @param {string} partyData.pan - PAN (optional)
+ * @returns {Promise<Object>} Created party object
+ */
+export const createParty = async (partyData) => {
+  const {
+    party_name,
+    trade_name,
+    contact_person,
+    email,
+    phone,
+    address,
+    country_id,
+    state_id,
+    city_id,
+    zone_id,
+    pincode,
+    gstin,
+    pan,
+  } = partyData;
+  return apiRequest('/parties/', {
+    method: 'POST',
+    body: {
+      party_name,
+      trade_name,
+      contact_person,
+      email,
+      phone,
+      address,
+      country_id,
+      state_id,
+      city_id,
+      zone_id,
+      pincode,
+      gstin: gstin || '',
+      pan: pan || '',
+    },
+    includeAuth: true,
+  });
+};
+
+/**
+ * Update party
+ * @param {string} partyId - Party ID (UUID)
+ * @param {Object} partyData - Party data to update
+ * @param {string} partyData.party_name - Party name
+ * @param {string} partyData.trade_name - Trade name
+ * @param {string} partyData.contact_person - Contact person name
+ * @param {string} partyData.email - Email address
+ * @param {string} partyData.phone - Phone number
+ * @param {string} partyData.address - Address
+ * @param {string} partyData.country_id - Country ID (UUID)
+ * @param {string} partyData.state_id - State ID (UUID)
+ * @param {string} partyData.city_id - City ID (UUID)
+ * @param {string} partyData.zone_id - Zone ID (UUID)
+ * @param {string} partyData.pincode - Pincode
+ * @param {string} partyData.gstin - GSTIN (optional)
+ * @param {string} partyData.pan - PAN (optional)
+ * @returns {Promise<Object>} Response with message
+ */
+export const updateParty = async (partyId, partyData) => {
+  const {
+    party_name,
+    trade_name,
+    contact_person,
+    email,
+    phone,
+    address,
+    country_id,
+    state_id,
+    city_id,
+    zone_id,
+    pincode,
+    gstin,
+    pan,
+  } = partyData;
+  return apiRequest(`/parties/${partyId}`, {
+    method: 'PUT',
+    body: {
+      party_name,
+      trade_name,
+      contact_person,
+      email,
+      phone,
+      address,
+      country_id,
+      state_id,
+      city_id,
+      zone_id,
+      pincode,
+      gstin: gstin || '',
+      pan: pan || '',
+    },
+    includeAuth: true,
+  });
+};
+
+/**
+ * Delete party
+ * @param {string} partyId - Party ID (UUID)
+ * @returns {Promise<Object>} Response with message
+ */
+export const deleteParty = async (partyId) => {
+  return apiRequest(`/parties/${partyId}`, {
+    method: 'DELETE',
+    includeAuth: true,
+  });
+};
+
+// ==================== SALESMEN ENDPOINTS ====================
+
+/**
+ * Get salesmen by country
+ * @param {string} countryId - Country ID (UUID)
+ * @returns {Promise<Array>} Array of salesman objects
+ */
+export const getSalesmen = async (countryId) => {
+  return apiRequest('/salesmen/', {
+    method: 'GET',
+    body: { country_id: countryId },
+    includeAuth: true,
+  });
+};
+
+/**
+ * Create salesman
+ * @param {Object} salesmanData - Salesman data
+ * @param {string} salesmanData.user_id - User ID (UUID)
+ * @param {string} salesmanData.employee_code - Employee code
+ * @param {string} salesmanData.alternate_phone - Alternate phone (optional)
+ * @param {string} salesmanData.full_name - Full name
+ * @param {string} salesmanData.reporting_manager - Reporting manager ID (UUID)
+ * @param {string} salesmanData.email - Email address
+ * @param {string} salesmanData.phone - Phone number
+ * @param {string} salesmanData.address - Address
+ * @param {string} salesmanData.country_id - Country ID (UUID)
+ * @param {string} salesmanData.state_id - State ID (UUID)
+ * @param {string} salesmanData.city_id - City ID (UUID)
+ * @param {string} salesmanData.zone_preference - Zone preference
+ * @param {string} salesmanData.joining_date - Joining date (ISO string)
+ * @returns {Promise<Object>} Created salesman object
+ */
+export const createSalesman = async (salesmanData) => {
+  const {
+    user_id,
+    employee_code,
+    alternate_phone,
+    full_name,
+    reporting_manager,
+    email,
+    phone,
+    address,
+    country_id,
+    state_id,
+    city_id,
+    zone_preference,
+    joining_date,
+  } = salesmanData;
+  return apiRequest('/salesmen/', {
+    method: 'POST',
+    body: {
+      user_id,
+      employee_code,
+      alternate_phone: alternate_phone || '',
+      full_name,
+      reporting_manager,
+      email,
+      phone,
+      address,
+      country_id,
+      state_id,
+      city_id,
+      zone_preference,
+      joining_date,
+    },
+    includeAuth: true,
+  });
+};
+
+/**
+ * Update salesman
+ * @param {string} salesmanId - Salesman ID (UUID)
+ * @param {Object} salesmanData - Salesman data to update
+ * @param {string} salesmanData.user_id - User ID (UUID)
+ * @param {string} salesmanData.employee_code - Employee code
+ * @param {string} salesmanData.alternate_phone - Alternate phone (optional)
+ * @param {string} salesmanData.full_name - Full name
+ * @param {string} salesmanData.reporting_manager - Reporting manager ID (UUID)
+ * @param {string} salesmanData.email - Email address
+ * @param {string} salesmanData.phone - Phone number
+ * @param {string} salesmanData.address - Address
+ * @param {string} salesmanData.country_id - Country ID (UUID)
+ * @param {string} salesmanData.state_id - State ID (UUID)
+ * @param {string} salesmanData.city_id - City ID (UUID)
+ * @param {string} salesmanData.zone_preference - Zone preference
+ * @param {string} salesmanData.joining_date - Joining date (ISO string)
+ * @returns {Promise<Object>} Response with message
+ */
+export const updateSalesman = async (salesmanId, salesmanData) => {
+  const {
+    user_id,
+    employee_code,
+    alternate_phone,
+    full_name,
+    reporting_manager,
+    email,
+    phone,
+    address,
+    country_id,
+    state_id,
+    city_id,
+    zone_preference,
+    joining_date,
+  } = salesmanData;
+  return apiRequest(`/salesmen/${salesmanId}`, {
+    method: 'PUT',
+    body: {
+      user_id,
+      employee_code,
+      alternate_phone: alternate_phone || '',
+      full_name,
+      reporting_manager,
+      email,
+      phone,
+      address,
+      country_id,
+      state_id,
+      city_id,
+      zone_preference,
+      joining_date,
+    },
+    includeAuth: true,
+  });
+};
+
+/**
+ * Delete salesman
+ * @param {string} salesmanId - Salesman ID (UUID)
+ * @returns {Promise<Object>} Response with message
+ */
+export const deleteSalesman = async (salesmanId) => {
+  return apiRequest(`/salesmen/${salesmanId}`, {
     method: 'DELETE',
     includeAuth: true,
   });

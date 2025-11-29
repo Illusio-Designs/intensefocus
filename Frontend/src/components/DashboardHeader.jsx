@@ -3,51 +3,122 @@ import '../styles/components/DashboardHeader.css';
 import { FiMaximize, FiMinimize } from 'react-icons/fi';
 import { logout as authLogout, getUser } from '../services/authService';
 import { showLogoutSuccess } from '../services/notificationService';
+import { getUsers } from '../services/apiService';
 
 const DashboardHeader = ({ onPageChange, currentPage, isCollapsed }) => {
-  const [userName, setUserName] = useState('Admin');
+  const [userName, setUserName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const userMenuRef = useRef(null);
 
-  const updateUserInfo = () => {
+  const updateUserInfo = async () => {
     try {
       // Get user from auth service
       const user = getUser();
       const storedName = typeof window !== 'undefined' ? window.localStorage.getItem('userName') : null;
       const storedAvatar = typeof window !== 'undefined' ? window.localStorage.getItem('userAvatarUrl') : null;
       
+      let name = '';
+      let avatar = null;
+      
+      // Priority 1: Check localStorage (most up-to-date, set by DashboardSettings)
+      if (storedName && storedName.trim() !== '') {
+        name = storedName.trim();
+      }
+      
+      if (storedAvatar && storedAvatar.trim() !== '') {
+        avatar = storedAvatar.trim();
+      }
+      
+      // Priority 2: Check user object from localStorage
       if (user) {
-        const name = storedName || user.full_name || user.fullName || user.name || user.email || 'User';
-        setUserName(name);
-        
-        // Only set avatar if it's a valid uploaded image (non-empty string)
-        // Check localStorage first (most up-to-date), then user object
-        const avatar = storedAvatar || user.avatar || user.avatarUrl || null;
-        if (avatar && avatar.trim() !== '') {
-          setAvatarUrl(avatar);
-        } else {
-          // Clear avatar if empty or invalid
-          setAvatarUrl(null);
+        if (!name) {
+          name = user.full_name || user.fullName || user.name || user.email || '';
         }
-      } else {
-        // Fallback to localStorage for backward compatibility
-        if (storedName) setUserName(storedName);
-        // Only set avatar if it's a valid uploaded image
-        if (storedAvatar && storedAvatar.trim() !== '') {
-          setAvatarUrl(storedAvatar);
-        } else {
-          setAvatarUrl(null);
+        
+        // Check for avatar in user object (profile_image, image_url, avatar, avatarUrl)
+        if (!avatar) {
+          avatar = user.profile_image || user.image_url || user.avatar || user.avatarUrl || null;
+          if (avatar && avatar.trim() !== '') {
+            avatar = avatar.trim();
+          } else {
+            avatar = null;
+          }
         }
       }
-    } catch (_) {}
+      
+      // Priority 3: Try to fetch from API if we have user ID but no name/avatar
+      if (user && user.id && (!name || !avatar)) {
+        try {
+          const usersResponse = await getUsers();
+          let usersArray = [];
+          if (Array.isArray(usersResponse)) {
+            usersArray = usersResponse;
+          } else if (usersResponse && Array.isArray(usersResponse.data)) {
+            usersArray = usersResponse.data;
+          } else if (usersResponse && Array.isArray(usersResponse.users)) {
+            usersArray = usersResponse.users;
+          }
+
+          const userData = usersArray.find(u => 
+            (u.user_id || u.id) === user.id
+          );
+
+          if (userData) {
+            if (!name) {
+              name = userData.full_name || userData.name || userData.fullName || userData.email || '';
+            }
+            
+            if (!avatar) {
+              const apiAvatar = userData.profile_image || userData.image_url || null;
+              if (apiAvatar && apiAvatar.trim() !== '') {
+                avatar = apiAvatar.trim();
+                // Update localStorage for future use
+                if (typeof window !== 'undefined') {
+                  window.localStorage.setItem('userAvatarUrl', avatar);
+                }
+              }
+            }
+            
+            // Update localStorage with name if we got it from API
+            if (name && typeof window !== 'undefined') {
+              window.localStorage.setItem('userName', name);
+            }
+          }
+        } catch (apiError) {
+          // Silently fail - we'll use what we have from localStorage/user object
+          console.warn('Could not fetch user data from API for header:', apiError.message);
+        }
+      }
+      
+      // Set the state with final values
+      setUserName(name || 'User');
+      
+      if (avatar && avatar.trim() !== '') {
+        setAvatarUrl(avatar);
+      } else {
+        setAvatarUrl(null);
+      }
+    } catch (error) {
+      console.error('Error updating user info in header:', error);
+      // Fallback to basic values
+      const user = getUser();
+      if (user) {
+        setUserName(user.full_name || user.fullName || user.name || user.email || 'User');
+      } else {
+        const storedName = typeof window !== 'undefined' ? window.localStorage.getItem('userName') : null;
+        setUserName(storedName || 'User');
+      }
+      setAvatarUrl(null);
+    }
   };
 
   useEffect(() => {
+    // Initial load
     updateUserInfo();
     
-    // Listen for auth changes
+    // Listen for auth changes (when user logs in/out or updates profile)
     const handleAuthChange = () => {
       updateUserInfo();
     };
