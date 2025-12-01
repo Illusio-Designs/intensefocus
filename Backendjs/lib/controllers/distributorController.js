@@ -1,4 +1,4 @@
-const Distributor = require('../models/distributor');
+const Distributor = require('../models/Distributor');
 const AuditLog = require('../models/AuditLog');
 class DistributorController {
     async getDistributors(req, res) {
