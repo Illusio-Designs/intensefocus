@@ -22,6 +22,8 @@ export default function TableWithControls({
   importText = "Import All Data",
   itemName = "Item",
   showSerialNumber = true, // Show serial number column by default
+  showFilter = false, // Show filter icon
+  filterContent = null, // React node to render in filter popover
 }) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -163,41 +165,44 @@ export default function TableWithControls({
             />
 
             {/* Filter Dropdown - appear below filter icon if open */}
-            <div style={{position:'relative', display:'inline-block'}}>
-              <button
-                className="ui-pill"
-                ref={filterBtnRef}
-                title="Filters"
-                onClick={() => setFilterOpen((v) => !v)}
-                style={{ borderRadius: "50%", padding: "8px 6px" }}
-              >
-                {/* Crisp Lucide/Material style filter icon */}
-                <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polygon points="3 5 21 5 14 12 14 19 10 19 10 12 3 5" />
-                </svg>
-              </button>
-              {filterOpen && (
-                <div
-                  className="ui-filter-popover"
-                  tabIndex="-1"
-                  style={{
-                    position: 'absolute',
-                    right: 0,
-                    top: 'calc(100% + 6px)',
-                    minWidth: 220,
-                    background: '#fff',
-                    border: '1px solid #E0E0E0',
-                    borderRadius: 10,
-                    boxShadow: '0 2px 12px rgba(24,18,101,.07)',
-                    padding: 16,
-                    zIndex: 50,
-                  }}
-                  onBlur={() => setFilterOpen(false)}
+            {showFilter && (
+              <div style={{position:'relative', display:'inline-block'}}>
+                <button
+                  className="ui-pill"
+                  ref={filterBtnRef}
+                  title="Filters"
+                  onClick={() => setFilterOpen((v) => !v)}
+                  style={{ borderRadius: "50%", padding: "8px 6px" }}
                 >
-                  <div style={{fontWeight: 500}}>Filter content here</div>
-                </div>
-              )}
-            </div>
+                  {/* Crisp Lucide/Material style filter icon */}
+                  <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="3 5 21 5 14 12 14 19 10 19 10 12 3 5" />
+                  </svg>
+                </button>
+                {filterOpen && filterContent && (
+                  <div
+                    className="ui-filter-popover"
+                    tabIndex="-1"
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: 'calc(100% + 6px)',
+                      minWidth: 220,
+                      background: '#fff',
+                      border: '1px solid #E0E0E0',
+                      borderRadius: 10,
+                      boxShadow: '0 2px 12px rgba(24,18,101,.07)',
+                      padding: 16,
+                      zIndex: 50,
+                    }}
+                    onBlur={() => setFilterOpen(false)}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {filterContent}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

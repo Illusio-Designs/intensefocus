@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import TableWithControls from '../components/ui/TableWithControls';
 import Modal from '../components/ui/Modal';
 import RowActions from '../components/ui/RowActions';
@@ -58,34 +58,154 @@ const DashboardManage = () => {
   const [countryOptions, setCountryOptions] = useState([]);
   const [stateOptions, setStateOptions] = useState([]);
   const [cityOptions, setCityOptions] = useState([]);
+  
+  // Filter states for tabs
+  const [stateCountryFilter, setStateCountryFilter] = useState('');
+  const [cityStateFilter, setCityStateFilter] = useState('');
+  const [zoneCityFilter, setZoneCityFilter] = useState('');
+  
+  // Ref to prevent multiple simultaneous API calls
+  const fetchingRef = useRef(false);
+  const lastFetchedTabRef = useRef('');
+  const fetchingStatesRef = useRef(false);
 
   // Fetch data based on active tab
   useEffect(() => {
-    fetchDataForTab(activeTab);
+    // Reset last fetched tab when tab changes
+    if (lastFetchedTabRef.current !== activeTab) {
+      lastFetchedTabRef.current = '';
+    }
+    
+    // Prevent multiple simultaneous calls
+    if (fetchingRef.current) {
+      return;
+    }
+    
+    fetchingRef.current = true;
+    lastFetchedTabRef.current = activeTab;
+    
+    fetchDataForTab(activeTab).finally(() => {
+      fetchingRef.current = false;
+    });
   }, [activeTab]);
+  
+  // Set default filter values after data loads (only once per tab switch)
+  const defaultFilterSetRef = useRef({ State: false, City: false, Zone: false });
+  
+  useEffect(() => {
+    // Reset default filter flags when tab changes
+    if (activeTab !== 'State') defaultFilterSetRef.current.State = false;
+    if (activeTab !== 'City') defaultFilterSetRef.current.City = false;
+    if (activeTab !== 'Zone') defaultFilterSetRef.current.Zone = false;
+  }, [activeTab]);
+  
+  useEffect(() => {
+    if (countries.length > 0 && activeTab === 'State' && !stateCountryFilter && !defaultFilterSetRef.current.State) {
+      // Find India by name or code
+      const india = countries.find(c => 
+        c.name?.toLowerCase() === 'india' || 
+        c.code?.toLowerCase() === 'in'
+      );
+      if (india) {
+        setStateCountryFilter(india.id);
+        defaultFilterSetRef.current.State = true;
+      }
+    }
+  }, [countries, activeTab, stateCountryFilter]);
+  
+  // Fetch states when country filter changes in State tab
+  useEffect(() => {
+    if (activeTab === 'State' && stateCountryFilter) {
+      // Prevent multiple simultaneous calls
+      if (fetchingStatesRef.current) {
+        return;
+      }
+      
+      fetchingStatesRef.current = true;
+      getStates(stateCountryFilter)
+        .then((statesData) => {
+          setStates(statesData || []);
+        })
+        .catch((error) => {
+          // Silently handle "States not found" - it's a valid case
+          if (error.message?.toLowerCase().includes('states not found') ||
+              error.message?.toLowerCase().includes('no states found')) {
+            setStates([]);
+          } else if (!error.message?.toLowerCase().includes('token expired') && 
+                     !error.message?.toLowerCase().includes('unauthorized')) {
+            console.error('Error fetching states:', error);
+            setStates([]);
+          }
+        })
+        .finally(() => {
+          fetchingStatesRef.current = false;
+        });
+    } else if (activeTab === 'State' && !stateCountryFilter) {
+      // Clear states when filter is cleared
+      setStates([]);
+    }
+  }, [stateCountryFilter, activeTab]);
+  
+  useEffect(() => {
+    if (states.length > 0 && activeTab === 'City' && !cityStateFilter && !defaultFilterSetRef.current.City) {
+      // Find Maharashtra by name or code
+      const maharashtra = states.find(s => 
+        s.name?.toLowerCase() === 'maharashtra' || 
+        s.code?.toLowerCase() === 'mh'
+      );
+      if (maharashtra) {
+        setCityStateFilter(maharashtra.id);
+        defaultFilterSetRef.current.City = true;
+      }
+    }
+  }, [states, activeTab, cityStateFilter]);
+  
+  useEffect(() => {
+    if (cities.length > 0 && activeTab === 'Zone' && !zoneCityFilter && !defaultFilterSetRef.current.Zone) {
+      // Find Bombay/Mumbai by name
+      const bombay = cities.find(c => 
+        c.name?.toLowerCase() === 'bombay' || 
+        c.name?.toLowerCase() === 'mumbai'
+      );
+      if (bombay) {
+        setZoneCityFilter(bombay.id);
+        defaultFilterSetRef.current.Zone = true;
+      }
+    }
+  }, [cities, activeTab, zoneCityFilter]);
 
   // Update dropdown options when data changes
   useEffect(() => {
     setCountryOptions(countries.map(c => ({ value: c.id, label: c.name })));
   }, [countries]);
 
+  // Update stateOptions from states array (for filters) - only when not in form
   useEffect(() => {
-    if (formData.country_id) {
-      fetchStates(formData.country_id);
-    } else {
-      setStateOptions([]);
-      setStates([]);
+    if (!openAdd && !editRow) {
+      setStateOptions(states.map(s => ({ value: s.id, label: s.name })));
     }
-  }, [formData.country_id]);
+  }, [states, openAdd, editRow]);
+
+  // Update cityOptions from cities array (for filters) - only when not in form
+  useEffect(() => {
+    if (!openAdd && !editRow) {
+      setCityOptions(cities.map(c => ({ value: c.id, label: c.name })));
+    }
+  }, [cities, openAdd, editRow]);
 
   useEffect(() => {
-    if (formData.state_id) {
-      fetchCities(formData.state_id);
-    } else {
-      setCityOptions([]);
-      setCities([]);
+    // Only fetch states for form dropdowns when form is open
+    if ((openAdd || editRow) && formData.country_id) {
+      fetchStates(formData.country_id);
     }
-  }, [formData.state_id]);
+  }, [formData.country_id, openAdd, editRow]);
+
+  useEffect(() => {
+    // Only fetch cities for form dropdowns when form is open
+    if ((openAdd || editRow) && formData.state_id) {
+      fetchCities(formData.state_id);
+    }
+  }, [formData.state_id, openAdd, editRow]);
 
   useEffect(() => {
     if (formData.city_id) {
@@ -118,26 +238,11 @@ const DashboardManage = () => {
           break;
         
         case 'State':
-          // First fetch countries to get country IDs, then fetch states
+          // Only fetch countries, states will be fetched when country filter is selected
           const countriesForStates = await getCountries().catch(() => []);
           setCountries(countriesForStates || []);
-          
-          if (countriesForStates && countriesForStates.length > 0) {
-            const statesPromises = countriesForStates.map(country => 
-              getStates(country.id).catch((error) => {
-                if (!error.message?.toLowerCase().includes('token expired') && 
-                    !error.message?.toLowerCase().includes('unauthorized')) {
-                  console.error('Error fetching states:', error);
-                }
-                return [];
-              })
-            );
-            const statesArrays = await Promise.all(statesPromises);
-            const allStates = statesArrays.flat();
-            setStates(allStates);
-          } else {
-            setStates([]);
-          }
+          // Don't fetch states here - wait for country filter selection
+          setStates([]);
           break;
         
         case 'City':
@@ -242,10 +347,14 @@ const DashboardManage = () => {
     }
   };
 
-  const fetchStates = async (countryId) => {
+  const fetchStates = async (countryId, updateMainArray = false) => {
     try {
       const statesData = await getStates(countryId);
-      setStates(statesData || []);
+      // Only update main states array if we're on State tab or explicitly requested
+      if (updateMainArray || activeTab === 'State') {
+        setStates(statesData || []);
+      }
+      // Always update stateOptions for form dropdowns
       setStateOptions((statesData || []).map(s => ({ value: s.id, label: s.name })));
     } catch (error) {
       // Don't log token expiration errors as they're handled by apiService
@@ -253,15 +362,21 @@ const DashboardManage = () => {
           !error.message?.toLowerCase().includes('unauthorized')) {
         console.error('Error fetching states:', error);
       }
-      setStates([]);
+      if (updateMainArray || activeTab === 'State') {
+        setStates([]);
+      }
       setStateOptions([]);
     }
   };
 
-  const fetchCities = async (stateId) => {
+  const fetchCities = async (stateId, updateMainArray = false) => {
     try {
       const citiesData = await getCities(stateId);
-      setCities(citiesData || []);
+      // Only update main cities array if we're on City tab or explicitly requested
+      if (updateMainArray || activeTab === 'City') {
+        setCities(citiesData || []);
+      }
+      // Always update cityOptions for form dropdowns
       setCityOptions((citiesData || []).map(c => ({ value: c.id, label: c.name })));
     } catch (error) {
       // Don't log token expiration errors as they're handled by apiService
@@ -269,7 +384,9 @@ const DashboardManage = () => {
           !error.message?.toLowerCase().includes('unauthorized')) {
         console.error('Error fetching cities:', error);
       }
-      setCities([]);
+      if (updateMainArray || activeTab === 'City') {
+        setCities([]);
+      }
       setCityOptions([]);
     }
   };
@@ -374,8 +491,25 @@ const DashboardManage = () => {
   const tabs = useMemo(() => (['Country', 'State', 'City', 'Zone']), []);
 
   const filteredRowsByTab = useMemo(() => {
-    return rows.filter(row => row.type === activeTab);
-  }, [rows, activeTab]);
+    let filtered = rows.filter(row => row.type === activeTab);
+    
+    // Apply country filter for State tab
+    if (activeTab === 'State' && stateCountryFilter) {
+      filtered = filtered.filter(row => row.data?.country_id === stateCountryFilter);
+    }
+    
+    // Apply state filter for City tab
+    if (activeTab === 'City' && cityStateFilter) {
+      filtered = filtered.filter(row => row.data?.state_id === cityStateFilter);
+    }
+    
+    // Apply city filter for Zone tab
+    if (activeTab === 'Zone' && zoneCityFilter) {
+      filtered = filtered.filter(row => row.data?.city_id === zoneCityFilter);
+    }
+    
+    return filtered;
+  }, [rows, activeTab, stateCountryFilter, cityStateFilter, zoneCityFilter]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -815,6 +949,97 @@ const DashboardManage = () => {
                 fetchDataForTab(activeTab);
               }}
               importText="Refresh Data"
+              showFilter={activeTab !== 'Country'}
+              filterContent={
+                activeTab === 'State' ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <label style={{ fontWeight: 500, fontSize: '14px', marginBottom: '4px' }}>
+                      Filter by Country:
+                    </label>
+                    <DropdownSelector
+                      options={countryOptions}
+                      value={stateCountryFilter}
+                      onChange={(value) => setStateCountryFilter(value)}
+                      placeholder="Select country"
+                    />
+                    {stateCountryFilter && (
+                      <button
+                        onClick={() => setStateCountryFilter('')}
+                        style={{
+                          padding: '8px 16px',
+                          background: '#f5f5f5',
+                          border: '1px solid #E0E0E0',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          fontWeight: 500,
+                          marginTop: '8px'
+                        }}
+                      >
+                        Clear Filter
+                      </button>
+                    )}
+                  </div>
+                ) : activeTab === 'City' ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <label style={{ fontWeight: 500, fontSize: '14px', marginBottom: '4px' }}>
+                      Filter by State:
+                    </label>
+                    <DropdownSelector
+                      options={stateOptions}
+                      value={cityStateFilter}
+                      onChange={(value) => setCityStateFilter(value)}
+                      placeholder="Select state"
+                    />
+                    {cityStateFilter && (
+                      <button
+                        onClick={() => setCityStateFilter('')}
+                        style={{
+                          padding: '8px 16px',
+                          background: '#f5f5f5',
+                          border: '1px solid #E0E0E0',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          fontWeight: 500,
+                          marginTop: '8px'
+                        }}
+                      >
+                        Clear Filter
+                      </button>
+                    )}
+                  </div>
+                ) : activeTab === 'Zone' ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <label style={{ fontWeight: 500, fontSize: '14px', marginBottom: '4px' }}>
+                      Filter by City:
+                    </label>
+                    <DropdownSelector
+                      options={cityOptions}
+                      value={zoneCityFilter}
+                      onChange={(value) => setZoneCityFilter(value)}
+                      placeholder="Select city"
+                    />
+                    {zoneCityFilter && (
+                      <button
+                        onClick={() => setZoneCityFilter('')}
+                        style={{
+                          padding: '8px 16px',
+                          background: '#f5f5f5',
+                          border: '1px solid #E0E0E0',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          fontWeight: 500,
+                          marginTop: '8px'
+                        }}
+                      >
+                        Clear Filter
+                      </button>
+                    )}
+                  </div>
+                ) : null
+              }
             />
           </div>
         </div>

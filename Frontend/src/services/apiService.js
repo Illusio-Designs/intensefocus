@@ -413,23 +413,33 @@ export const deleteCountry = async (countryId) => {
  * @returns {Promise<Array>} Array of state objects
  */
 export const getStates = async (countryId) => {
-  // Use GET to /states/get with country_id (will be converted to query parameter)
-  const response = await apiRequest('/states/', {
-    method: 'GET',
-    body: { country_id: countryId },
-    includeAuth: true,
-  });
-  
-  // Ensure we always return an array
-  if (Array.isArray(response)) {
-    return response;
+  try {
+    // Use POST to /states/get with country_id in body
+    const response = await apiRequest('/states/get', {
+      method: 'POST',
+      body: { country_id: countryId },
+      includeAuth: true,
+    });
+    
+    // Ensure we always return an array
+    if (Array.isArray(response)) {
+      return response;
+    }
+    // Handle case where response might be wrapped in data property
+    if (response && Array.isArray(response.data)) {
+      return response.data;
+    }
+    // Return empty array if response is unexpected
+    return [];
+  } catch (error) {
+    // Handle "States not found" as a valid case (empty states)
+    if (error.message?.toLowerCase().includes('states not found') ||
+        error.message?.toLowerCase().includes('no states found')) {
+      return [];
+    }
+    // Re-throw other errors
+    throw error;
   }
-  // Handle case where response might be wrapped in data property
-  if (response && Array.isArray(response.data)) {
-    return response.data;
-  }
-  // Return empty array if response is unexpected
-  return [];
 };
 
 /**
@@ -487,11 +497,32 @@ export const deleteState = async (stateId) => {
  * @returns {Promise<Array>} Array of city objects
  */
 export const getCities = async (stateId) => {
-  return apiRequest('/cities/', {
-    method: 'GET',
-    body: { state_id: stateId },
-    includeAuth: true,
-  });
+  try {
+    const response = await apiRequest('/cities/get', {
+      method: 'POST',
+      body: { state_id: stateId },
+      includeAuth: true,
+    });
+    
+    // Ensure we always return an array
+    if (Array.isArray(response)) {
+      return response;
+    }
+    // Handle case where response might be wrapped in data property
+    if (response && Array.isArray(response.data)) {
+      return response.data;
+    }
+    // Return empty array if response is unexpected
+    return [];
+  } catch (error) {
+    // Handle "Cities not found" as a valid case (empty cities)
+    if (error.message?.toLowerCase().includes('cities not found') ||
+        error.message?.toLowerCase().includes('no cities found')) {
+      return [];
+    }
+    // Re-throw other errors
+    throw error;
+  }
 };
 
 /**
@@ -547,11 +578,32 @@ export const deleteCity = async (cityId) => {
  * @returns {Promise<Array>} Array of zone objects
  */
 export const getZones = async (cityId) => {
-  return apiRequest('/zones/', {
-    method: 'GET',
-    body: { city_id: cityId },
-    includeAuth: true,
-  });
+  try {
+    const response = await apiRequest('/zones/get', {
+      method: 'POST',
+      body: { city_id: cityId },
+      includeAuth: true,
+    });
+    
+    // Ensure we always return an array
+    if (Array.isArray(response)) {
+      return response;
+    }
+    // Handle case where response might be wrapped in data property
+    if (response && Array.isArray(response.data)) {
+      return response.data;
+    }
+    // Return empty array if response is unexpected
+    return [];
+  } catch (error) {
+    // Handle "Zones not found" as a valid case (empty zones)
+    if (error.message?.toLowerCase().includes('zones not found') ||
+        error.message?.toLowerCase().includes('no zones found')) {
+      return [];
+    }
+    // Re-throw other errors
+    throw error;
+  }
 };
 
 /**
