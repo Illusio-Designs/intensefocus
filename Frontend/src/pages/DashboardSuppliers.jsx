@@ -38,13 +38,18 @@ const DashboardSuppliers = () => {
     setLoading(true);
     setError(null);
     try {
-      const countriesData = await getCountries().catch(() => []);
+      // Get all countries
+      const countriesData = await getCountries();
       setCountries(countriesData || []);
       
       // Fetch salesmen for all countries
       if (countriesData && countriesData.length > 0) {
         const salesmenPromises = countriesData.map(country => 
-          getSalesmen(country.id).catch(() => [])
+          getSalesmen(country.id).catch((err) => {
+            // Log error but don't break the entire fetch
+            console.warn(`Failed to fetch salesmen for country ${country.id}:`, err.message);
+            return [];
+          })
         );
         const salesmenArrays = await Promise.all(salesmenPromises);
         const allSalesmen = salesmenArrays.flat();
@@ -146,22 +151,45 @@ const DashboardSuppliers = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Validate required fields
+    if (!formData.employee_code || formData.employee_code.trim() === '') {
+      setError('Please enter employee code');
+      return;
+    }
+    if (!formData.full_name || formData.full_name.trim() === '') {
+      setError('Please enter full name');
+      return;
+    }
+    if (!formData.email || formData.email.trim() === '') {
+      setError('Please enter email');
+      return;
+    }
+    if (!formData.phone || formData.phone.trim() === '') {
+      setError('Please enter phone number');
+      return;
+    }
+    if (!formData.country_id) {
+      setError('Please select a country');
+      return;
+    }
+    
     try {
       setLoading(true);
+      setError(null);
       const dataToSend = {
         user_id: editRow?.user_id || '',
-        employee_code: formData.employee_code,
-        full_name: formData.full_name,
-        email: formData.email,
-        phone: formData.phone,
-        alternate_phone: formData.alternate_phone || '',
-        address: formData.address || '',
+        employee_code: formData.employee_code.trim(),
+        full_name: formData.full_name.trim(),
+        email: formData.email.trim(),
+        phone: formData.phone.trim(),
+        alternate_phone: formData.alternate_phone ? formData.alternate_phone.trim() : '',
+        address: formData.address ? formData.address.trim() : '',
         country_id: formData.country_id,
         state_id: '',
         city_id: '',
         zone_preference: '',
         reporting_manager: '',
-        joining_date: formData.joining_date || new Date().toISOString(),
+        joining_date: formData.joining_date ? new Date(formData.joining_date).toISOString() : new Date().toISOString(),
       };
 
       if (editRow) {
@@ -321,6 +349,22 @@ const DashboardSuppliers = () => {
             />
           </div>
           <div className="form-group">
+            <label className="ui-label">Country *</label>
+            <select
+              className="ui-input"
+              value={formData.country_id}
+              onChange={(e) => handleInputChange('country_id', e.target.value)}
+              required
+            >
+              <option value="">Select Country</option>
+              {countries.map(country => (
+                <option key={country.id} value={country.id}>
+                  {country.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
             <label className="ui-label">Alternate Phone</label>
             <input 
               className="ui-input" 
@@ -419,6 +463,22 @@ const DashboardSuppliers = () => {
               onChange={(e) => handleInputChange('phone', e.target.value)}
               required
             />
+          </div>
+          <div className="form-group">
+            <label className="ui-label">Country *</label>
+            <select
+              className="ui-input"
+              value={formData.country_id}
+              onChange={(e) => handleInputChange('country_id', e.target.value)}
+              required
+            >
+              <option value="">Select Country</option>
+              {countries.map(country => (
+                <option key={country.id} value={country.id}>
+                  {country.name}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="form-group">
             <label className="ui-label">Alternate Phone</label>

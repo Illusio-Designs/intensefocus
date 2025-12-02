@@ -68,6 +68,8 @@ const DashboardManage = () => {
   const fetchingRef = useRef(false);
   const lastFetchedTabRef = useRef('');
   const fetchingStatesRef = useRef(false);
+  const fetchingCitiesRef = useRef(false);
+  const fetchingZonesRef = useRef(false);
 
   // Fetch data based on active tab
   useEffect(() => {
@@ -146,6 +148,43 @@ const DashboardManage = () => {
     }
   }, [stateCountryFilter, activeTab]);
   
+  // Fetch states for India when City tab loads
+  useEffect(() => {
+    if (countries.length > 0 && activeTab === 'City' && states.length === 0) {
+      // Find India by name or code
+      const india = countries.find(c => 
+        c.name?.toLowerCase() === 'india' || 
+        c.code?.toLowerCase() === 'in'
+      );
+      if (india) {
+        // Prevent multiple simultaneous calls
+        if (fetchingStatesRef.current) {
+          return;
+        }
+        
+        fetchingStatesRef.current = true;
+        getStates(india.id)
+          .then((statesData) => {
+            setStates(statesData || []);
+          })
+          .catch((error) => {
+            // Silently handle "States not found" - it's a valid case
+            if (error.message?.toLowerCase().includes('states not found') ||
+                error.message?.toLowerCase().includes('no states found')) {
+              setStates([]);
+            } else if (!error.message?.toLowerCase().includes('token expired') && 
+                       !error.message?.toLowerCase().includes('unauthorized')) {
+              console.error('Error fetching states for City tab:', error);
+              setStates([]);
+            }
+          })
+          .finally(() => {
+            fetchingStatesRef.current = false;
+          });
+      }
+    }
+  }, [countries, activeTab, states.length]);
+  
   useEffect(() => {
     if (states.length > 0 && activeTab === 'City' && !cityStateFilter && !defaultFilterSetRef.current.City) {
       // Find Maharashtra by name or code
@@ -160,6 +199,113 @@ const DashboardManage = () => {
     }
   }, [states, activeTab, cityStateFilter]);
   
+  // Fetch cities when state filter changes in City tab
+  useEffect(() => {
+    if (activeTab === 'City' && cityStateFilter) {
+      // Prevent multiple simultaneous calls
+      if (fetchingCitiesRef.current) {
+        return;
+      }
+      
+      fetchingCitiesRef.current = true;
+      getCities(cityStateFilter)
+        .then((citiesData) => {
+          setCities(citiesData || []);
+        })
+        .catch((error) => {
+          // Silently handle "Cities not found" - it's a valid case
+          if (error.message?.toLowerCase().includes('cities not found') ||
+              error.message?.toLowerCase().includes('no cities found')) {
+            setCities([]);
+          } else if (!error.message?.toLowerCase().includes('token expired') && 
+                     !error.message?.toLowerCase().includes('unauthorized')) {
+            console.error('Error fetching cities:', error);
+            setCities([]);
+          }
+        })
+        .finally(() => {
+          fetchingCitiesRef.current = false;
+        });
+    } else if (activeTab === 'City' && !cityStateFilter) {
+      // Clear cities when filter is cleared
+      setCities([]);
+    }
+  }, [cityStateFilter, activeTab]);
+  
+  // Fetch states for India when Zone tab loads
+  useEffect(() => {
+    if (countries.length > 0 && activeTab === 'Zone' && states.length === 0) {
+      // Find India by name or code
+      const india = countries.find(c => 
+        c.name?.toLowerCase() === 'india' || 
+        c.code?.toLowerCase() === 'in'
+      );
+      if (india) {
+        // Prevent multiple simultaneous calls
+        if (fetchingStatesRef.current) {
+          return;
+        }
+        
+        fetchingStatesRef.current = true;
+        getStates(india.id)
+          .then((statesData) => {
+            setStates(statesData || []);
+          })
+          .catch((error) => {
+            // Silently handle "States not found" - it's a valid case
+            if (error.message?.toLowerCase().includes('states not found') ||
+                error.message?.toLowerCase().includes('no states found')) {
+              setStates([]);
+            } else if (!error.message?.toLowerCase().includes('token expired') && 
+                       !error.message?.toLowerCase().includes('unauthorized')) {
+              console.error('Error fetching states for Zone tab:', error);
+              setStates([]);
+            }
+          })
+          .finally(() => {
+            fetchingStatesRef.current = false;
+          });
+      }
+    }
+  }, [countries, activeTab, states.length]);
+  
+  // Fetch cities for Maharashtra when states are available in Zone tab
+  useEffect(() => {
+    if (states.length > 0 && activeTab === 'Zone' && cities.length === 0) {
+      // Find Maharashtra by name or code
+      const maharashtra = states.find(s => 
+        s.name?.toLowerCase() === 'maharashtra' || 
+        s.code?.toLowerCase() === 'mh'
+      );
+      if (maharashtra) {
+        // Prevent multiple simultaneous calls
+        if (fetchingCitiesRef.current) {
+          return;
+        }
+        
+        fetchingCitiesRef.current = true;
+        getCities(maharashtra.id)
+          .then((citiesData) => {
+            setCities(citiesData || []);
+          })
+          .catch((error) => {
+            // Silently handle "Cities not found" - it's a valid case
+            if (error.message?.toLowerCase().includes('cities not found') ||
+                error.message?.toLowerCase().includes('no cities found')) {
+              setCities([]);
+            } else if (!error.message?.toLowerCase().includes('token expired') && 
+                       !error.message?.toLowerCase().includes('unauthorized')) {
+              console.error('Error fetching cities for Zone tab:', error);
+              setCities([]);
+            }
+          })
+          .finally(() => {
+            fetchingCitiesRef.current = false;
+          });
+      }
+    }
+  }, [states, activeTab, cities.length]);
+  
   useEffect(() => {
     if (cities.length > 0 && activeTab === 'Zone' && !zoneCityFilter && !defaultFilterSetRef.current.Zone) {
       // Find Bombay/Mumbai by name
@@ -173,6 +319,47 @@ const DashboardManage = () => {
       }
     }
   }, [cities, activeTab, zoneCityFilter]);
+  
+  // Fetch zones when city filter changes in Zone tab
+  useEffect(() => {
+    // Only fetch if we have a valid city filter and we're on Zone tab
+    if (activeTab === 'Zone' && zoneCityFilter && cities.length > 0) {
+      // Prevent multiple simultaneous calls
+      if (fetchingZonesRef.current) {
+        return;
+      }
+      
+      // Verify the city exists in our cities list
+      const cityExists = cities.some(c => c.id === zoneCityFilter);
+      if (!cityExists) {
+        return;
+      }
+      
+      fetchingZonesRef.current = true;
+      getZones(zoneCityFilter)
+        .then((zonesData) => {
+          setZones(zonesData || []);
+        })
+        .catch((error) => {
+          // Silently handle "Zones not found" - it's a valid case (city has no zones)
+          if (error.message?.toLowerCase().includes('zones not found') ||
+              error.message?.toLowerCase().includes('no zones found')) {
+            setZones([]);
+            // Don't log this as an error - it's expected for cities without zones
+          } else if (!error.message?.toLowerCase().includes('token expired') && 
+                     !error.message?.toLowerCase().includes('unauthorized')) {
+            console.error('Error fetching zones:', error);
+            setZones([]);
+          }
+        })
+        .finally(() => {
+          fetchingZonesRef.current = false;
+        });
+    } else if (activeTab === 'Zone' && !zoneCityFilter) {
+      // Clear zones when filter is cleared
+      setZones([]);
+    }
+  }, [zoneCityFilter, activeTab, cities]);
 
   // Update dropdown options when data changes
   useEffect(() => {
@@ -246,86 +433,23 @@ const DashboardManage = () => {
           break;
         
         case 'City':
-          // Fetch countries and states first
+          // Only fetch countries, states will be fetched for default country (India)
           const countriesForCities = await getCountries().catch(() => []);
           setCountries(countriesForCities || []);
-          
-          if (countriesForCities && countriesForCities.length > 0) {
-            const statesPromises = countriesForCities.map(country => 
-              getStates(country.id).catch(() => [])
-            );
-            const statesArrays = await Promise.all(statesPromises);
-            const allStatesForCities = statesArrays.flat();
-            setStates(allStatesForCities);
-            
-            if (allStatesForCities.length > 0) {
-              const citiesPromises = allStatesForCities.map(state => 
-                getCities(state.id).catch((error) => {
-                  if (!error.message?.toLowerCase().includes('token expired') && 
-                      !error.message?.toLowerCase().includes('unauthorized')) {
-                    console.error('Error fetching cities:', error);
-                  }
-                  return [];
-                })
-              );
-              const citiesArrays = await Promise.all(citiesPromises);
-              const allCities = citiesArrays.flat();
-              setCities(allCities);
-            } else {
-              setCities([]);
-            }
-          } else {
-            setStates([]);
-            setCities([]);
-          }
+          // Don't fetch states here - wait for default country selection
+          setStates([]);
+          // Don't fetch cities here - wait for state filter selection
+          setCities([]);
           break;
         
         case 'Zone':
-          // Fetch countries, states, and cities first
+          // Only fetch countries, states/cities/zones will be fetched for default selections
           const countriesForZones = await getCountries().catch(() => []);
           setCountries(countriesForZones || []);
-          
-          if (countriesForZones && countriesForZones.length > 0) {
-            const statesPromises = countriesForZones.map(country => 
-              getStates(country.id).catch(() => [])
-            );
-            const statesArrays = await Promise.all(statesPromises);
-            const allStatesForZones = statesArrays.flat();
-            setStates(allStatesForZones);
-            
-            if (allStatesForZones.length > 0) {
-              const citiesPromises = allStatesForZones.map(state => 
-                getCities(state.id).catch(() => [])
-              );
-              const citiesArrays = await Promise.all(citiesPromises);
-              const allCitiesForZones = citiesArrays.flat();
-              setCities(allCitiesForZones);
-              
-              if (allCitiesForZones.length > 0) {
-                const zonesPromises = allCitiesForZones.map(city => 
-                  getZones(city.id).catch((error) => {
-                    if (!error.message?.toLowerCase().includes('token expired') && 
-                        !error.message?.toLowerCase().includes('unauthorized')) {
-                      console.error('Error fetching zones:', error);
-                    }
-                    return [];
-                  })
-                );
-                const zonesArrays = await Promise.all(zonesPromises);
-                const allZones = zonesArrays.flat();
-                setZones(allZones);
-              } else {
-                setZones([]);
-              }
-            } else {
-              setCities([]);
-              setZones([]);
-            }
-          } else {
-            setStates([]);
-            setCities([]);
-            setZones([]);
-          }
+          // Don't fetch states/cities/zones here - wait for default selections
+          setStates([]);
+          setCities([]);
+          setZones([]);
           break;
         
         default:

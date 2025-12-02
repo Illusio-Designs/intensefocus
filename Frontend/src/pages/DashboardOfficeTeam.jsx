@@ -48,6 +48,12 @@ const DashboardOfficeTeam = () => {
         setRoles(rolesArray);
       } catch (error) {
         console.error('Error fetching roles:', error);
+        // Show user-friendly error message
+        if (error.message?.includes('Failed to fetch') || error.message?.includes('CORS')) {
+          showError('Unable to connect to server. Please check your internet connection or contact support.');
+        } else {
+          showError(`Failed to load roles: ${error.message || 'Unknown error'}`);
+        }
         setRoles([]);
       }
     };
@@ -162,6 +168,13 @@ const DashboardOfficeTeam = () => {
         setRows(mapUsersToRows(usersArray));
       } catch (error) {
         console.error('Error fetching users:', error);
+        // Show user-friendly error message
+        if (error.message?.includes('Failed to fetch') || error.message?.includes('CORS')) {
+          showError('Unable to connect to server. Please check your internet connection or contact support.');
+        } else if (!error.message?.toLowerCase().includes('token expired') && 
+                   !error.message?.toLowerCase().includes('unauthorized')) {
+          showError(`Failed to load users: ${error.message || 'Unknown error'}`);
+        }
         setUsers([]);
         setRows([]);
       } finally {
@@ -169,10 +182,9 @@ const DashboardOfficeTeam = () => {
       }
     };
     
-    // Only fetch users if roles are loaded (to properly map role names)
-    if (roles.length > 0) {
-      fetchUsers();
-    }
+    // Fetch users - if roles are empty, we'll still fetch users but role names might show as "Unknown Role"
+    // This allows the page to work even if roles fail to load
+    fetchUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roles]);
 

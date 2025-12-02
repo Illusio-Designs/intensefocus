@@ -25,7 +25,7 @@ const DashboardSettings = () => {
         setLoading(true);
         const currentUser = getUser();
         if (!currentUser || !currentUser.id) {
-          console.error('No user ID found');
+          // No user ID found - this is expected if user is not logged in
           // Fallback to localStorage
           loadFromLocalStorage();
           return;

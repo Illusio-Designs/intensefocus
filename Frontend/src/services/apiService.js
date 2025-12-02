@@ -9,24 +9,17 @@ import { logout } from './authService';
 /**
  * Get Base URL from environment variable
  * Falls back to default if not set
+ * Uses Next.js API proxy in browser to avoid CORS issues
  */
 const getBaseURL = () => {
   // In Next.js, environment variables are available at build time
   // For client-side code, use NEXT_PUBLIC_ prefix
   if (typeof window !== 'undefined') {
-    // Client-side: check if there's a runtime config
-    const envUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (envUrl) {
-      // Remove trailing slash if present
-      let url = envUrl.endsWith('/') ? envUrl.slice(0, -1) : envUrl;
-      // Ensure /api is included if not already present
-      if (!url.includes('/api')) {
-        url = `${url}/api`;
-      }
-      return url;
-    }
+    // Client-side: Use Next.js API proxy to avoid CORS issues
+    // The proxy route at /api/[...path] will forward requests to the backend
+    return '/api';
   } else {
-    // Server-side
+    // Server-side: Use direct backend URL (no CORS issues on server)
     const envUrl = process.env.NEXT_PUBLIC_API_URL;
     if (envUrl) {
       let url = envUrl.endsWith('/') ? envUrl.slice(0, -1) : envUrl;
@@ -35,10 +28,9 @@ const getBaseURL = () => {
       }
       return url;
     }
+    // Default URL for server-side
+    return 'https://stallion.nishree.com/api';
   }
-  
-  // Default URL
-  return 'https://stallion.nishree.com/api';
 };
 
 // Get BASE_URL - will be evaluated at module load time
@@ -113,6 +105,18 @@ const handleResponse = async (response) => {
       }, 1000);
     }
     
+    // Check for backend initialization error - mark it specially so components can handle it
+    const isInitError = errorMessage.toLowerCase().includes("cannot access 'party' before initialization") ||
+                       (errorMessage.toLowerCase().includes("cannot access") && errorMessage.toLowerCase().includes("before initialization"));
+    
+    if (isInitError) {
+      // Create a special error object that components can detect
+      const initError = new Error(errorMessage);
+      initError.isInitializationError = true;
+      initError.statusCode = response.status;
+      throw initError;
+    }
+    
     throw new Error(errorMessage);
   }
 
@@ -161,7 +165,10 @@ const apiRequest = async (endpoint, options = {}) => {
 
   // Add body for non-GET requests
   if (body && method !== 'GET') {
-    config.body = JSON.stringify(body);
+    // Clean the body - remove any undefined values and ensure proper JSON
+    const cleanBody = JSON.parse(JSON.stringify(body)); // This removes undefined and ensures valid JSON
+    config.body = JSON.stringify(cleanBody);
+    console.log(`[API Request Body]`, cleanBody); // Debug log
   }
 
   try {
@@ -333,6 +340,7 @@ export const uploadProfileImage = async (userId, profileImage) => {
     headers['Authorization'] = `Bearer ${token}`;
   }
   
+  // For FormData, don't set Content-Type header (browser will set it with boundary)
   const response = await fetch(fullUrl, {
     method: 'POST',
     headers,
@@ -667,11 +675,33 @@ export const deleteZone = async (zoneId) => {
  * @returns {Promise<Array>} Array of distributor objects
  */
 export const getDistributors = async (countryId) => {
-  return apiRequest('/distributors/', {
-    method: 'GET',
-    body: { country_id: countryId },
-    includeAuth: true,
-  });
+  try {
+    // Use POST to /distributors/get with country_id in body (following pattern from getStates/getCities)
+    const response = await apiRequest('/distributors/get', {
+      method: 'POST',
+      body: { country_id: countryId },
+      includeAuth: true,
+    });
+    
+    // Ensure we always return an array
+    if (Array.isArray(response)) {
+      return response;
+    }
+    // Handle case where response might be wrapped in data property
+    if (response && Array.isArray(response.data)) {
+      return response.data;
+    }
+    // Return empty array if response is unexpected
+    return [];
+  } catch (error) {
+    // Handle "Distributors not found" as a valid case (empty distributors)
+    if (error.message?.toLowerCase().includes('distributors not found') ||
+        error.message?.toLowerCase().includes('no distributors found')) {
+      return [];
+    }
+    // Re-throw other errors
+    throw error;
+  }
 };
 
 /**
@@ -712,25 +742,74 @@ export const createDistributor = async (distributorData) => {
     territory,
     commission_rate,
   } = distributorData;
+  
+  // Validate required fields - ensure they exist and are not empty
+  const trimmedDistributorName = distributor_name ? String(distributor_name).trim() : '';
+  const trimmedTradeName = trade_name ? String(trade_name).trim() : '';
+  const trimmedContactPerson = contact_person ? String(contact_person).trim() : '';
+  const trimmedEmail = email ? String(email).trim() : '';
+  const trimmedPhone = phone ? String(phone).trim() : '';
+  const trimmedCountryId = country_id ? String(country_id).trim() : '';
+  
+  if (!trimmedDistributorName) {
+    throw new Error('Distributor name is required');
+  }
+  if (!trimmedTradeName) {
+    throw new Error('Trade name is required');
+  }
+  if (!trimmedContactPerson) {
+    throw new Error('Contact person is required');
+  }
+  if (!trimmedEmail) {
+    throw new Error('Email is required');
+  }
+  if (!trimmedPhone) {
+    throw new Error('Phone is required');
+  }
+  if (!trimmedCountryId) {
+    throw new Error('Country is required');
+  }
+  
+  // Final safety check - ensure distributor_name is never null or undefined
+  if (!trimmedDistributorName || trimmedDistributorName === '') {
+    console.error('[Create Distributor] Validation failed: distributor_name is empty', {
+      distributor_name,
+      trimmedDistributorName,
+      distributorData
+    });
+    throw new Error('Distributor name is required and cannot be empty');
+  }
+  
+  // Build request body with explicit checks
+  const requestBody = {
+    distributor_name: trimmedDistributorName,
+    trade_name: trimmedTradeName,
+    contact_person: trimmedContactPerson,
+    email: trimmedEmail,
+    phone: trimmedPhone,
+    address: address ? String(address).trim() : '',
+    country_id: trimmedCountryId,
+    state_id: state_id && String(state_id).trim() !== '' ? String(state_id).trim() : null,
+    city_id: city_id && String(city_id).trim() !== '' ? String(city_id).trim() : null,
+    zone_id: zone_id && String(zone_id).trim() !== '' ? String(zone_id).trim() : null,
+    pincode: pincode ? String(pincode).trim() : '',
+    gstin: gstin ? String(gstin) : '',
+    pan: pan ? String(pan) : '',
+    territory: territory ? String(territory).trim() : '',
+    commission_rate: commission_rate || 0,
+  };
+  
+  // Final validation of request body
+  if (!requestBody.distributor_name || requestBody.distributor_name === '') {
+    console.error('[Create Distributor] Request body validation failed:', requestBody);
+    throw new Error('Distributor name is required in request body');
+  }
+  
+  console.log('[Create Distributor] Sending request with distributor_name:', requestBody.distributor_name);
+  
   return apiRequest('/distributors/', {
     method: 'POST',
-    body: {
-      distributor_name,
-      trade_name,
-      contact_person,
-      email,
-      phone,
-      address,
-      country_id,
-      state_id,
-      city_id,
-      zone_id,
-      pincode,
-      gstin: gstin || '',
-      pan: pan || '',
-      territory,
-      commission_rate,
-    },
+    body: requestBody,
     includeAuth: true,
   });
 };
@@ -776,26 +855,75 @@ export const updateDistributor = async (distributorId, distributorData) => {
     commission_rate,
     is_active,
   } = distributorData;
+  
+  // Validate required fields - ensure they exist and are not empty
+  const trimmedDistributorName = distributor_name ? String(distributor_name).trim() : '';
+  const trimmedTradeName = trade_name ? String(trade_name).trim() : '';
+  const trimmedContactPerson = contact_person ? String(contact_person).trim() : '';
+  const trimmedEmail = email ? String(email).trim() : '';
+  const trimmedPhone = phone ? String(phone).trim() : '';
+  const trimmedCountryId = country_id ? String(country_id).trim() : '';
+  
+  if (!trimmedDistributorName) {
+    throw new Error('Distributor name is required');
+  }
+  if (!trimmedTradeName) {
+    throw new Error('Trade name is required');
+  }
+  if (!trimmedContactPerson) {
+    throw new Error('Contact person is required');
+  }
+  if (!trimmedEmail) {
+    throw new Error('Email is required');
+  }
+  if (!trimmedPhone) {
+    throw new Error('Phone is required');
+  }
+  if (!trimmedCountryId) {
+    throw new Error('Country is required');
+  }
+  
+  // Final safety check - ensure distributor_name is never null or undefined
+  if (!trimmedDistributorName || trimmedDistributorName === '') {
+    console.error('[Update Distributor] Validation failed: distributor_name is empty', {
+      distributor_name,
+      trimmedDistributorName,
+      distributorData
+    });
+    throw new Error('Distributor name is required and cannot be empty');
+  }
+  
+  // Build request body with explicit checks
+  const requestBody = {
+    distributor_name: trimmedDistributorName,
+    trade_name: trimmedTradeName,
+    contact_person: trimmedContactPerson,
+    email: trimmedEmail,
+    phone: trimmedPhone,
+    address: address ? String(address).trim() : '',
+    country_id: trimmedCountryId,
+    state_id: state_id && String(state_id).trim() !== '' ? String(state_id).trim() : null,
+    city_id: city_id && String(city_id).trim() !== '' ? String(city_id).trim() : null,
+    zone_id: zone_id && String(zone_id).trim() !== '' ? String(zone_id).trim() : null,
+    pincode: pincode ? String(pincode).trim() : '',
+    gstin: gstin ? String(gstin) : '',
+    pan: pan ? String(pan) : '',
+    territory: territory ? String(territory).trim() : '',
+    commission_rate: commission_rate || 0,
+    is_active: is_active !== undefined ? is_active : true,
+  };
+  
+  // Final validation of request body
+  if (!requestBody.distributor_name || requestBody.distributor_name === '') {
+    console.error('[Update Distributor] Request body validation failed:', requestBody);
+    throw new Error('Distributor name is required in request body');
+  }
+  
+  console.log('[Update Distributor] Sending request with distributor_name:', requestBody.distributor_name);
+  
   return apiRequest(`/distributors/${distributorId}`, {
     method: 'PUT',
-    body: {
-      distributor_name,
-      trade_name,
-      contact_person,
-      email,
-      phone,
-      address,
-      country_id,
-      state_id,
-      city_id,
-      zone_id,
-      pincode,
-      gstin: gstin || '',
-      pan: pan || '',
-      territory,
-      commission_rate,
-      is_active,
-    },
+    body: requestBody,
     includeAuth: true,
   });
 };
@@ -844,6 +972,13 @@ export const getParties = async () => {
  * @returns {Promise<Object>} Created party object
  */
 export const createParty = async (partyData) => {
+  // Helper function to validate UUID format
+  const isValidUUID = (str) => {
+    if (!str || str.trim() === '') return false;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(String(str).trim());
+  };
+  
   const {
     party_name,
     trade_name,
@@ -859,23 +994,65 @@ export const createParty = async (partyData) => {
     gstin,
     pan,
   } = partyData;
+  
+  // Helper functions to get validated UUIDs
+  const getStateId = () => {
+    const value = state_id?.trim() || '';
+    if (value === '') return null;
+    return isValidUUID(value) ? String(value).trim() : null;
+  };
+
+  const getCityId = () => {
+    const value = city_id?.trim() || '';
+    if (value === '') return null;
+    return isValidUUID(value) ? String(value).trim() : null;
+  };
+
+  const getZoneId = () => {
+    const value = zone_id?.trim() || '';
+    if (value === '') return null;
+    return isValidUUID(value) ? String(value).trim() : null;
+  };
+  
+  // Build request body matching exact payload structure
+  // All string fields as strings, UUIDs as strings when provided or null when empty
+  const requestBody = {
+    party_name: String(party_name || ''),
+    trade_name: String(trade_name || ''),
+    contact_person: String(contact_person || ''),
+    email: String(email || ''),
+    phone: String(phone || ''),
+    address: String(address || ''),
+    country_id: (country_id && isValidUUID(country_id)) ? String(country_id).trim() : null,
+    state_id: getStateId(),
+    city_id: getCityId(),
+    zone_id: getZoneId(),
+    pincode: String(pincode || ''),
+    gstin: String(gstin || ''),
+    pan: String(pan || ''),
+  };
+  
+  // Validate that all required fields are present (no undefined)
+  const requiredFields = ['party_name', 'trade_name', 'contact_person', 'email', 'phone', 'address', 'country_id', 'pincode', 'gstin', 'pan'];
+  for (const field of requiredFields) {
+    if (requestBody[field] === undefined) {
+      console.error(`[Create Party] Missing required field: ${field}`);
+      requestBody[field] = field.includes('_id') ? null : '';
+    }
+  }
+  
+  // Ensure optional UUID fields are explicitly null if not valid
+  if (requestBody.state_id === undefined) requestBody.state_id = null;
+  if (requestBody.city_id === undefined) requestBody.city_id = null;
+  if (requestBody.zone_id === undefined) requestBody.zone_id = null;
+  
+  console.log('[Create Party] Request Body:', JSON.stringify(requestBody, null, 2));
+  console.log('[Create Party] Request Body Keys:', Object.keys(requestBody));
+  console.log('[Create Party] Has undefined values:', Object.values(requestBody).some(v => v === undefined));
+  
   return apiRequest('/parties/', {
     method: 'POST',
-    body: {
-      party_name,
-      trade_name,
-      contact_person,
-      email,
-      phone,
-      address,
-      country_id,
-      state_id,
-      city_id,
-      zone_id,
-      pincode,
-      gstin: gstin || '',
-      pan: pan || '',
-    },
+    body: requestBody,
     includeAuth: true,
   });
 };
@@ -900,6 +1077,18 @@ export const createParty = async (partyData) => {
  * @returns {Promise<Object>} Response with message
  */
 export const updateParty = async (partyId, partyData) => {
+  // Validate partyId
+  if (!partyId || typeof partyId !== 'string' || partyId.trim() === '') {
+    throw new Error('Invalid party ID provided');
+  }
+  
+  // Helper function to validate UUID format
+  const isValidUUID = (str) => {
+    if (!str || str.trim() === '') return false;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(String(str).trim());
+  };
+  
   const {
     party_name,
     trade_name,
@@ -915,23 +1104,81 @@ export const updateParty = async (partyId, partyData) => {
     gstin,
     pan,
   } = partyData;
+  
+  // Helper functions to get validated UUIDs
+  const getStateId = () => {
+    const value = state_id?.trim() || '';
+    if (value === '') return null;
+    return isValidUUID(value) ? String(value).trim() : null;
+  };
+
+  const getCityId = () => {
+    const value = city_id?.trim() || '';
+    if (value === '') return null;
+    return isValidUUID(value) ? String(value).trim() : null;
+  };
+
+  const getZoneId = () => {
+    const value = zone_id?.trim() || '';
+    if (value === '') return null;
+    return isValidUUID(value) ? String(value).trim() : null;
+  };
+  
+  // Build request body - ensure clean format matching your examples exactly
+  // All fields must be explicitly defined, no undefined values
+  const requestBody = {
+    party_name: String(party_name || ''),
+    trade_name: String(trade_name || ''),
+    contact_person: String(contact_person || ''),
+    email: String(email || ''),
+    phone: String(phone || ''),
+    address: String(address || ''),
+    country_id: (country_id && isValidUUID(country_id)) ? String(country_id).trim() : null,
+    state_id: getStateId(),
+    city_id: getCityId(),
+    zone_id: getZoneId(),
+    pincode: String(pincode || ''),
+    gstin: String(gstin || ''),
+    pan: String(pan || ''),
+  };
+  
+  // Validate that all required fields are present (no undefined)
+  const requiredFields = ['party_name', 'trade_name', 'contact_person', 'email', 'phone', 'address', 'country_id', 'pincode', 'gstin', 'pan'];
+  for (const field of requiredFields) {
+    if (requestBody[field] === undefined) {
+      console.error(`[Update Party] Missing required field: ${field}`);
+      requestBody[field] = field.includes('_id') ? null : '';
+    }
+  }
+  
+  // Ensure optional UUID fields are explicitly null if not valid
+  if (requestBody.state_id === undefined) requestBody.state_id = null;
+  if (requestBody.city_id === undefined) requestBody.city_id = null;
+  if (requestBody.zone_id === undefined) requestBody.zone_id = null;
+  
+  // Final validation: ensure absolutely no undefined values
+  const finalRequestBody = {};
+  const allFields = ['party_name', 'trade_name', 'contact_person', 'email', 'phone', 'address', 'country_id', 'state_id', 'city_id', 'zone_id', 'pincode', 'gstin', 'pan'];
+  allFields.forEach(field => {
+    const value = requestBody[field];
+    if (value === undefined) {
+      console.error(`[Update Party] Field ${field} is undefined, setting to default`);
+      finalRequestBody[field] = field.includes('_id') ? null : '';
+    } else {
+      finalRequestBody[field] = value;
+    }
+  });
+  
+  // Log the request body for debugging
+  console.log('[Update Party] Request Body:', JSON.stringify(finalRequestBody, null, 2));
+  console.log('[Update Party] Party ID:', partyId);
+  console.log('[Update Party] Request Body Keys:', Object.keys(finalRequestBody));
+  console.log('[Update Party] Has undefined values:', Object.values(finalRequestBody).some(v => v === undefined));
+  console.log('[Update Party] All fields present:', allFields.every(f => finalRequestBody.hasOwnProperty(f)));
+  
   return apiRequest(`/parties/${partyId}`, {
     method: 'PUT',
-    body: {
-      party_name,
-      trade_name,
-      contact_person,
-      email,
-      phone,
-      address,
-      country_id,
-      state_id,
-      city_id,
-      zone_id,
-      pincode,
-      gstin: gstin || '',
-      pan: pan || '',
-    },
+    body: finalRequestBody,
     includeAuth: true,
   });
 };
@@ -942,7 +1189,11 @@ export const updateParty = async (partyId, partyData) => {
  * @returns {Promise<Object>} Response with message
  */
 export const deleteParty = async (partyId) => {
-  return apiRequest(`/parties/${partyId}`, {
+  // Validate partyId
+  if (!partyId || typeof partyId !== 'string' || partyId.trim() === '') {
+    throw new Error('Invalid party ID provided');
+  }
+  return apiRequest(`/parties/${partyId.trim()}`, {
     method: 'DELETE',
     includeAuth: true,
   });
@@ -956,11 +1207,33 @@ export const deleteParty = async (partyId) => {
  * @returns {Promise<Array>} Array of salesman objects
  */
 export const getSalesmen = async (countryId) => {
-  return apiRequest('/salesmen/', {
-    method: 'GET',
-    body: { country_id: countryId },
-    includeAuth: true,
-  });
+  try {
+    // Use POST to /salesmen/get with country_id in body (following pattern from getStates/getCities/getDistributors)
+    const response = await apiRequest('/salesmen/get', {
+      method: 'POST',
+      body: { country_id: countryId },
+      includeAuth: true,
+    });
+    
+    // Ensure we always return an array
+    if (Array.isArray(response)) {
+      return response;
+    }
+    // Handle case where response might be wrapped in data property
+    if (response && Array.isArray(response.data)) {
+      return response.data;
+    }
+    // Return empty array if response is unexpected
+    return [];
+  } catch (error) {
+    // Handle "Salesmen not found" as a valid case (empty salesmen)
+    if (error.message?.toLowerCase().includes('salesmen not found') ||
+        error.message?.toLowerCase().includes('no salesmen found')) {
+      return [];
+    }
+    // Re-throw other errors
+    throw error;
+  }
 };
 
 /**
@@ -997,23 +1270,62 @@ export const createSalesman = async (salesmanData) => {
     zone_preference,
     joining_date,
   } = salesmanData;
+  
+  // Validate required fields - ensure they exist and are not empty
+  const trimmedEmployeeCode = employee_code ? String(employee_code).trim() : '';
+  const trimmedFullName = full_name ? String(full_name).trim() : '';
+  const trimmedEmail = email ? String(email).trim() : '';
+  const trimmedPhone = phone ? String(phone).trim() : '';
+  const trimmedCountryId = country_id ? String(country_id).trim() : '';
+  
+  if (!trimmedEmployeeCode) {
+    throw new Error('Employee code is required');
+  }
+  if (!trimmedFullName) {
+    throw new Error('Full name is required');
+  }
+  if (!trimmedEmail) {
+    throw new Error('Email is required');
+  }
+  if (!trimmedPhone) {
+    throw new Error('Phone is required');
+  }
+  if (!trimmedCountryId) {
+    throw new Error('Country is required');
+  }
+  
+  // Build request body with explicit checks
+  const requestBody = {
+    user_id: user_id || null,
+    employee_code: trimmedEmployeeCode,
+    alternate_phone: alternate_phone ? String(alternate_phone).trim() : '',
+    full_name: trimmedFullName,
+    reporting_manager: reporting_manager || null,
+    email: trimmedEmail,
+    phone: trimmedPhone,
+    address: address ? String(address).trim() : '',
+    country_id: trimmedCountryId,
+    state_id: state_id && String(state_id).trim() !== '' ? String(state_id).trim() : null,
+    city_id: city_id && String(city_id).trim() !== '' ? String(city_id).trim() : null,
+    zone_preference: zone_preference ? String(zone_preference).trim() : '',
+    joining_date: joining_date || new Date().toISOString(),
+  };
+  
+  // Final validation of request body
+  if (!requestBody.employee_code || requestBody.employee_code === '') {
+    console.error('[Create Salesman] Request body validation failed:', requestBody);
+    throw new Error('Employee code is required in request body');
+  }
+  if (!requestBody.full_name || requestBody.full_name === '') {
+    console.error('[Create Salesman] Request body validation failed:', requestBody);
+    throw new Error('Full name is required in request body');
+  }
+  
+  console.log('[Create Salesman] Sending request with employee_code:', requestBody.employee_code);
+  
   return apiRequest('/salesmen/', {
     method: 'POST',
-    body: {
-      user_id,
-      employee_code,
-      alternate_phone: alternate_phone || '',
-      full_name,
-      reporting_manager,
-      email,
-      phone,
-      address,
-      country_id,
-      state_id,
-      city_id,
-      zone_preference,
-      joining_date,
-    },
+    body: requestBody,
     includeAuth: true,
   });
 };
@@ -1053,23 +1365,62 @@ export const updateSalesman = async (salesmanId, salesmanData) => {
     zone_preference,
     joining_date,
   } = salesmanData;
+  
+  // Validate required fields - ensure they exist and are not empty
+  const trimmedEmployeeCode = employee_code ? String(employee_code).trim() : '';
+  const trimmedFullName = full_name ? String(full_name).trim() : '';
+  const trimmedEmail = email ? String(email).trim() : '';
+  const trimmedPhone = phone ? String(phone).trim() : '';
+  const trimmedCountryId = country_id ? String(country_id).trim() : '';
+  
+  if (!trimmedEmployeeCode) {
+    throw new Error('Employee code is required');
+  }
+  if (!trimmedFullName) {
+    throw new Error('Full name is required');
+  }
+  if (!trimmedEmail) {
+    throw new Error('Email is required');
+  }
+  if (!trimmedPhone) {
+    throw new Error('Phone is required');
+  }
+  if (!trimmedCountryId) {
+    throw new Error('Country is required');
+  }
+  
+  // Build request body with explicit checks
+  const requestBody = {
+    user_id: user_id || null,
+    employee_code: trimmedEmployeeCode,
+    alternate_phone: alternate_phone ? String(alternate_phone).trim() : '',
+    full_name: trimmedFullName,
+    reporting_manager: reporting_manager || null,
+    email: trimmedEmail,
+    phone: trimmedPhone,
+    address: address ? String(address).trim() : '',
+    country_id: trimmedCountryId,
+    state_id: state_id && String(state_id).trim() !== '' ? String(state_id).trim() : null,
+    city_id: city_id && String(city_id).trim() !== '' ? String(city_id).trim() : null,
+    zone_preference: zone_preference ? String(zone_preference).trim() : '',
+    joining_date: joining_date || new Date().toISOString(),
+  };
+  
+  // Final validation of request body
+  if (!requestBody.employee_code || requestBody.employee_code === '') {
+    console.error('[Update Salesman] Request body validation failed:', requestBody);
+    throw new Error('Employee code is required in request body');
+  }
+  if (!requestBody.full_name || requestBody.full_name === '') {
+    console.error('[Update Salesman] Request body validation failed:', requestBody);
+    throw new Error('Full name is required in request body');
+  }
+  
+  console.log('[Update Salesman] Sending request with employee_code:', requestBody.employee_code);
+  
   return apiRequest(`/salesmen/${salesmanId}`, {
     method: 'PUT',
-    body: {
-      user_id,
-      employee_code,
-      alternate_phone: alternate_phone || '',
-      full_name,
-      reporting_manager,
-      email,
-      phone,
-      address,
-      country_id,
-      state_id,
-      city_id,
-      zone_preference,
-      joining_date,
-    },
+    body: requestBody,
     includeAuth: true,
   });
 };
