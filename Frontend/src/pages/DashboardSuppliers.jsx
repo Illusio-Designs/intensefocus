@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import TableWithControls from '../components/ui/TableWithControls';
 import Modal from '../components/ui/Modal';
 import RowActions from '../components/ui/RowActions';
@@ -8,7 +8,12 @@ import {
   updateSalesman,
   deleteSalesman,
   getCountries,
+  getStates,
+  getCities,
+  getZones,
 } from '../services/apiService';
+import { showSuccess, showError } from '../services/notificationService';
+import { getUser } from '../services/authService';
 
 const DashboardSuppliers = () => {
   const [activeTab, setActiveTab] = useState('All');
@@ -18,52 +23,261 @@ const DashboardSuppliers = () => {
   const [error, setError] = useState(null);
   const [salesmen, setSalesmen] = useState([]);
   const [countries, setCountries] = useState([]);
+  const [selectedCountryFilter, setSelectedCountryFilter] = useState(null); // For filter dropdown
+  const [hasSearched, setHasSearched] = useState(false); // Track if we've searched for salesmen
+  const [states, setStates] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [zones, setZones] = useState([]);
   
   const [formData, setFormData] = useState({
     employee_code: '',
+    alternate_phone: '',
     full_name: '',
+    reporting_manager: '',
     email: '',
     phone: '',
-    alternate_phone: '',
     address: '',
     country_id: '',
+    state_id: '',
+    city_id: '',
+    zone_preference: '',
     joining_date: '',
   });
 
+  const isInitializingEditRef = useRef(false);
+  const prevCountryIdRef = useRef('');
+  const hasSetDefaultCountry = useRef(false);
+
   useEffect(() => {
-    fetchData();
+    fetchCountries();
   }, []);
 
-  const fetchData = async () => {
-    setLoading(true);
-    setError(null);
+  const fetchCountries = async () => {
     try {
-      // Get all countries
       const countriesData = await getCountries();
       setCountries(countriesData || []);
-      
-      // Fetch salesmen for all countries
-      if (countriesData && countriesData.length > 0) {
-        const salesmenPromises = countriesData.map(country => 
-          getSalesmen(country.id).catch((err) => {
-            // Log error but don't break the entire fetch
-            console.warn(`Failed to fetch salesmen for country ${country.id}:`, err.message);
-            return [];
-          })
-        );
-        const salesmenArrays = await Promise.all(salesmenPromises);
-        const allSalesmen = salesmenArrays.flat();
-        setSalesmen(allSalesmen);
-      }
     } catch (error) {
       if (!error.message?.toLowerCase().includes('token expired') && 
           !error.message?.toLowerCase().includes('unauthorized')) {
-        setError(`Failed to load data: ${error.message}`);
+        setError(`Failed to load countries: ${error.message}`);
       }
+    }
+  };
+
+  const fetchSalesmenForCountry = useCallback(async (countryId) => {
+    if (!countryId) {
+      console.log('[fetchSalesmenForCountry] No country ID provided, clearing salesmen');
+      setSalesmen([]);
+      setHasSearched(false);
+      return;
+    }
+    
+    setLoading(true);
+    setError(null);
+    setHasSearched(false);
+    try {
+      // Validate countryId before making API call
+      const cleanCountryId = String(countryId).trim();
+      if (!cleanCountryId || cleanCountryId === 'undefined' || cleanCountryId === 'null') {
+        console.error('[fetchSalesmenForCountry] Invalid country ID:', countryId);
+        setSalesmen([]);
+        setLoading(false);
+        return;
+      }
+      
+      console.log('[fetchSalesmenForCountry] Fetching salesmen for country:', cleanCountryId);
+      const salesmenData = await getSalesmen(cleanCountryId);
+      
+      console.log('[fetchSalesmenForCountry] Received', salesmenData?.length || 0, 'salesmen from API');
+      
+      // CRITICAL: Backend returns wrong data, so we MUST filter strictly
+      // Filter out ALL salesmen that don't match the requested country
+      const validSalesmen = (salesmenData || []).filter(d => {
+        if (!d) {
+          console.warn('[fetchSalesmenForCountry] Skipping null/undefined salesman');
+          return false;
+        }
+        
+        const salesmanCountryId = String(d.country_id || d.countryId || '').trim();
+        const matches = salesmanCountryId === cleanCountryId;
+        
+        if (!matches) {
+          console.warn('[fetchSalesmenForCountry] ❌ REJECTING salesman - country mismatch:', {
+            salesman_id: d.id || d.salesman_id,
+            salesman_name: d.full_name,
+            salesman_country_id: salesmanCountryId,
+            requested_country_id: cleanCountryId,
+            match: false
+          });
+        } else {
+          console.log('[fetchSalesmenForCountry] ✅ ACCEPTING salesman - country matches:', {
+            salesman_id: d.id || d.salesman_id,
+            salesman_name: d.full_name,
+            country_id: salesmanCountryId
+          });
+        }
+        return matches;
+      });
+      
+      const filteredOut = salesmenData.length - validSalesmen.length;
+      if (filteredOut > 0) {
+        console.warn('[fetchSalesmenForCountry] ⚠️ Backend returned', filteredOut, 'salesmen with WRONG country_id!');
+        console.warn('[fetchSalesmenForCountry] This is a backend issue - it should filter by country_id');
+      }
+      
+      if (validSalesmen.length > 0) {
+        console.log('[fetchSalesmenForCountry] ✅ Found', validSalesmen.length, 'valid salesmen for country:', cleanCountryId);
+      } else {
+        console.log('[fetchSalesmenForCountry] ℹ️ No salesmen found for country:', cleanCountryId);
+        if (salesmenData.length > 0) {
+          console.warn('[fetchSalesmenForCountry] ⚠️ Backend returned', salesmenData.length, 'salesmen but none matched the requested country');
+        }
+      }
+      
+      // Force update by creating a new array reference
+      const newSalesmen = Array.isArray(validSalesmen) ? [...validSalesmen] : [];
+      console.log('[fetchSalesmenForCountry] Setting', newSalesmen.length, 'salesmen for country:', cleanCountryId);
+      setSalesmen(newSalesmen);
+      setHasSearched(true); // Mark that we've completed a search - even if empty
+    } catch (error) {
+      console.error('[fetchSalesmenForCountry] Error:', error);
+      const errorMessage = error.message?.toLowerCase() || '';
+      const isNotFound = errorMessage.includes('salesmen not found') || 
+                        errorMessage.includes('no salesmen found') ||
+                        errorMessage.includes('salesman not found') ||
+                        error.statusCode === 404;
+      
+      if (!isNotFound && 
+          !errorMessage.includes('token expired') && 
+          !errorMessage.includes('unauthorized')) {
+        setError(`Failed to load salesmen: ${error.message}`);
+        showError(`Failed to load salesmen: ${error.message}`);
+      }
+      setSalesmen([]);
+      setHasSearched(true); // Mark that we've completed a search - even if empty
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  const fetchStates = async (countryId) => {
+    if (!countryId) {
+      setStates([]);
+      return;
+    }
+    try {
+      const statesData = await getStates(countryId);
+      setStates(statesData || []);
+    } catch (error) {
+      console.error('Failed to load states:', error);
+      setStates([]);
+    }
   };
+
+  const fetchCities = async (stateId) => {
+    if (!stateId) {
+      setCities([]);
+      return;
+    }
+    try {
+      const citiesData = await getCities(stateId);
+      setCities(citiesData || []);
+    } catch (error) {
+      console.error('Failed to load cities:', error);
+      setCities([]);
+    }
+  };
+
+  const fetchZones = async (cityId) => {
+    if (!cityId) {
+      setZones([]);
+      return;
+    }
+    try {
+      const zonesData = await getZones(cityId);
+      setZones(zonesData || []);
+    } catch (error) {
+      console.error('Failed to load zones:', error);
+      setZones([]);
+    }
+  };
+
+  // Set India as default country filter (only once when countries are loaded)
+  useEffect(() => {
+    if (countries.length > 0 && !selectedCountryFilter && !hasSetDefaultCountry.current) {
+      const india = countries.find(c => 
+        c.name?.toLowerCase() === 'india' || 
+        c.code?.toLowerCase() === 'in'
+      );
+      if (india) {
+        console.log('[Filter] Setting default country to India:', india.id);
+        setSelectedCountryFilter(india.id);
+        hasSetDefaultCountry.current = true;
+      }
+    }
+  }, [countries, selectedCountryFilter]);
+
+  // Fetch salesmen when country filter changes
+  useEffect(() => {
+    if (selectedCountryFilter) {
+      console.log('[Filter] Country changed, fetching salesmen for:', selectedCountryFilter);
+      fetchSalesmenForCountry(selectedCountryFilter);
+    } else {
+      // If no country selected (All Countries), clear salesmen
+      console.log('[Filter] No country selected (All Countries), clearing salesmen');
+      setSalesmen([]);
+      setLoading(false);
+    }
+  }, [selectedCountryFilter, fetchSalesmenForCountry]);
+
+  // Fetch states when country changes in form
+  useEffect(() => {
+    if (formData.country_id) {
+      fetchStates(formData.country_id);
+      // Only reset dependent fields if country actually changed by user (not during edit initialization)
+      if (!isInitializingEditRef.current && prevCountryIdRef.current !== '' && prevCountryIdRef.current !== formData.country_id) {
+        setFormData(prev => ({ ...prev, state_id: '', city_id: '', zone_preference: '' }));
+        setCities([]);
+        setZones([]);
+      }
+      prevCountryIdRef.current = formData.country_id;
+    } else {
+      setStates([]);
+      if (!isInitializingEditRef.current) {
+        setCities([]);
+        setZones([]);
+      }
+      prevCountryIdRef.current = '';
+    }
+  }, [formData.country_id]);
+
+  // Fetch cities when state changes
+  useEffect(() => {
+    if (formData.state_id) {
+      fetchCities(formData.state_id);
+      if (!isInitializingEditRef.current) {
+        setFormData(prev => ({ ...prev, city_id: '', zone_preference: '' }));
+        setZones([]);
+      }
+    } else {
+      setCities([]);
+      if (!isInitializingEditRef.current) {
+        setZones([]);
+      }
+    }
+  }, [formData.state_id]);
+
+  // Fetch zones when city changes
+  useEffect(() => {
+    if (formData.city_id) {
+      fetchZones(formData.city_id);
+      if (!isInitializingEditRef.current) {
+        setFormData(prev => ({ ...prev, zone_preference: '' }));
+      }
+    } else {
+      setZones([]);
+    }
+  }, [formData.city_id]);
 
   const columns = useMemo(() => ([
     { key: 'employee_code', label: 'EMPLOYEE CODE' },
@@ -79,11 +293,38 @@ const DashboardSuppliers = () => {
   ]), []);
 
   const rows = useMemo(() => {
-    return salesmen.map(salesman => ({
+    // CRITICAL: Backend returns wrong data, so we MUST filter strictly by country_id
+    let filteredSalesmen = [];
+    
+    if (selectedCountryFilter) {
+      const cleanFilterId = String(selectedCountryFilter).trim();
+      // Only show salesmen that EXACTLY match the selected country
+      filteredSalesmen = salesmen.filter(salesman => {
+        if (!salesman) return false;
+        const salesmanCountryId = String(salesman.country_id || salesman.countryId || '').trim();
+        const matches = salesmanCountryId === cleanFilterId;
+        
+        if (!matches && salesman.full_name) {
+          console.warn('[rows] ❌ Filtering out salesman with wrong country:', {
+            name: salesman.full_name,
+            salesman_country_id: salesmanCountryId,
+            selected_country_id: cleanFilterId
+          });
+        }
+        return matches;
+      });
+      console.log('[rows] ✅ Displaying', filteredSalesmen.length, 'salesmen for country:', cleanFilterId, 'out of', salesmen.length, 'total');
+    } else {
+      // If no country selected (All Countries), show nothing
+      filteredSalesmen = [];
+      console.log('[rows] No country selected, showing no salesmen');
+    }
+    
+    return filteredSalesmen.map(salesman => ({
       ...salesman,
       isActive: salesman.is_active !== false,
     }));
-  }, [salesmen]);
+  }, [salesmen, selectedCountryFilter]);
 
   const filteredRowsByTab = useMemo(() => {
     if (activeTab === 'All') return rows;
@@ -99,14 +340,22 @@ const DashboardSuppliers = () => {
   const resetForm = () => {
     setFormData({
       employee_code: '',
+      alternate_phone: '',
       full_name: '',
+      reporting_manager: '',
       email: '',
       phone: '',
-      alternate_phone: '',
       address: '',
       country_id: '',
+      state_id: '',
+      city_id: '',
+      zone_preference: '',
       joining_date: '',
     });
+    setStates([]);
+    setCities([]);
+    setZones([]);
+    prevCountryIdRef.current = '';
   };
 
   const handleAdd = () => {
@@ -114,18 +363,52 @@ const DashboardSuppliers = () => {
     setOpenAdd(true);
   };
 
-  const handleEdit = (row) => {
+  const handleEdit = async (row) => {
+    // Validate that row has an ID - check multiple possible ID field names
+    if (!row) {
+      showError('Invalid salesman data: row is null or undefined');
+      return;
+    }
+    
+    const salesmanId = row.id || row.salesman_id || row.salesmanId;
+    if (!salesmanId) {
+      console.error('Edit failed: Missing salesman ID', row);
+      showError('Invalid salesman data: missing ID. Please refresh the page and try again.');
+      return;
+    }
+    
+    isInitializingEditRef.current = true;
     setFormData({
       employee_code: row.employee_code || '',
+      alternate_phone: row.alternate_phone || '',
       full_name: row.full_name || '',
+      reporting_manager: row.reporting_manager || '',
       email: row.email || '',
       phone: row.phone || '',
-      alternate_phone: row.alternate_phone || '',
       address: row.address || '',
       country_id: row.country_id || '',
-      joining_date: row.joining_date || '',
+      state_id: row.state_id || '',
+      city_id: row.city_id || '',
+      zone_preference: row.zone_preference || '',
+      joining_date: row.joining_date ? row.joining_date.split('T')[0] : '',
     });
     setEditRow(row);
+    
+    // Load dependent data for editing
+    if (row.country_id) {
+      await fetchStates(row.country_id);
+      if (row.state_id) {
+        await fetchCities(row.state_id);
+        if (row.city_id) {
+          await fetchZones(row.city_id);
+        }
+      }
+    }
+    
+    // Reset the flag after a short delay to allow useEffect to process
+    setTimeout(() => {
+      isInitializingEditRef.current = false;
+    }, 100);
   };
 
   const handleDelete = async (row) => {
@@ -133,15 +416,44 @@ const DashboardSuppliers = () => {
       return;
     }
 
+    // Validate that row has an ID - check multiple possible ID field names
+    const salesmanId = row.id || row.salesman_id || row.salesmanId;
+    if (!salesmanId) {
+      console.error('Delete failed: Missing salesman ID', row);
+      showError('Invalid salesman data: missing ID. Please refresh the page and try again.');
+      return;
+    }
+
+    // Optimistically remove from table immediately
+    const salesmanName = row.full_name || 'Salesman';
+    setSalesmen(prev => prev.filter(s => {
+      const id = s.id || s.salesman_id || s.salesmanId;
+      return id !== salesmanId;
+    }));
+
     try {
       setLoading(true);
-      await deleteSalesman(row.id);
-      await fetchData();
+      setError(null);
+      console.log('Deleting salesman with ID:', salesmanId);
+      await deleteSalesman(salesmanId);
+      
+      // Show success notification
+      showSuccess('Salesman deleted successfully');
       setError(null);
     } catch (error) {
+      console.error('Delete salesman error:', error);
+      
+      // Revert optimistic update on error
+      if (selectedCountryFilter) {
+        await fetchSalesmenForCountry(selectedCountryFilter);
+      } else {
+        // If no filter, we can't easily restore, so just show error
+        setError(`Failed to delete: ${error.message}`);
+      }
+      
       if (!error.message?.toLowerCase().includes('token expired') && 
           !error.message?.toLowerCase().includes('unauthorized')) {
-        setError(`Failed to delete: ${error.message}`);
+        showError(`Failed to delete salesman: ${error.message}`);
       }
     } finally {
       setLoading(false);
@@ -176,39 +488,136 @@ const DashboardSuppliers = () => {
     try {
       setLoading(true);
       setError(null);
+      
+      // Get current logged-in user ID - required for salesman creation/update
+      const currentUser = getUser();
+      const currentUserId = currentUser?.id || currentUser?.user_id || currentUser?.user_id || null;
+      
+      if (!currentUserId) {
+        setError('User session not found. Please log in again.');
+        showError('User session not found. Please log in again.');
+        setLoading(false);
+        return;
+      }
+      
+      // Handle reporting_manager - must be null (not empty string) if not provided, to satisfy foreign key constraint
+      const trimmedReportingManager = formData.reporting_manager ? String(formData.reporting_manager).trim() : '';
+      
       const dataToSend = {
-        user_id: editRow?.user_id || '',
+        user_id: editRow?.user_id || currentUserId, // Use existing user_id for update, or current user ID for create
         employee_code: formData.employee_code.trim(),
+        alternate_phone: formData.alternate_phone ? formData.alternate_phone.trim() : '',
         full_name: formData.full_name.trim(),
+        reporting_manager: trimmedReportingManager !== '' ? trimmedReportingManager : null, // Send null instead of empty string
         email: formData.email.trim(),
         phone: formData.phone.trim(),
-        alternate_phone: formData.alternate_phone ? formData.alternate_phone.trim() : '',
         address: formData.address ? formData.address.trim() : '',
         country_id: formData.country_id,
-        state_id: '',
-        city_id: '',
-        zone_preference: '',
-        reporting_manager: '',
+        state_id: formData.state_id || '',
+        city_id: formData.city_id || '',
+        zone_preference: formData.zone_preference || '',
         joining_date: formData.joining_date ? new Date(formData.joining_date).toISOString() : new Date().toISOString(),
       };
 
       if (editRow) {
-        await updateSalesman(editRow.id, dataToSend);
+        // Validate that editRow has an ID - check multiple possible ID field names
+        const salesmanId = editRow.id || editRow.salesman_id || editRow.salesmanId;
+        if (!salesmanId) {
+          console.error('Update failed: Missing salesman ID', editRow);
+          showError('Invalid salesman data: missing ID. Please refresh the page and try again.');
+          setLoading(false);
+          return;
+        }
+        
+        // Optimistically update the salesman in the table immediately
+        const updatedSalesman = {
+          ...editRow,
+          ...dataToSend,
+          is_active: editRow.is_active !== undefined ? editRow.is_active : true,
+          id: salesmanId,
+        };
+        
+        setSalesmen(prev => prev.map(s => {
+          const id = s.id || s.salesman_id || s.salesmanId;
+          return id === salesmanId ? updatedSalesman : s;
+        }));
+        
+        console.log('Updating salesman with ID:', salesmanId, 'Data:', dataToSend);
+        
+        try {
+          await updateSalesman(salesmanId, { 
+            ...dataToSend, 
+            is_active: editRow.is_active !== undefined ? editRow.is_active : true 
+          });
+          
+          // Show success notification
+          showSuccess('Salesman updated successfully');
+          setError(null);
+          setOpenAdd(false);
+          setEditRow(null);
+          resetForm();
+        } catch (error) {
+          console.error('Update salesman error:', error);
+          
+          // Revert optimistic update on error by refetching
+          if (selectedCountryFilter) {
+            await fetchSalesmenForCountry(selectedCountryFilter);
+          }
+          
+          if (!error.message?.toLowerCase().includes('token expired') && 
+              !error.message?.toLowerCase().includes('unauthorized')) {
+            showError(`Failed to update salesman: ${error.message}`);
+          }
+          setLoading(false);
+          return;
+        }
       } else {
-        await createSalesman(dataToSend);
+        // Create new salesman
+        try {
+          const newSalesman = await createSalesman(dataToSend);
+          
+          // Optimistically add to table if it matches the current filter
+          if (selectedCountryFilter && newSalesman && newSalesman.country_id === selectedCountryFilter) {
+            setSalesmen(prev => [...prev, {
+              ...newSalesman,
+              id: newSalesman.id || newSalesman.salesman_id,
+              isActive: newSalesman.is_active !== false,
+            }]);
+          } else if (selectedCountryFilter) {
+            // If country doesn't match filter, just refresh
+            await fetchSalesmenForCountry(selectedCountryFilter);
+          }
+          
+          // Show success notification
+          showSuccess('Salesman created successfully');
+          setError(null);
+          setOpenAdd(false);
+          setEditRow(null);
+          resetForm();
+        } catch (createError) {
+          console.error('Create salesman error:', createError);
+          
+          // Revert by refreshing if needed
+          if (selectedCountryFilter) {
+            await fetchSalesmenForCountry(selectedCountryFilter);
+          }
+          
+          if (!createError.message?.toLowerCase().includes('token expired') && 
+              !createError.message?.toLowerCase().includes('unauthorized')) {
+            showError(`Failed to create salesman: ${createError.message}`);
+            setError(`Failed to save: ${createError.message}`);
+          }
+          setLoading(false);
+          return;
+        }
       }
-      
-      await fetchData();
-      setError(null);
-      setOpenAdd(false);
-      setEditRow(null);
-      resetForm();
     } catch (error) {
+      // This catch block only handles create errors (update errors are handled above)
       if (!error.message?.toLowerCase().includes('token expired') && 
           !error.message?.toLowerCase().includes('unauthorized')) {
+        showError(`Failed to create salesman: ${error.message}`);
         setError(`Failed to save: ${error.message}`);
       }
-    } finally {
       setLoading(false);
     }
   };
@@ -269,10 +678,47 @@ const DashboardSuppliers = () => {
               addNewText="Add New Salesman"
               onImport={() => {
                 setError(null);
-                fetchData();
+                if (selectedCountryFilter) {
+                  fetchSalesmenForCountry(selectedCountryFilter);
+                }
               }}
               importText="Refresh Data"
-              searchPlaceholder="Search salesmen"
+              showFilter={true}
+              filterContent={
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>
+                    Filter by Country
+                  </label>
+                  <select
+                    className="ui-input"
+                    value={selectedCountryFilter || ''}
+                    onChange={(e) => {
+                      const newCountryId = e.target.value || null;
+                      console.log('[Filter] Country selection changed from', selectedCountryFilter, 'to', newCountryId);
+                      // Clear salesmen immediately when changing countries
+                      setSalesmen([]);
+                      setHasSearched(false);
+                      // Update state - useEffect will handle fetching or clearing
+                      setSelectedCountryFilter(newCountryId);
+                      // If "All Countries" is selected (empty), ensure salesmen are cleared
+                      if (!newCountryId) {
+                        console.log('[Filter] All Countries selected - clearing salesmen');
+                        setSalesmen([]);
+                        setHasSearched(false);
+                        setLoading(false);
+                      }
+                    }}
+                    style={{ width: '100%', minWidth: '200px' }}
+                  >
+                    <option value="">All Countries</option>
+                    {countries.map(country => (
+                      <option key={country.id} value={country.id}>
+                        {country.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              }
             />
           </div>
         </div>
@@ -365,12 +811,69 @@ const DashboardSuppliers = () => {
             </select>
           </div>
           <div className="form-group">
+            <label className="ui-label">State</label>
+            <select
+              className="ui-input"
+              value={formData.state_id}
+              onChange={(e) => handleInputChange('state_id', e.target.value)}
+              disabled={!formData.country_id}
+            >
+              <option value="">Select State</option>
+              {states.map(state => (
+                <option key={state.id} value={state.id}>
+                  {state.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="ui-label">City</label>
+            <select
+              className="ui-input"
+              value={formData.city_id}
+              onChange={(e) => handleInputChange('city_id', e.target.value)}
+              disabled={!formData.state_id}
+            >
+              <option value="">Select City</option>
+              {cities.map(city => (
+                <option key={city.id} value={city.id}>
+                  {city.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="ui-label">Zone Preference</label>
+            <select
+              className="ui-input"
+              value={formData.zone_preference}
+              onChange={(e) => handleInputChange('zone_preference', e.target.value)}
+              disabled={!formData.city_id}
+            >
+              <option value="">Select Zone</option>
+              {zones.map(zone => (
+                <option key={zone.id} value={zone.id}>
+                  {zone.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
             <label className="ui-label">Alternate Phone</label>
             <input 
               className="ui-input" 
               placeholder="Alternate phone"
               value={formData.alternate_phone}
               onChange={(e) => handleInputChange('alternate_phone', e.target.value)}
+            />
+          </div>
+          <div className="form-group">
+            <label className="ui-label">Reporting Manager</label>
+            <input 
+              className="ui-input" 
+              placeholder="Reporting manager"
+              value={formData.reporting_manager}
+              onChange={(e) => handleInputChange('reporting_manager', e.target.value)}
             />
           </div>
           <div className="form-group">
@@ -481,12 +984,69 @@ const DashboardSuppliers = () => {
             </select>
           </div>
           <div className="form-group">
+            <label className="ui-label">State</label>
+            <select
+              className="ui-input"
+              value={formData.state_id}
+              onChange={(e) => handleInputChange('state_id', e.target.value)}
+              disabled={!formData.country_id}
+            >
+              <option value="">Select State</option>
+              {states.map(state => (
+                <option key={state.id} value={state.id}>
+                  {state.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="ui-label">City</label>
+            <select
+              className="ui-input"
+              value={formData.city_id}
+              onChange={(e) => handleInputChange('city_id', e.target.value)}
+              disabled={!formData.state_id}
+            >
+              <option value="">Select City</option>
+              {cities.map(city => (
+                <option key={city.id} value={city.id}>
+                  {city.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="ui-label">Zone Preference</label>
+            <select
+              className="ui-input"
+              value={formData.zone_preference}
+              onChange={(e) => handleInputChange('zone_preference', e.target.value)}
+              disabled={!formData.city_id}
+            >
+              <option value="">Select Zone</option>
+              {zones.map(zone => (
+                <option key={zone.id} value={zone.id}>
+                  {zone.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
             <label className="ui-label">Alternate Phone</label>
             <input 
               className="ui-input" 
               placeholder="Alternate phone"
               value={formData.alternate_phone}
               onChange={(e) => handleInputChange('alternate_phone', e.target.value)}
+            />
+          </div>
+          <div className="form-group">
+            <label className="ui-label">Reporting Manager</label>
+            <input 
+              className="ui-input" 
+              placeholder="Reporting manager"
+              value={formData.reporting_manager}
+              onChange={(e) => handleInputChange('reporting_manager', e.target.value)}
             />
           </div>
           <div className="form-group">
@@ -514,4 +1074,3 @@ const DashboardSuppliers = () => {
 };
 
 export default DashboardSuppliers;
-

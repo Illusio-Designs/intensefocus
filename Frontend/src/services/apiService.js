@@ -74,8 +74,60 @@ const handleResponse = async (response) => {
   const isJson = contentType && contentType.includes('application/json');
 
   if (!response.ok) {
-    const errorData = isJson ? await response.json() : { error: response.statusText };
-    const errorMessage = errorData.error || errorData.message || 'An error occurred';
+    let errorData = {};
+    let errorMessage = 'An error occurred';
+    
+    try {
+      if (isJson) {
+        errorData = await response.json();
+      } else {
+        // Try to get text response
+        const textResponse = await response.text();
+        try {
+          // Try to parse as JSON even if content-type doesn't say so
+          errorData = JSON.parse(textResponse);
+        } catch {
+          // If not JSON, use the text as error message
+          errorMessage = textResponse || response.statusText || `HTTP ${response.status} Error`;
+        }
+      }
+      
+      // Extract error message from various possible structures
+      errorMessage = errorData.error || 
+                    errorData.message || 
+                    errorData.msg ||
+                    errorData.detail ||
+                    (errorData.data && (errorData.data.error || errorData.data.message)) ||
+                    errorMessage;
+      
+      // If we still have the default message, try to get more info
+      if (errorMessage === 'An error occurred' && errorData) {
+        // Log the full error data for debugging
+        console.error('[API Error] Full error response:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorData: errorData,
+          url: response.url
+        });
+        
+        // Try to construct a more informative message
+        if (response.status === 404) {
+          errorMessage = 'Resource not found';
+        } else if (response.status === 500) {
+          errorMessage = 'Internal server error. Please try again later.';
+        } else if (response.status === 400) {
+          errorMessage = 'Bad request. Please check your input.';
+        } else if (response.status === 403) {
+          errorMessage = 'Access forbidden';
+        } else {
+          errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        }
+      }
+    } catch (parseError) {
+      // If we can't parse the error response, use status text
+      console.error('[API Error] Failed to parse error response:', parseError);
+      errorMessage = response.statusText || `HTTP ${response.status} Error`;
+    }
     
     // Check for token expiration (401 Unauthorized or "Token expired" message)
     const isTokenExpired = response.status === 401 || 
@@ -107,6 +159,7 @@ const handleResponse = async (response) => {
     
     // Check for backend initialization error - mark it specially so components can handle it
     const isInitError = errorMessage.toLowerCase().includes("cannot access 'party' before initialization") ||
+                       errorMessage.toLowerCase().includes("cannot access 'distributor' before initialization") ||
                        (errorMessage.toLowerCase().includes("cannot access") && errorMessage.toLowerCase().includes("before initialization"));
     
     if (isInitError) {
@@ -117,7 +170,12 @@ const handleResponse = async (response) => {
       throw initError;
     }
     
-    throw new Error(errorMessage);
+    // Create error with more context
+    const error = new Error(errorMessage);
+    error.statusCode = response.status;
+    error.statusText = response.statusText;
+    error.errorData = errorData;
+    throw error;
   }
 
   return isJson ? await response.json() : await response.text();
@@ -675,28 +733,111 @@ export const deleteZone = async (zoneId) => {
  * @returns {Promise<Array>} Array of distributor objects
  */
 export const getDistributors = async (countryId) => {
+  // Validate countryId
+  if (!countryId) {
+    console.warn('[getDistributors] No country ID provided');
+    return [];
+  }
+  
   try {
+    // Validate and clean countryId
+    const cleanCountryId = String(countryId).trim();
+    if (!cleanCountryId || cleanCountryId === 'undefined' || cleanCountryId === 'null') {
+      console.error('[getDistributors] Invalid country ID:', countryId);
+      return [];
+    }
+    
+    console.log('[getDistributors] ====== API CALL ======');
+    console.log('[getDistributors] Requested country_id:', cleanCountryId);
+    console.log('[getDistributors] Request body:', JSON.stringify({ country_id: cleanCountryId }));
+    
     // Use POST to /distributors/get with country_id in body (following pattern from getStates/getCities)
     const response = await apiRequest('/distributors/get', {
       method: 'POST',
-      body: { country_id: countryId },
+      body: { country_id: cleanCountryId },
       includeAuth: true,
     });
     
+    console.log('[getDistributors] API response received:', response?.length || 0, 'distributors');
+    if (response && response.length > 0) {
+      console.log('[getDistributors] Response country_ids:', response.map(d => ({
+        id: d.distributor_id || d.id,
+        name: d.distributor_name,
+        country_id: d.country_id
+      })));
+    }
+    
     // Ensure we always return an array
+    let distributorsArray = [];
     if (Array.isArray(response)) {
-      return response;
+      distributorsArray = response;
+    } else if (response && Array.isArray(response.data)) {
+      distributorsArray = response.data;
     }
-    // Handle case where response might be wrapped in data property
-    if (response && Array.isArray(response.data)) {
-      return response.data;
+    
+    // CRITICAL: Backend may return wrong data, so we MUST filter strictly by country_id
+    if (distributorsArray.length > 0) {
+      console.log('[getDistributors] ====== FILTERING RESPONSE ======');
+      console.log('[getDistributors] Requested country_id:', cleanCountryId);
+      console.log('[getDistributors] Total distributors received:', distributorsArray.length);
+      
+      // Filter to ONLY include distributors matching the requested country
+      const beforeFilter = distributorsArray.length;
+      distributorsArray = distributorsArray.filter(d => {
+        if (!d) return false;
+        const distributorCountryId = String(d.country_id || d.countryId || '').trim();
+        const matches = distributorCountryId === cleanCountryId;
+        
+        if (!matches) {
+          console.warn('[getDistributors] ❌ REJECTING - country mismatch:', {
+            distributor_id: d.distributor_id || d.id,
+            distributor_name: d.distributor_name,
+            distributor_country_id: distributorCountryId,
+            requested_country_id: cleanCountryId
+          });
+        }
+        return matches;
+      });
+      
+      const filteredOut = beforeFilter - distributorsArray.length;
+      if (filteredOut > 0) {
+        console.warn('[getDistributors] ⚠️ FILTERED OUT', filteredOut, 'distributors with wrong country_id');
+        console.warn('[getDistributors] Backend returned wrong data - this is a backend issue!');
+      }
+      
+      console.log('[getDistributors] ✅ Final count after filtering:', distributorsArray.length, 'matching distributors');
+      
+      // Log sample distributor to verify
+      if (distributorsArray.length > 0) {
+        console.log('[getDistributors] Sample valid distributor:', {
+          id: distributorsArray[0].distributor_id || distributorsArray[0].id,
+          name: distributorsArray[0].distributor_name,
+          country_id: distributorsArray[0].country_id,
+          requested_country_id: cleanCountryId,
+          matches: String(distributorsArray[0].country_id) === cleanCountryId
+        });
+      } else {
+        console.log('[getDistributors] ℹ️ No distributors found for country:', cleanCountryId);
+      }
+      console.log('[getDistributors] ====== END FILTERING ======');
     }
-    // Return empty array if response is unexpected
-    return [];
+    
+    return distributorsArray;
   } catch (error) {
     // Handle "Distributors not found" as a valid case (empty distributors)
-    if (error.message?.toLowerCase().includes('distributors not found') ||
-        error.message?.toLowerCase().includes('no distributors found')) {
+    const errorMessage = (error.message || '').toLowerCase();
+    const errorText = (error.errorData?.error || error.errorData?.message || '').toLowerCase();
+    
+    // Check multiple variations of "not found" messages
+    if (errorMessage.includes('distributors not found') ||
+        errorMessage.includes('no distributors found') ||
+        errorMessage.includes('distributor not found') ||
+        errorText.includes('distributors not found') ||
+        errorText.includes('no distributors found') ||
+        errorText.includes('distributor not found') ||
+        error.statusCode === 404) {
+      // Return empty array for "not found" cases - this is a valid state
+      console.log('[getDistributors] No distributors found for country, returning empty array');
       return [];
     }
     // Re-throw other errors
@@ -837,6 +978,18 @@ export const createDistributor = async (distributorData) => {
  * @returns {Promise<Object>} Response with message
  */
 export const updateDistributor = async (distributorId, distributorData) => {
+  // Validate distributorId
+  if (!distributorId) {
+    throw new Error('Distributor ID is required');
+  }
+  
+  // Trim and validate the ID
+  const trimmedId = String(distributorId).trim();
+  if (trimmedId === '' || trimmedId === 'undefined' || trimmedId === 'null') {
+    console.error('[Update Distributor] Invalid distributor ID:', distributorId);
+    throw new Error('Invalid distributor ID');
+  }
+  
   const {
     distributor_name,
     trade_name,
@@ -894,6 +1047,8 @@ export const updateDistributor = async (distributorId, distributorData) => {
   }
   
   // Build request body with explicit checks
+  // Ensure empty strings are converted to empty strings (not null) for required string fields
+  // and null for optional UUID fields
   const requestBody = {
     distributor_name: trimmedDistributorName,
     trade_name: trimmedTradeName,
@@ -902,16 +1057,19 @@ export const updateDistributor = async (distributorId, distributorData) => {
     phone: trimmedPhone,
     address: address ? String(address).trim() : '',
     country_id: trimmedCountryId,
-    state_id: state_id && String(state_id).trim() !== '' ? String(state_id).trim() : null,
-    city_id: city_id && String(city_id).trim() !== '' ? String(city_id).trim() : null,
-    zone_id: zone_id && String(zone_id).trim() !== '' ? String(zone_id).trim() : null,
+    state_id: (state_id && String(state_id).trim() !== '') ? String(state_id).trim() : '',
+    city_id: (city_id && String(city_id).trim() !== '') ? String(city_id).trim() : '',
+    zone_id: (zone_id && String(zone_id).trim() !== '') ? String(zone_id).trim() : '',
     pincode: pincode ? String(pincode).trim() : '',
-    gstin: gstin ? String(gstin) : '',
-    pan: pan ? String(pan) : '',
+    gstin: gstin ? String(gstin).trim() : '',
+    pan: pan ? String(pan).trim() : '',
     territory: territory ? String(territory).trim() : '',
     commission_rate: commission_rate || 0,
     is_active: is_active !== undefined ? is_active : true,
   };
+  
+  // Remove empty string UUID fields (convert to empty string as per payload requirement)
+  // The backend expects empty strings, not null for these fields
   
   // Final validation of request body
   if (!requestBody.distributor_name || requestBody.distributor_name === '') {
@@ -920,8 +1078,9 @@ export const updateDistributor = async (distributorId, distributorData) => {
   }
   
   console.log('[Update Distributor] Sending request with distributor_name:', requestBody.distributor_name);
+  console.log('[Update Distributor] Distributor ID:', trimmedId);
   
-  return apiRequest(`/distributors/${distributorId}`, {
+  return apiRequest(`/distributors/${trimmedId}`, {
     method: 'PUT',
     body: requestBody,
     includeAuth: true,
@@ -934,7 +1093,21 @@ export const updateDistributor = async (distributorId, distributorData) => {
  * @returns {Promise<Object>} Response with message
  */
 export const deleteDistributor = async (distributorId) => {
-  return apiRequest(`/distributors/${distributorId}`, {
+  // Validate distributorId
+  if (!distributorId) {
+    throw new Error('Distributor ID is required');
+  }
+  
+  // Trim and validate the ID
+  const trimmedId = String(distributorId).trim();
+  if (trimmedId === '' || trimmedId === 'undefined' || trimmedId === 'null') {
+    console.error('[Delete Distributor] Invalid distributor ID:', distributorId);
+    throw new Error('Invalid distributor ID');
+  }
+  
+  console.log('[Delete Distributor] Deleting distributor with ID:', trimmedId);
+  
+  return apiRequest(`/distributors/${trimmedId}`, {
     method: 'DELETE',
     includeAuth: true,
   });
@@ -946,11 +1119,125 @@ export const deleteDistributor = async (distributorId) => {
  * Get all parties
  * @returns {Promise<Array>} Array of party objects
  */
-export const getParties = async () => {
-  return apiRequest('/parties/', {
-    method: 'GET',
-    includeAuth: true,
-  });
+export const getParties = async (countryId) => {
+  // Validate countryId
+  if (!countryId) {
+    console.warn('[getParties] No country ID provided');
+    return [];
+  }
+  
+  try {
+    // Validate and clean countryId
+    const cleanCountryId = String(countryId).trim();
+    if (!cleanCountryId || cleanCountryId === 'undefined' || cleanCountryId === 'null') {
+      console.error('[getParties] Invalid country ID:', countryId);
+      return [];
+    }
+    
+    console.log('[getParties] ====== API CALL ======');
+    console.log('[getParties] Requested country_id:', cleanCountryId);
+    console.log('[getParties] Request body:', JSON.stringify({ country_id: cleanCountryId }));
+    
+    // Use POST to /parties/get with country_id in body (following pattern from getDistributors/getSalesmen)
+    const response = await apiRequest('/parties/get', {
+      method: 'POST',
+      body: { country_id: cleanCountryId },
+      includeAuth: true,
+    });
+    
+    console.log('[getParties] API response received:', response?.length || 0, 'parties');
+    if (response && response.length > 0) {
+      console.log('[getParties] Response country_ids:', response.map(p => ({
+        id: p.id || p.party_id,
+        name: p.party_name,
+        country_id: p.country_id
+      })));
+    }
+    
+    // Ensure we always return an array
+    let partiesArray = [];
+    if (Array.isArray(response)) {
+      partiesArray = response;
+    } else if (response && Array.isArray(response.data)) {
+      partiesArray = response.data;
+    }
+    
+    // CRITICAL: Backend may return wrong data, so we MUST filter strictly by country_id
+    if (partiesArray.length > 0) {
+      console.log('[getParties] ====== FILTERING RESPONSE ======');
+      console.log('[getParties] Requested country_id:', cleanCountryId);
+      console.log('[getParties] Total parties received:', partiesArray.length);
+      
+      // Filter to ONLY include parties matching the requested country
+      const beforeFilter = partiesArray.length;
+      partiesArray = partiesArray.filter(p => {
+        if (!p) return false;
+        const partyCountryId = String(p.country_id || p.countryId || '').trim();
+        const matches = partyCountryId === cleanCountryId;
+        
+        if (!matches) {
+          console.warn('[getParties] ❌ REJECTING - country mismatch:', {
+            party_id: p.id || p.party_id,
+            party_name: p.party_name,
+            party_country_id: partyCountryId,
+            requested_country_id: cleanCountryId
+          });
+        }
+        return matches;
+      });
+      
+      const filteredOut = beforeFilter - partiesArray.length;
+      if (filteredOut > 0) {
+        console.warn('[getParties] ⚠️ FILTERED OUT', filteredOut, 'parties with wrong country_id');
+        console.warn('[getParties] Backend returned wrong data - this is a backend issue!');
+      }
+      
+      console.log('[getParties] ✅ Final count after filtering:', partiesArray.length, 'matching parties');
+      
+      // Log sample party to verify
+      if (partiesArray.length > 0) {
+        console.log('[getParties] Sample valid party:', {
+          id: partiesArray[0].id || partiesArray[0].party_id,
+          name: partiesArray[0].party_name,
+          country_id: partiesArray[0].country_id,
+          requested_country_id: cleanCountryId,
+          matches: String(partiesArray[0].country_id) === cleanCountryId
+        });
+      } else {
+        // Backend returned 200 with data, but after filtering by country_id, no matching parties found
+        console.log('[getParties] ====== NO PARTIES FOUND ======');
+        console.log('[getParties] ⚠️ IMPORTANT: Backend returned HTTP 200, but this country has NO parties');
+        console.log('[getParties] Requested country_id:', cleanCountryId);
+        console.log('[getParties] Backend returned', beforeFilter, 'parties, but NONE match the requested country');
+        console.log('[getParties] This is treated as "Parties not found" on the frontend');
+      }
+      console.log('[getParties] ====== END FILTERING ======');
+    } else {
+      // Backend returned empty array - no parties for this country
+      console.log('[getParties] ℹ️ Backend returned empty array - no parties for country:', cleanCountryId);
+    }
+    
+    return partiesArray;
+  } catch (error) {
+    // Handle "Parties not found" as a valid case (empty parties)
+    const errorMessage = (error.message || '').toLowerCase();
+    const errorText = (error.errorData?.error || error.errorData?.message || '').toLowerCase();
+    
+    // Check multiple variations of "not found" messages
+    if (errorMessage.includes('parties not found') ||
+        errorMessage.includes('no parties found') ||
+        errorMessage.includes('party not found') ||
+        errorText.includes('parties not found') ||
+        errorText.includes('no parties found') ||
+        errorText.includes('party not found') ||
+        error.statusCode === 404) {
+      // Return empty array for "not found" cases - this is a valid state
+      console.log('[getParties] No parties found for country, returning empty array');
+      return [];
+    }
+    // Re-throw other errors
+    throw error;
+  }
 };
 
 /**
@@ -1207,28 +1494,126 @@ export const deleteParty = async (partyId) => {
  * @returns {Promise<Array>} Array of salesman objects
  */
 export const getSalesmen = async (countryId) => {
+  // Validate countryId
+  if (!countryId) {
+    console.warn('[getSalesmen] No country ID provided');
+    return [];
+  }
+  
   try {
+    // Validate and clean countryId
+    const cleanCountryId = String(countryId).trim();
+    if (!cleanCountryId || cleanCountryId === 'undefined' || cleanCountryId === 'null') {
+      console.error('[getSalesmen] Invalid country ID:', countryId);
+      return [];
+    }
+    
+    console.log('[getSalesmen] ====== API CALL ======');
+    console.log('[getSalesmen] Requested country_id:', cleanCountryId);
+    console.log('[getSalesmen] Request body:', JSON.stringify({ country_id: cleanCountryId }));
+    
     // Use POST to /salesmen/get with country_id in body (following pattern from getStates/getCities/getDistributors)
     const response = await apiRequest('/salesmen/get', {
       method: 'POST',
-      body: { country_id: countryId },
+      body: { country_id: cleanCountryId },
       includeAuth: true,
     });
     
+    console.log('[getSalesmen] API response received:', response?.length || 0, 'salesmen');
+    if (response && response.length > 0) {
+      console.log('[getSalesmen] Response country_ids:', response.map(s => ({
+        id: s.id || s.salesman_id,
+        name: s.full_name,
+        country_id: s.country_id
+      })));
+    }
+    
     // Ensure we always return an array
+    let salesmenArray = [];
     if (Array.isArray(response)) {
-      return response;
+      salesmenArray = response;
+    } else if (response && Array.isArray(response.data)) {
+      salesmenArray = response.data;
     }
-    // Handle case where response might be wrapped in data property
-    if (response && Array.isArray(response.data)) {
-      return response.data;
+    
+    // CRITICAL: Backend may return wrong data, so we MUST filter strictly by country_id
+    if (salesmenArray.length > 0) {
+      console.log('[getSalesmen] ====== FILTERING RESPONSE ======');
+      console.log('[getSalesmen] Requested country_id:', cleanCountryId);
+      console.log('[getSalesmen] Total salesmen received:', salesmenArray.length);
+      
+      // Filter to ONLY include salesmen matching the requested country
+      const beforeFilter = salesmenArray.length;
+      salesmenArray = salesmenArray.filter(s => {
+        if (!s) return false;
+        const salesmanCountryId = String(s.country_id || s.countryId || '').trim();
+        const matches = salesmanCountryId === cleanCountryId;
+        
+        if (!matches) {
+          console.warn('[getSalesmen] ❌ REJECTING - country mismatch:', {
+            salesman_id: s.id || s.salesman_id,
+            salesman_name: s.full_name,
+            salesman_country_id: salesmanCountryId,
+            requested_country_id: cleanCountryId
+          });
+        }
+        return matches;
+      });
+      
+      const filteredOut = beforeFilter - salesmenArray.length;
+      if (filteredOut > 0) {
+        console.warn('[getSalesmen] ⚠️ FILTERED OUT', filteredOut, 'salesmen with wrong country_id');
+        console.warn('[getSalesmen] Backend returned wrong data - this is a backend issue!');
+      }
+      
+      console.log('[getSalesmen] ✅ Final count after filtering:', salesmenArray.length, 'matching salesmen');
+      
+      // Log sample salesman to verify
+      if (salesmenArray.length > 0) {
+        console.log('[getSalesmen] Sample valid salesman:', {
+          id: salesmenArray[0].id || salesmenArray[0].salesman_id,
+          name: salesmenArray[0].full_name,
+          country_id: salesmenArray[0].country_id,
+          requested_country_id: cleanCountryId,
+          matches: String(salesmenArray[0].country_id) === cleanCountryId
+        });
+      } else {
+        // Backend returned 200 with data, but after filtering by country_id, no matching salesmen found
+        // This means the country has no salesmen - treat as "not found"
+        console.log('[getSalesmen] ====== NO SALESMEN FOUND ======');
+        console.log('[getSalesmen] ⚠️ IMPORTANT: Backend returned HTTP 200, but this country has NO salesmen');
+        console.log('[getSalesmen] Requested country_id:', cleanCountryId);
+        console.log('[getSalesmen] Backend returned', beforeFilter, 'salesmen, but NONE match the requested country');
+        console.log('[getSalesmen] This is treated as "Salesmen not found" on the frontend');
+        console.log('[getSalesmen] UI will show "404 - No salesman found" message');
+        console.log('[getSalesmen] NOTE: Backend should return 404 or empty array, but returns 200 with wrong data');
+      }
+      console.log('[getSalesmen] ====== END FILTERING ======');
+    } else {
+      // Backend returned empty array - no salesmen for this country
+      console.log('[getSalesmen] ℹ️ Backend returned empty array - no salesmen for country:', cleanCountryId);
+      console.log('[getSalesmen] This should be treated as "Salesmen not found"');
     }
-    // Return empty array if response is unexpected
-    return [];
+    
+    // If no salesmen found after filtering, return empty array
+    // The component will show "404 - No salesman found" message
+    // Note: Backend returns 200 even when no salesmen exist, so we handle "not found" on frontend
+    return salesmenArray;
   } catch (error) {
     // Handle "Salesmen not found" as a valid case (empty salesmen)
-    if (error.message?.toLowerCase().includes('salesmen not found') ||
-        error.message?.toLowerCase().includes('no salesmen found')) {
+    const errorMessage = (error.message || '').toLowerCase();
+    const errorText = (error.errorData?.error || error.errorData?.message || '').toLowerCase();
+    
+    // Check multiple variations of "not found" messages
+    if (errorMessage.includes('salesmen not found') ||
+        errorMessage.includes('no salesmen found') ||
+        errorMessage.includes('salesman not found') ||
+        errorText.includes('salesmen not found') ||
+        errorText.includes('no salesmen found') ||
+        errorText.includes('salesman not found') ||
+        error.statusCode === 404) {
+      // Return empty array for "not found" cases - this is a valid state
+      console.log('[getSalesmen] No salesmen found for country, returning empty array');
       return [];
     }
     // Re-throw other errors
@@ -1294,22 +1679,52 @@ export const createSalesman = async (salesmanData) => {
     throw new Error('Country is required');
   }
   
-  // Build request body with explicit checks
+  // Validate user_id - it's required (NOT NULL in database)
+  const trimmedUserId = user_id ? String(user_id).trim() : '';
+  if (!trimmedUserId || trimmedUserId === '') {
+    throw new Error('User ID is required');
+  }
+  
+  // Build request body matching the exact payload structure provided
+  // reporting_manager must be null (not empty string) if not provided, to satisfy foreign key constraint
+  let reportingManagerValue = null;
+  if (reporting_manager !== null && reporting_manager !== undefined && reporting_manager !== '') {
+    const trimmed = String(reporting_manager).trim();
+    if (trimmed !== '') {
+      reportingManagerValue = trimmed;
+    }
+  }
+  
   const requestBody = {
-    user_id: user_id || null,
+    user_id: trimmedUserId,
     employee_code: trimmedEmployeeCode,
     alternate_phone: alternate_phone ? String(alternate_phone).trim() : '',
     full_name: trimmedFullName,
-    reporting_manager: reporting_manager || null,
     email: trimmedEmail,
     phone: trimmedPhone,
     address: address ? String(address).trim() : '',
     country_id: trimmedCountryId,
-    state_id: state_id && String(state_id).trim() !== '' ? String(state_id).trim() : null,
-    city_id: city_id && String(city_id).trim() !== '' ? String(city_id).trim() : null,
+    state_id: state_id && String(state_id).trim() !== '' ? String(state_id).trim() : '',
+    city_id: city_id && String(city_id).trim() !== '' ? String(city_id).trim() : '',
     zone_preference: zone_preference ? String(zone_preference).trim() : '',
     joining_date: joining_date || new Date().toISOString(),
   };
+  
+  // Set reporting_manager - must be either a valid UUID string or null (never empty string)
+  // The database foreign key constraint requires either a valid user_id or NULL
+  if (reportingManagerValue !== null && reportingManagerValue !== '' && reportingManagerValue !== undefined) {
+    // Validate it looks like a UUID (basic check)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(reportingManagerValue)) {
+      requestBody.reporting_manager = reportingManagerValue;
+    } else {
+      console.warn('[Create Salesman] Invalid UUID format for reporting_manager, setting to null:', reportingManagerValue);
+      requestBody.reporting_manager = null;
+    }
+  } else {
+    // Explicitly set to null - backend should handle this for foreign key constraint
+    requestBody.reporting_manager = null;
+  }
   
   // Final validation of request body
   if (!requestBody.employee_code || requestBody.employee_code === '') {
@@ -1320,8 +1735,14 @@ export const createSalesman = async (salesmanData) => {
     console.error('[Create Salesman] Request body validation failed:', requestBody);
     throw new Error('Full name is required in request body');
   }
+  if (!requestBody.user_id || requestBody.user_id === '') {
+    console.error('[Create Salesman] Request body validation failed: user_id is required', requestBody);
+    throw new Error('User ID is required in request body');
+  }
   
-  console.log('[Create Salesman] Sending request with employee_code:', requestBody.employee_code);
+  console.log('[Create Salesman] Creating salesman with employee_code:', requestBody.employee_code);
+  console.log('[Create Salesman] Request body:', JSON.stringify(requestBody, null, 2));
+  console.log('[Create Salesman] reporting_manager value:', requestBody.reporting_manager, 'type:', typeof requestBody.reporting_manager);
   
   return apiRequest('/salesmen/', {
     method: 'POST',
@@ -1350,6 +1771,17 @@ export const createSalesman = async (salesmanData) => {
  * @returns {Promise<Object>} Response with message
  */
 export const updateSalesman = async (salesmanId, salesmanData) => {
+  // Validate salesmanId
+  if (!salesmanId) {
+    throw new Error('Salesman ID is required');
+  }
+  
+  const cleanSalesmanId = String(salesmanId).trim();
+  if (!cleanSalesmanId || cleanSalesmanId === 'undefined' || cleanSalesmanId === 'null') {
+    console.error('[Update Salesman] Invalid salesman ID:', salesmanId);
+    throw new Error('Invalid salesman ID');
+  }
+  
   const {
     user_id,
     employee_code,
@@ -1389,22 +1821,52 @@ export const updateSalesman = async (salesmanId, salesmanData) => {
     throw new Error('Country is required');
   }
   
-  // Build request body with explicit checks
+  // Validate user_id - it's required (NOT NULL in database)
+  const trimmedUserId = user_id ? String(user_id).trim() : '';
+  if (!trimmedUserId || trimmedUserId === '') {
+    throw new Error('User ID is required');
+  }
+  
+  // Build request body matching the exact payload structure provided
+  // reporting_manager must be null (not empty string) if not provided, to satisfy foreign key constraint
+  let reportingManagerValue = null;
+  if (reporting_manager !== null && reporting_manager !== undefined && reporting_manager !== '') {
+    const trimmed = String(reporting_manager).trim();
+    if (trimmed !== '') {
+      reportingManagerValue = trimmed;
+    }
+  }
+  
   const requestBody = {
-    user_id: user_id || null,
+    user_id: trimmedUserId,
     employee_code: trimmedEmployeeCode,
     alternate_phone: alternate_phone ? String(alternate_phone).trim() : '',
     full_name: trimmedFullName,
-    reporting_manager: reporting_manager || null,
     email: trimmedEmail,
     phone: trimmedPhone,
     address: address ? String(address).trim() : '',
     country_id: trimmedCountryId,
-    state_id: state_id && String(state_id).trim() !== '' ? String(state_id).trim() : null,
-    city_id: city_id && String(city_id).trim() !== '' ? String(city_id).trim() : null,
+    state_id: state_id && String(state_id).trim() !== '' ? String(state_id).trim() : '',
+    city_id: city_id && String(city_id).trim() !== '' ? String(city_id).trim() : '',
     zone_preference: zone_preference ? String(zone_preference).trim() : '',
     joining_date: joining_date || new Date().toISOString(),
   };
+  
+  // Set reporting_manager - must be either a valid UUID string or null (never empty string)
+  // The database foreign key constraint requires either a valid user_id or NULL
+  if (reportingManagerValue !== null && reportingManagerValue !== '' && reportingManagerValue !== undefined) {
+    // Validate it looks like a UUID (basic check)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(reportingManagerValue)) {
+      requestBody.reporting_manager = reportingManagerValue;
+    } else {
+      console.warn('[Create Salesman] Invalid UUID format for reporting_manager, setting to null:', reportingManagerValue);
+      requestBody.reporting_manager = null;
+    }
+  } else {
+    // Explicitly set to null - backend should handle this for foreign key constraint
+    requestBody.reporting_manager = null;
+  }
   
   // Final validation of request body
   if (!requestBody.employee_code || requestBody.employee_code === '') {
@@ -1415,10 +1877,16 @@ export const updateSalesman = async (salesmanId, salesmanData) => {
     console.error('[Update Salesman] Request body validation failed:', requestBody);
     throw new Error('Full name is required in request body');
   }
+  if (!requestBody.user_id || requestBody.user_id === '') {
+    console.error('[Update Salesman] Request body validation failed: user_id is required', requestBody);
+    throw new Error('User ID is required in request body');
+  }
   
-  console.log('[Update Salesman] Sending request with employee_code:', requestBody.employee_code);
+  console.log('[Update Salesman] Updating salesman with ID:', cleanSalesmanId);
+  console.log('[Update Salesman] Request body:', JSON.stringify(requestBody, null, 2));
+  console.log('[Update Salesman] reporting_manager value:', requestBody.reporting_manager, 'type:', typeof requestBody.reporting_manager);
   
-  return apiRequest(`/salesmen/${salesmanId}`, {
+  return apiRequest(`/salesmen/${cleanSalesmanId}`, {
     method: 'PUT',
     body: requestBody,
     includeAuth: true,
@@ -1431,7 +1899,20 @@ export const updateSalesman = async (salesmanId, salesmanData) => {
  * @returns {Promise<Object>} Response with message
  */
 export const deleteSalesman = async (salesmanId) => {
-  return apiRequest(`/salesmen/${salesmanId}`, {
+  // Validate salesmanId
+  if (!salesmanId) {
+    throw new Error('Salesman ID is required');
+  }
+  
+  const cleanSalesmanId = String(salesmanId).trim();
+  if (!cleanSalesmanId || cleanSalesmanId === 'undefined' || cleanSalesmanId === 'null') {
+    console.error('[Delete Salesman] Invalid salesman ID:', salesmanId);
+    throw new Error('Invalid salesman ID');
+  }
+  
+  console.log('[Delete Salesman] Deleting salesman with ID:', cleanSalesmanId);
+  
+  return apiRequest(`/salesmen/${cleanSalesmanId}`, {
     method: 'DELETE',
     includeAuth: true,
   });

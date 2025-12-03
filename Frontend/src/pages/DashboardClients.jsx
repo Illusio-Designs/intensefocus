@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import TableWithControls from '../components/ui/TableWithControls';
 import Modal from '../components/ui/Modal';
 import RowActions from '../components/ui/RowActions';
@@ -22,9 +22,12 @@ const DashboardClients = () => {
   const [error, setError] = useState(null);
   const [parties, setParties] = useState([]);
   const [countries, setCountries] = useState([]);
+  const [selectedCountryFilter, setSelectedCountryFilter] = useState(null); // For filter dropdown
   const [states, setStates] = useState([]);
   const [cities, setCities] = useState([]);
   const [zones, setZones] = useState([]);
+  
+  const hasSetDefaultCountry = useRef(false);
   
   const [formData, setFormData] = useState({
     party_name: '',
@@ -43,7 +46,6 @@ const DashboardClients = () => {
   });
 
   useEffect(() => {
-    fetchData();
     fetchCountries();
   }, []);
 
@@ -164,19 +166,76 @@ const DashboardClients = () => {
     }
   }, [formData.city_id]);
 
-  const fetchData = async () => {
+  const fetchPartiesForCountry = useCallback(async (countryId) => {
+    if (!countryId) {
+      console.log('[fetchPartiesForCountry] No country ID provided, clearing parties');
+      setParties([]);
+      return;
+    }
+    
     setLoading(true);
     setError(null);
     try {
-      // Get all parties
-      const partiesData = await getParties();
-      // Debug: Log first party to see structure
-      if (partiesData && partiesData.length > 0) {
-        console.log('Sample party data structure:', partiesData[0]);
-        console.log('Party ID field:', partiesData[0].id || partiesData[0].party_id || partiesData[0]._id);
+      // Validate countryId before making API call
+      const cleanCountryId = String(countryId).trim();
+      if (!cleanCountryId || cleanCountryId === 'undefined' || cleanCountryId === 'null') {
+        console.error('[fetchPartiesForCountry] Invalid country ID:', countryId);
+        setParties([]);
+        setLoading(false);
+        return;
       }
+      
+      console.log('[fetchPartiesForCountry] Fetching parties for country:', cleanCountryId);
+      const partiesData = await getParties(cleanCountryId);
+      
+      console.log('[fetchPartiesForCountry] Received', partiesData?.length || 0, 'parties from API');
+      
+      // CRITICAL: Backend returns wrong data, so we MUST filter strictly
+      // Filter out ALL parties that don't match the requested country
+      const validParties = (partiesData || []).filter(p => {
+        if (!p) {
+          console.warn('[fetchPartiesForCountry] Skipping null/undefined party');
+          return false;
+        }
+        
+        const partyCountryId = String(p.country_id || p.countryId || '').trim();
+        const matches = partyCountryId === cleanCountryId;
+        
+        if (!matches) {
+          console.warn('[fetchPartiesForCountry] ❌ REJECTING party - country mismatch:', {
+            party_id: p.id || p.party_id,
+            party_name: p.party_name,
+            party_country_id: partyCountryId,
+            requested_country_id: cleanCountryId,
+            match: false
+          });
+        } else {
+          console.log('[fetchPartiesForCountry] ✅ ACCEPTING party - country matches:', {
+            party_id: p.id || p.party_id,
+            party_name: p.party_name,
+            country_id: partyCountryId
+          });
+        }
+        return matches;
+      });
+      
+      const filteredOut = partiesData.length - validParties.length;
+      if (filteredOut > 0) {
+        console.warn('[fetchPartiesForCountry] ⚠️ Backend returned', filteredOut, 'parties with WRONG country_id!');
+        console.warn('[fetchPartiesForCountry] This is a backend issue - it should filter by country_id');
+      }
+      
+      if (validParties.length > 0) {
+        console.log('[fetchPartiesForCountry] ✅ Found', validParties.length, 'valid parties for country:', cleanCountryId);
+      } else {
+        console.log('[fetchPartiesForCountry] ℹ️ No parties found for country:', cleanCountryId);
+        if (partiesData.length > 0) {
+          console.warn('[fetchPartiesForCountry] ⚠️ Backend returned', partiesData.length, 'parties but none matched the requested country');
+        }
+      }
+      
       // Ensure all parties have consistent ID field and preserve all fields including state/city/zone
-      const normalizedParties = (partiesData || []).map(party => {
+      const normalizedParties = validParties.map(party => {
         const partyId = party.id || party.party_id || party._id;
         return { 
           ...party, 
@@ -187,24 +246,58 @@ const DashboardClients = () => {
           zone_id: party.zone_id || null,
         };
       });
-      setParties(normalizedParties);
-      console.log('[fetchData] Updated parties count:', normalizedParties.length);
-      if (normalizedParties.length > 0) {
-        console.log('[fetchData] Sample party state/city/zone:', {
-          state_id: normalizedParties[0].state_id,
-          city_id: normalizedParties[0].city_id,
-          zone_id: normalizedParties[0].zone_id,
-        });
-      }
+      
+      // Force update by creating a new array reference
+      const newParties = Array.isArray(normalizedParties) ? [...normalizedParties] : [];
+      console.log('[fetchPartiesForCountry] Setting', newParties.length, 'parties for country:', cleanCountryId);
+      setParties(newParties);
     } catch (error) {
-      if (!error.message?.toLowerCase().includes('token expired') && 
-          !error.message?.toLowerCase().includes('unauthorized')) {
-        setError(`Failed to load data: ${error.message}`);
+      console.error('[fetchPartiesForCountry] Error:', error);
+      const errorMessage = error.message?.toLowerCase() || '';
+      const isNotFound = errorMessage.includes('parties not found') || 
+                        errorMessage.includes('no parties found') ||
+                        errorMessage.includes('party not found') ||
+                        error.statusCode === 404;
+      
+      if (!isNotFound && 
+          !errorMessage.includes('token expired') && 
+          !errorMessage.includes('unauthorized')) {
+        setError(`Failed to load parties: ${error.message}`);
+        showError(`Failed to load parties: ${error.message}`);
       }
+      setParties([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Set India as default country filter (only once when countries are loaded)
+  useEffect(() => {
+    if (countries.length > 0 && !selectedCountryFilter && !hasSetDefaultCountry.current) {
+      const india = countries.find(c => 
+        c.name?.toLowerCase() === 'india' || 
+        c.code?.toLowerCase() === 'in'
+      );
+      if (india) {
+        console.log('[Filter] Setting default country to India:', india.id);
+        setSelectedCountryFilter(india.id);
+        hasSetDefaultCountry.current = true;
+      }
+    }
+  }, [countries, selectedCountryFilter]);
+
+  // Fetch parties when country filter changes
+  useEffect(() => {
+    if (selectedCountryFilter) {
+      console.log('[Filter] Country changed, fetching parties for:', selectedCountryFilter);
+      fetchPartiesForCountry(selectedCountryFilter);
+    } else {
+      // If no country selected (All Countries), clear parties
+      console.log('[Filter] No country selected (All Countries), clearing parties');
+      setParties([]);
+      setLoading(false);
+    }
+  }, [selectedCountryFilter, fetchPartiesForCountry]);
 
   const columns = useMemo(() => ([
     { key: 'party_name', label: 'PARTY NAME' },
@@ -220,16 +313,43 @@ const DashboardClients = () => {
   ]), []);
 
   const rows = useMemo(() => {
-    return parties.map(party => {
+    // CRITICAL: Backend returns wrong data, so we MUST filter strictly by country_id
+    let filteredParties = [];
+    
+    if (selectedCountryFilter) {
+      const cleanFilterId = String(selectedCountryFilter).trim();
+      // Only show parties that EXACTLY match the selected country
+      filteredParties = parties.filter(party => {
+        if (!party) return false;
+        const partyCountryId = String(party.country_id || party.countryId || '').trim();
+        const matches = partyCountryId === cleanFilterId;
+        
+        if (!matches && party.party_name) {
+          console.warn('[rows] ❌ Filtering out party with wrong country:', {
+            name: party.party_name,
+            party_country_id: partyCountryId,
+            selected_country_id: cleanFilterId
+          });
+        }
+        return matches;
+      });
+      console.log('[rows] ✅ Displaying', filteredParties.length, 'parties for country:', cleanFilterId, 'out of', parties.length, 'total');
+    } else {
+      // If no country selected (All Countries), show nothing
+      filteredParties = [];
+      console.log('[rows] No country selected, showing no parties');
+    }
+    
+    return filteredParties.map(party => {
       // Ensure ID is preserved - check multiple possible field names
       const partyId = party.id || party.party_id || party._id;
       return {
-      ...party,
+        ...party,
         id: partyId, // Ensure ID is preserved with consistent field name
-      isActive: party.is_active !== false,
+        isActive: party.is_active !== false,
       };
     });
-  }, [parties]);
+  }, [parties, selectedCountryFilter]);
 
   const filteredRowsByTab = useMemo(() => {
     if (activeTab === 'All') return rows;
@@ -351,7 +471,7 @@ const DashboardClients = () => {
       setError(null);
       await deleteParty(partyId.trim());
       
-      // Remove from table immediately without refresh
+      // Optimistically remove from table immediately
       setParties(prevParties => prevParties.filter(party => {
         const id = party.id || party.party_id || party._id;
         return id !== partyId.trim();
@@ -548,7 +668,9 @@ const DashboardClients = () => {
               }));
               
               // Refresh data to ensure we have latest
-              await fetchData();
+              if (selectedCountryFilter) {
+                await fetchPartiesForCountry(selectedCountryFilter);
+              }
             } catch (apiError) {
               // Check if it's the initialization error - check both the flag and message
               const errorMsg = String(apiError.message || apiError.error || JSON.stringify(apiError) || '').toLowerCase();
@@ -561,7 +683,9 @@ const DashboardClients = () => {
                 // DO NOT show error to user - this is a backend timing issue
                 console.warn('[Update] Backend initialization error detected (suppressed), refreshing data to verify update...');
                 try {
-                  await fetchData();
+                  if (selectedCountryFilter) {
+                    await fetchPartiesForCountry(selectedCountryFilter);
+                  }
                 } catch (fetchError) {
                   console.error('[Update] Failed to refresh data:', fetchError);
                 }
@@ -571,7 +695,9 @@ const DashboardClients = () => {
               console.error('[Update] API error (non-critical):', apiError);
               // Refresh data anyway to ensure consistency
               try {
-                await fetchData();
+                if (selectedCountryFilter) {
+                  await fetchPartiesForCountry(selectedCountryFilter);
+                }
               } catch (fetchError) {
                 console.error('[Update] Failed to refresh data:', fetchError);
               }
@@ -580,7 +706,9 @@ const DashboardClients = () => {
             // Outer catch - prevent any errors from bubbling up
             console.error('[Update] Outer error (suppressed):', error);
             try {
-              await fetchData();
+              if (selectedCountryFilter) {
+                await fetchPartiesForCountry(selectedCountryFilter);
+              }
             } catch (fetchError) {
               console.error('[Update] Failed to refresh data:', fetchError);
             }
@@ -590,9 +718,21 @@ const DashboardClients = () => {
         setError(null);
       } else {
         try {
-          await createParty(dataToSend);
+          const newParty = await createParty(dataToSend);
           showSuccess('Party created successfully!');
-          await fetchData();
+          
+          // Optimistically add to table if it matches the current filter
+          if (selectedCountryFilter && newParty && newParty.country_id === selectedCountryFilter) {
+            setParties(prev => [...prev, {
+              ...newParty,
+              id: newParty.id || newParty.party_id,
+              isActive: newParty.is_active !== false,
+            }]);
+          } else if (selectedCountryFilter) {
+            // If country doesn't match filter, just refresh
+            await fetchPartiesForCountry(selectedCountryFilter);
+          }
+          
           setError(null);
           setOpenAdd(false);
           setEditRow(null);
@@ -645,7 +785,9 @@ const DashboardClients = () => {
               try {
                 await createParty(retryData);
                 showSuccess(`Party created successfully! (${fixedFields.join(', ')} set to null due to invalid references)`);
-                await fetchData();
+                if (selectedCountryFilter) {
+                  await fetchPartiesForCountry(selectedCountryFilter);
+                }
                 setError(null);
                 setOpenAdd(false);
                 setEditRow(null);
@@ -664,7 +806,9 @@ const DashboardClients = () => {
                   retryData.zone_id = null;
                   await createParty(retryData);
                   showSuccess('Party created successfully! (All location IDs set to null due to invalid references)');
-                  await fetchData();
+                  if (selectedCountryFilter) {
+                  await fetchPartiesForCountry(selectedCountryFilter);
+                }
                   setError(null);
                   setOpenAdd(false);
                   setEditRow(null);
@@ -682,7 +826,9 @@ const DashboardClients = () => {
               try {
                 await createParty(retryData);
                 showSuccess('Party created successfully! (All location IDs set to null due to invalid references)');
-                await fetchData();
+                if (selectedCountryFilter) {
+                  await fetchPartiesForCountry(selectedCountryFilter);
+                }
                 setError(null);
                 setOpenAdd(false);
                 setEditRow(null);
@@ -703,7 +849,9 @@ const DashboardClients = () => {
         const errorMsg = (error.message || '').toLowerCase();
         if (errorMsg.includes("cannot access") && errorMsg.includes("before initialization")) {
           // Already handled, just refresh data
-          await fetchData();
+          if (selectedCountryFilter) {
+            await fetchPartiesForCountry(selectedCountryFilter);
+          }
           showError('Table data may not be updated. Please refresh the page to verify.');
           setError(null);
           setOpenAdd(false);
@@ -794,9 +942,45 @@ const DashboardClients = () => {
               addNewText="Add New Party"
               onImport={() => {
                 setError(null);
-                fetchData();
+                if (selectedCountryFilter) {
+                  fetchPartiesForCountry(selectedCountryFilter);
+                }
               }}
               importText="Refresh Data"
+              showFilter={true}
+              filterContent={
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>
+                    Filter by Country
+                  </label>
+                  <select
+                    className="ui-input"
+                    value={selectedCountryFilter || ''}
+                    onChange={(e) => {
+                      const newCountryId = e.target.value || null;
+                      console.log('[Filter] Country selection changed from', selectedCountryFilter, 'to', newCountryId);
+                      // Clear parties immediately when changing countries
+                      setParties([]);
+                      // Update state - useEffect will handle fetching or clearing
+                      setSelectedCountryFilter(newCountryId);
+                      // If "All Countries" is selected (empty), ensure parties are cleared
+                      if (!newCountryId) {
+                        console.log('[Filter] All Countries selected - clearing parties');
+                        setParties([]);
+                        setLoading(false);
+                      }
+                    }}
+                    style={{ width: '100%', minWidth: '200px' }}
+                  >
+                    <option value="">All Countries</option>
+                    {countries.map(country => (
+                      <option key={country.id} value={country.id}>
+                        {country.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              }
             />
           </div>
         </div>
