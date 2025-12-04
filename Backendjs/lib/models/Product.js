@@ -1,0 +1,154 @@
+/**
+ * CREATE TABLE products (
+product_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+model_no VARCHAR(255) NOT NULL UNIQUE,
+gender_id INT,
+colour_code_id INT,
+shape_id INT,
+lens_color_id INT,
+frame_color_id INT,
+frame_type_id INT,
+lens_material_id INT,
+frame_material_id INT,
+image_url TEXT,
+mrp DECIMAL(10,2),
+whp DECIMAL(10,2),
+size_mm VARCHAR(20),
+qty INT DEFAULT 0,
+status VARCHAR(20) DEFAULT 'draft',
+created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+FOREIGN KEY (gender_id) REFERENCES genders(gender_id),
+FOREIGN KEY (colour_code_id) REFERENCES colour_codes(colour_code_id),
+FOREIGN KEY (shape_id) REFERENCES shapes(shape_id),
+FOREIGN KEY (lens_color_id) REFERENCES lens_colors(lens_color_id),
+FOREIGN KEY (frame_color_id) REFERENCES frame_colors(frame_color_id),
+FOREIGN KEY (frame_type_id) REFERENCES frame_types(frame_type_id),
+FOREIGN KEY (lens_material_id) REFERENCES lens_materials(lens_material_id),
+FOREIGN KEY (frame_material_id) REFERENCES frame_materials(frame_material_id)
+);
+ */
+
+const { DataTypes } = require('sequelize');
+const sequelize = require('../constants/database');
+
+const Product = sequelize.define('Product', {
+    product_id: {
+        type: DataTypes.UUID,
+        primaryKey: true,
+        defaultValue: DataTypes.UUIDV4
+    },
+    model_no: {
+        type: DataTypes.STRING(255),
+        allowNull: false,
+        unique: true
+    },
+    gender_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+            model: 'gender',
+            key: 'gender_id'
+        }
+    },
+    color_code_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+            model: 'color_code',
+            key: 'color_code_id'
+        }
+    },
+    shape_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+            model: 'shape',
+            key: 'shape_id'
+        }
+    },
+    lens_color_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+            model: 'lens_color',
+            key: 'lens_color_id'
+        }
+    },
+    frame_color_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+            model: 'frame_color',
+            key: 'frame_color_id'
+        }
+    },
+    frame_type_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+            model: 'frame_type',
+            key: 'frame_type_id'
+        }
+    },
+    lens_material_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+            model: 'lens_material',
+            key: 'lens_material_id'
+        }
+    },
+    frame_material_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+            model: 'frame_material',
+            key: 'frame_material_id'
+        }
+    },
+    image_url: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
+    mrp: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true
+    },
+    whp: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true
+    },
+    size_mm: {
+        type: DataTypes.STRING(20),
+        allowNull: true
+    },
+    qty: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        defaultValue: 0
+    },
+    status: {
+        type: DataTypes.STRING(20),
+        allowNull: true,
+        defaultValue: 'draft'
+    },
+    created_at: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW
+    },
+    updated_at: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW
+    }
+}, {
+    tableName: 'product',
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
+    underscored: true
+});
+
+module.exports = Product;

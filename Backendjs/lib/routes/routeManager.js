@@ -12,6 +12,16 @@ const cityRoutes = require('./city');
 const stateRoutes = require('./state');
 const countryRoutes = require('./country');
 const zoneRoutes = require('./zone');
+const productRoutes = require('./product');
+const genderRoutes = require('./gender');
+const colorCodesRoutes = require('./color_codes');
+const frameColorRoutes = require('./frame_color');
+const frameTypeRoutes = require('./frame_type');
+const lensMaterialRoutes = require('./lens_material');
+const lensColorsRoutes = require('./lens_colors');
+const shapesRoutes = require('./shapes');
+const frameMaterialRoutes = require('./frame_material');
+
 
 router.use((req, res, next) => {
     console.log(`-------------------------------- ${req.method} ${req.url} --------------------------------`);
@@ -29,6 +39,15 @@ router.use('/cities', cityRoutes);
 router.use('/states', stateRoutes);
 router.use('/countries', countryRoutes);
 router.use('/zones', zoneRoutes);
+router.use('/products', productRoutes);
+router.use('/genders', genderRoutes);
+router.use('/color_codes', colorCodesRoutes);
+router.use('/frame_colors', frameColorRoutes);
+router.use('/frame_types', frameTypeRoutes);
+router.use('/lens_materials', lensMaterialRoutes);
+router.use('/lens_colors', lensColorsRoutes);
+router.use('/shapes', shapesRoutes);
+router.use('/frame_materials', frameMaterialRoutes);
 
 // API documentation route
 router.get('/docs', (req, res) => {
