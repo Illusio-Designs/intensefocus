@@ -357,7 +357,7 @@ class DatabaseManager {
 
             // Define sync order for models with dependencies (parent tables first)
             // Country -> State -> Cities -> Zone
-            const modelSyncOrder = ['Country', 'State', 'Cities', 'Zone', 'Party', 'Distributor', 'Salesman', 'ColorCode', 'FrameColor', 'FrameMaterial', 'FrameType', 'Gender', 'LensColor', 'LensMaterial', 'Shape', 'Product', 'Brand', 'Collection'];
+            const modelSyncOrder = ['Country', 'State', 'Cities', 'Zone', 'Party', 'Distributor', 'Salesman', 'ColorCode', 'FrameColor', 'FrameMaterial', 'FrameType', 'Gender', 'LensColor', 'LensMaterial', 'Shape', 'Brand', 'Collection', 'Product'];
 
             // Sync all models except the manually managed ones
             console.log('🔄 Syncing Sequelize models (excluding manually managed tables)...');
