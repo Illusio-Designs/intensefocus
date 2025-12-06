@@ -1,5 +1,7 @@
 const Product = require('../models/Product');
 const AuditLog = require('../models/AuditLog');
+const Brand = require('../models/Brand');
+const Collection = require('../models/Collection');
 class ProductController {
     async getProducts(req, res) {
         try {
@@ -15,9 +17,22 @@ class ProductController {
     async createProduct(req, res) {
         try {
             const user = req.user;
-            const { model_no, gender_id, color_code_id, shape_id, lens_color_id, frame_color_id, frame_type_id, lens_material_id, frame_material_id, mrp, whp, size_mm, qty, status } = req.body;
-            if (!model_no || !gender_id || !color_code_id || !shape_id || !lens_color_id || !frame_color_id || !frame_type_id || !lens_material_id || !frame_material_id || !mrp || !whp || !size_mm || !qty || !status) {
+            const { model_no, gender_id, color_code_id, shape_id, lens_color_id,
+                frame_color_id, frame_type_id, lens_material_id, frame_material_id,
+                mrp, whp, size_mm, warehouse_qty, tray_qty, total_qty, status, brand_id, collection_id } = req.body;
+            if (!model_no || !gender_id || !color_code_id || !shape_id || !lens_color_id
+                || !frame_color_id || !frame_type_id || !lens_material_id || !frame_material_id
+                || !mrp || !whp || !size_mm || !warehouse_qty || !tray_qty || !total_qty
+                || !status || !brand_id || !collection_id) {
                 return res.status(400).json({ error: 'All fields are required' });
+            }
+            const brand = await Brand.findOne({ where: { brand_id: brand_id } });
+            if (!brand) {
+                return res.status(404).json({ error: 'Brand not found' });
+            }
+            const collection = await Collection.findOne({ where: { collection_id: collection_id } });
+            if (!collection) {
+                return res.status(404).json({ error: 'Collection not found' });
             }
             const product = await Product.create({
                 model_no,
@@ -32,8 +47,12 @@ class ProductController {
                 mrp,
                 whp,
                 size_mm,
-                qty,
+                warehouse_qty,
+                tray_qty,
+                total_qty,
                 status,
+                brand_id,
+                collection_id,
                 created_at: new Date(),
                 updated_at: new Date(),
             });
@@ -60,10 +79,20 @@ class ProductController {
                 return res.status(400).json({ error: 'Product ID is required' });
             }
             const user = req.user;
-            const { model_no, gender_id, color_code_id, shape_id, lens_color_id, frame_color_id, frame_type_id, lens_material_id, frame_material_id, mrp, whp, size_mm, qty, status } = req.body;
+            const { model_no, gender_id, color_code_id, shape_id, lens_color_id, frame_color_id,
+                frame_type_id, lens_material_id, frame_material_id, mrp, whp, size_mm,
+                warehouse_qty, tray_qty, total_qty, status, brand_id, collection_id } = req.body;
             const product = await Product.findByPk(id);
             if (!product) {
                 return res.status(404).json({ error: 'Product not found' });
+            }
+            const brand = await Brand.findOne({ where: { brand_id: brand_id } });
+            if (!brand) {
+                return res.status(404).json({ error: 'Brand not found' });
+            }
+            const collection = await Collection.findOne({ where: { collection_id: collection_id } });
+            if (!collection) {
+                return res.status(404).json({ error: 'Collection not found' });
             }
             await Product.update({
                 model_no: model_no || product.model_no,
@@ -78,8 +107,12 @@ class ProductController {
                 mrp: mrp || product.mrp,
                 whp: whp || product.whp,
                 size_mm: size_mm || product.size_mm,
-                qty: qty || product.qty,
+                warehouse_qty: warehouse_qty || product.warehouse_qty,
+                tray_qty: tray_qty || product.tray_qty,
+                total_qty: total_qty || product.total_qty,
                 status: status || product.status,
+                brand_id: brand_id || product.brand_id,
+                collection_id: collection_id || product.collection_id,
                 updated_at: new Date(),
             }, { where: { product_id: id } });
 

@@ -21,7 +21,8 @@ const lensMaterialRoutes = require('./lens_material');
 const lensColorsRoutes = require('./lens_colors');
 const shapesRoutes = require('./shapes');
 const frameMaterialRoutes = require('./frame_material');
-
+const brandRoutes = require('./brand');
+const collectionRoutes = require('./collection');
 
 router.use((req, res, next) => {
     console.log(`-------------------------------- ${req.method} ${req.url} --------------------------------`);
@@ -48,6 +49,8 @@ router.use('/lens_materials', lensMaterialRoutes);
 router.use('/lens_colors', lensColorsRoutes);
 router.use('/shapes', shapesRoutes);
 router.use('/frame_materials', frameMaterialRoutes);
+router.use('/brands', brandRoutes);
+router.use('/collections', collectionRoutes);
 
 // API documentation route
 router.get('/docs', (req, res) => {

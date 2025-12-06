@@ -123,7 +123,17 @@ const Product = sequelize.define('Product', {
         type: DataTypes.STRING(20),
         allowNull: true
     },
-    qty: {
+    warehouse_qty: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        defaultValue: 0
+    },
+    tray_qty: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        defaultValue: 0
+    },
+    total_qty: {
         type: DataTypes.INTEGER,
         allowNull: true,
         defaultValue: 0
@@ -132,6 +142,22 @@ const Product = sequelize.define('Product', {
         type: DataTypes.STRING(20),
         allowNull: true,
         defaultValue: 'draft'
+    },
+    brand_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: 'brand',
+            key: 'brand_id'
+        }
+    },
+    collection_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: 'collection',
+            key: 'collection_id'
+        }
     },
     created_at: {
         type: DataTypes.DATE,
