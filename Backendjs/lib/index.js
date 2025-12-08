@@ -24,7 +24,10 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+// Serve static files from uploads directory with absolute path
+const uploadsPath = path.resolve(__dirname, '..', 'uploads');
+console.log('📁 Serving static files from:', uploadsPath);
+app.use('/uploads', express.static(uploadsPath));
 
 // Serve static HTML files for testing
 app.use(express.static(path.join(__dirname, '..')));

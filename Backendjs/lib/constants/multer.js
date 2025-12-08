@@ -6,13 +6,17 @@ const sharp = require('sharp');
 // Get the root directory (Backend folder)
 const rootDir = path.join(__dirname, '..', '..');
 
+const PRODUCT_UPLOAD_DIR = 'product_uploads';
+const PRODUCT_IMAGE_UPLOAD_DIR = 'products';
+
 // Create upload directories if they don't exist
 const createUploadDirs = () => {
   const dirs = [
     path.join(rootDir, 'uploads', 'profile'),
-    path.join(rootDir, 'uploads', 'products'),
+    path.join(rootDir, 'uploads', PRODUCT_IMAGE_UPLOAD_DIR),
     path.join(rootDir, 'uploads', 'bills'),
-    path.join(rootDir, 'uploads', 'sliders')
+    path.join(rootDir, 'uploads', 'sliders'),
+    path.join(rootDir, 'uploads', PRODUCT_UPLOAD_DIR)
   ];
 
   dirs.forEach(dir => {
@@ -120,6 +124,89 @@ const generalUpload = multer({
   fileFilter: fileFilter
 }).single('file');
 
+// Product upload directory storage (for Excel/CSV files)
+const productUploadStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = path.join(rootDir, 'uploads', PRODUCT_UPLOAD_DIR);
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const nameWithoutExt = path.basename(file.originalname, ext);
+    const timestamp = Date.now();
+    cb(null, `${nameWithoutExt}-${timestamp}${ext}`);
+  }
+});
+
+// Product file upload (Excel/CSV) - using .any() to accept any fields, then filter for 'file'
+const productFileUploadBase = multer({
+  storage: productUploadStorage,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /csv|xlsx|xls/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetypes = [
+      'text/csv',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ];
+    const mimetype = mimetypes.includes(file.mimetype) || extname;
+
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Only CSV and Excel files (.csv, .xlsx, .xls) are allowed!'), false);
+    }
+  }
+}).any();
+
+// Wrapper middleware to handle file upload and filter for 'file' field
+const productFileUpload = (req, res, next) => {
+  productFileUploadBase(req, res, (err) => {
+    // Handle multer errors
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({
+            success: false,
+            message: 'File too large. Maximum size is 10MB.'
+          });
+        }
+        return res.status(400).json({
+          success: false,
+          message: err.message
+        });
+      }
+      return res.status(400).json({
+        success: false,
+        message: err.message
+      });
+    }
+
+    // Filter for the 'file' field from req.files array
+    if (req.files && req.files.length > 0) {
+      // Find the file with fieldname 'file', or use the first file if no 'file' field found
+      const fileField = req.files.find(f => f.fieldname === 'file') || req.files[0];
+      req.file = fileField;
+
+      // Remove other files from req.files to avoid confusion
+      req.files = [req.file];
+    }
+
+    // Check if file was uploaded
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded. Please upload a file with the field name "file".'
+      });
+    }
+
+    next();
+  });
+};
+
 // Middleware to handle image compression and saving
 const processAndSaveImage = (uploadType = 'general') => {
   return async (req, res, next) => {
@@ -187,7 +274,7 @@ const processAndSaveImage = (uploadType = 'general') => {
               uploadPath = path.join(rootDir, 'uploads', 'profile');
               break;
             case 'product':
-              uploadPath = path.join(rootDir, 'uploads', 'products');
+              uploadPath = path.join(rootDir, 'uploads', PRODUCT_IMAGE_UPLOAD_DIR);
               break;
             case 'slider':
               uploadPath = path.join(rootDir, 'uploads', 'sliders');
@@ -234,9 +321,12 @@ const processAndSaveImage = (uploadType = 'general') => {
 module.exports = {
   upload,
   profileUpload: processAndSaveImage('profile'),
-  productUpload: processAndSaveImage('product'),
+  productImageUpload: processAndSaveImage('product'),
   sliderUpload: processAndSaveImage('slider'),
   billUpload: processAndSaveImage('bill'),
   generalUpload: processAndSaveImage('general'),
-  processAndSaveImage
+  productFileUpload,
+  processAndSaveImage,
+  PRODUCT_UPLOAD_DIR,
+  PRODUCT_IMAGE_UPLOAD_DIR
 }; 

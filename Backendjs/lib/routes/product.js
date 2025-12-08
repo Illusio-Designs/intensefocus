@@ -2,10 +2,18 @@ const express = require('express');
 const router = express.Router();
 const productController = require('../controllers/productController');
 const { authenticateToken } = require('../middleware/auth');
+const { productFileUpload, productImageUpload } = require('../constants/multer');
+const parseProductFile = require('../middleware/product_parser');
 
 router.get('/', authenticateToken, productController.getProducts);
 router.post('/', authenticateToken, productController.createProduct);
 router.put('/:id', authenticateToken, productController.updateProduct);
 router.delete('/:id', authenticateToken, productController.deleteProduct);
+router.post('/image-upload', authenticateToken, productImageUpload, productController.uploadProductImage);
+router.post('/bulk-upload',
+    authenticateToken,
+    productFileUpload,
+    parseProductFile,
+);
 
 module.exports = router;

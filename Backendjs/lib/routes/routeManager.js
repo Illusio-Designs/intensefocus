@@ -25,7 +25,9 @@ const brandRoutes = require('./brand');
 const collectionRoutes = require('./collection');
 
 router.use((req, res, next) => {
-    console.log(`-------------------------------- ${req.method} ${req.url} --------------------------------`);
+    const timestamp = new Date();
+    const timeString = `${timestamp.getDate()}/${timestamp.getMonth() + 1}/${timestamp.getFullYear()} ${timestamp.getHours()}:${timestamp.getMinutes()}:${timestamp.getSeconds()}`;
+    console.log(`-------------------------------- ${req.method} ${req.url} ${timeString} --------------------------------`);
     next();
 });
 
@@ -69,6 +71,30 @@ router.get('/docs', (req, res) => {
             states: '/api/states',
             countries: '/api/countries',
             zones: '/api/zones',
+
+            // Product endpoints
+            products: '/api/products',
+            genders: '/api/genders',
+            color_codes: '/api/color_codes',
+            frame_colors: '/api/frame_colors',
+            frame_types: '/api/frame_types',
+            lens_materials: '/api/lens_materials',
+            lens_colors: '/api/lens_colors',
+            shapes: '/api/shapes',
+            frame_materials: '/api/frame_materials',
+            brands: '/api/brands',
+            collections: '/api/collections',
+            products: '/api/products',
+            genders: '/api/genders',
+            color_codes: '/api/color_codes',
+            frame_colors: '/api/frame_colors',
+            frame_types: '/api/frame_types',
+            lens_materials: '/api/lens_materials',
+            lens_colors: '/api/lens_colors',
+            shapes: '/api/shapes',
+            frame_materials: '/api/frame_materials',
+            brands: '/api/brands',
+            collections: '/api/collections',
         }
     });
 });
