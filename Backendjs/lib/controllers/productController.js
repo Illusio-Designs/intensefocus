@@ -200,6 +200,14 @@ class ProductController {
             res.status(500).json({ error: error.message });
         }
     }
+
+    async hasData(data) {
+        if (!data || data === undefined || data === null || data === '') {
+            return false;
+        }
+        return true;
+    }
+
     async bulkProductUpload(data, user, req) {
         try {
             if (!Array.isArray(data)) {
@@ -215,25 +223,27 @@ class ProductController {
             for (let i = 0; i < data.length; i++) {
                 const item = data[i];
                 try {
-                    const { model_no, gender_id, color_code_id, shape_id, lens_color_id, frame_color_id,
-                        frame_type_id, lens_material_id, frame_material_id, mrp, whp, size_mm,
-                        warehouse_qty, tray_qty, total_qty, brand_id, collection_id } = item;
+                    const { model_no, gender, color_code, shape, lens_color, frame_color,
+                        frame_type, lens_material, frame_material, mrp, whp, size_mm,
+                        warehouse_qty, tray_qty, total_qty, brand, collection } = item;
 
                     let { status, image_url } = item;
 
-                    if (!model_no || !gender_id || !color_code_id || !shape_id || !lens_color_id
-                        || !frame_color_id || !frame_type_id || !lens_material_id || !frame_material_id
-                        || !mrp || !whp || !size_mm || warehouse_qty === undefined || tray_qty === undefined || total_qty === undefined
-                        || !brand_id || !collection_id || !image_url) {
+                    if (!this.hasData(model_no) || !this.hasData(gender) || !this.hasData(color_code)
+                        || !this.hasData(shape) || !this.hasData(lens_color) || !this.hasData(frame_color)
+                        || !this.hasData(frame_type) || !this.hasData(lens_material) || !this.hasData(frame_material)
+                        || !this.hasData(mrp) || !this.hasData(whp) || !this.hasData(size_mm)
+                        || !this.hasData(warehouse_qty) || !this.hasData(tray_qty) || !this.hasData(total_qty)
+                        || !this.hasData(brand) || !this.hasData(collection)) {
                         errors.push({ row: i + 1, model_no: model_no || 'N/A', error: 'All fields are required' });
                         errorCount++;
                         continue;
                     }
 
-                    if (status === undefined) {
+                    if (!this.hasData(status)) {
                         status = 'draft';
                     }
-                    if (image_url) {
+                    if (!this.hasData(image_url)) {
                         console.log('image_url', image_url);
                         const uploadPath = path.join(__dirname, '..', '..', 'uploads', PRODUCT_IMAGE_UPLOAD_DIR);
                         const imagePath = path.join(uploadPath, image_url);
@@ -246,75 +256,52 @@ class ProductController {
                             continue;
                         }
                     }
-
-                    const brand = await Brand.findOne({ where: { brand_id: brand_id } });
-                    if (!brand) {
-                        errors.push({ row: i + 1, model_no, error: 'Brand not found' });
-                        errorCount++;
-                        continue;
+                    let brandModel = await Brand.findOne({ where: { brand_name: brand } });
+                    if (!brandModel) {
+                        brandModel = await Brand.create({ brand_name: brand });
                     }
 
-                    const collection = await Collection.findOne({ where: { collection_id: collection_id } });
-                    if (!collection) {
-                        errors.push({ row: i + 1, model_no, error: 'Collection not found' });
-                        errorCount++;
-                        continue;
+                    let collectionModel = await Collection.findOne({ where: { collection_name: collection } });
+                    if (!collectionModel) {
+                        collectionModel = await Collection.create({ collection_name: collection, brand_id: brandModel.brand_id });
+                    }
+                    let colorCodeModel = await ColorCode.findOne({ where: { color_code: color_code } });
+                    if (!colorCodeModel) {
+                        colorCodeModel = await ColorCode.create({ color_code: color_code });
+                    }
+                    let shapeModel = await Shape.findOne({ where: { shape_name: shape } });
+                    if (!shapeModel) {
+                        shapeModel = await Shape.create({ shape_name: shape });
                     }
 
-                    const colorCode = await ColorCode.findOne({ where: { color_code_id: color_code_id } });
-                    if (!colorCode) {
-                        errors.push({ row: i + 1, model_no, error: 'Color code not found' });
-                        errorCount++;
-                        continue;
+                    let lensColorModel = await LensColor.findOne({ where: { lens_color: lens_color } });
+                    if (!lensColorModel) {
+                        lensColorModel = await LensColor.create({ lens_color: lens_color });
                     }
 
-                    const shape = await Shape.findOne({ where: { shape_id: shape_id } });
-                    if (!shape) {
-                        errors.push({ row: i + 1, model_no, error: 'Shape not found' });
-                        errorCount++;
-                        continue;
+                    let frameColorModel = await FrameColor.findOne({ where: { frame_color: frame_color } });
+                    if (!frameColorModel) {
+                        frameColorModel = await FrameColor.create({ frame_color: frame_color });
                     }
 
-                    const lensColor = await LensColor.findOne({ where: { lens_color_id: lens_color_id } });
-                    if (!lensColor) {
-                        errors.push({ row: i + 1, model_no, error: 'Lens color not found' });
-                        errorCount++;
-                        continue;
+                    let frameTypeModel = await FrameType.findOne({ where: { frame_type: frame_type } });
+                    if (!frameTypeModel) {
+                        frameTypeModel = await FrameType.create({ frame_type: frame_type });
                     }
 
-                    const frameColor = await FrameColor.findOne({ where: { frame_color_id: frame_color_id } });
-                    if (!frameColor) {
-                        errors.push({ row: i + 1, model_no, error: 'Frame color not found' });
-                        errorCount++;
-                        continue;
+                    let lensMaterialModel = await LensMaterial.findOne({ where: { lens_material: lens_material } });
+                    if (!lensMaterialModel) {
+                        lensMaterialModel = await LensMaterial.create({ lens_material: lens_material });
                     }
 
-                    const frameType = await FrameType.findOne({ where: { frame_type_id: frame_type_id } });
-                    if (!frameType) {
-                        errors.push({ row: i + 1, model_no, error: 'Frame type not found' });
-                        errorCount++;
-                        continue;
+                    let frameMaterialModel = await FrameMaterial.findOne({ where: { frame_material: frame_material } });
+                    if (!frameMaterialModel) {
+                        frameMaterialModel = await FrameMaterial.create({ frame_material: frame_material });
                     }
 
-                    const lensMaterial = await LensMaterial.findOne({ where: { lens_material_id: lens_material_id } });
-                    if (!lensMaterial) {
-                        errors.push({ row: i + 1, model_no, error: 'Lens material not found' });
-                        errorCount++;
-                        continue;
-                    }
-
-                    const frameMaterial = await FrameMaterial.findOne({ where: { frame_material_id: frame_material_id } });
-                    if (!frameMaterial) {
-                        errors.push({ row: i + 1, model_no, error: 'Frame material not found' });
-                        errorCount++;
-                        continue;
-                    }
-
-                    const gender = await Gender.findOne({ where: { gender_id: gender_id } });
-                    if (!gender) {
-                        errors.push({ row: i + 1, model_no, error: 'Gender not found' });
-                        errorCount++;
-                        continue;
+                    let genderModel = await Gender.findOne({ where: { gender_name: gender } });
+                    if (!genderModel) {
+                        genderModel = await Gender.create({ gender_name: gender });
                     }
 
                     // Check if product with same model_no already exists
@@ -328,16 +315,16 @@ class ProductController {
                             mrp: mrp,
                             whp: whp,
                             size_mm: size_mm,
-                            brand_id: brand_id,
-                            collection_id: collection_id,
-                            gender_id: gender_id,
-                            color_code_id: color_code_id,
-                            shape_id: shape_id,
-                            lens_color_id: lens_color_id,
-                            frame_color_id: frame_color_id,
-                            frame_type_id: frame_type_id,
-                            lens_material_id: lens_material_id,
-                            frame_material_id: frame_material_id,
+                            brand_id: brandModel.brand_id,
+                            collection_id: collectionModel.collection_id,
+                            gender_id: genderModel.gender_id,
+                            color_code_id: colorCodeModel.color_code_id,
+                            shape_id: shapeModel.shape_id,
+                            lens_color_id: lensColorModel.lens_color_id,
+                            frame_color_id: frameColorModel.frame_color_id,
+                            frame_type_id: frameTypeModel.frame_type_id,
+                            lens_material_id: lensMaterialModel.lens_material_id,
+                            frame_material_id: frameMaterialModel.frame_material_id,
                             image_url: image_url,
                             updated_at: new Date(),
                         }, { where: { product_id: existingProduct.product_id } });
@@ -356,16 +343,16 @@ class ProductController {
                                 mrp: mrp,
                                 whp: whp,
                                 size_mm: size_mm,
-                                brand_id: brand_id,
-                                collection_id: collection_id,
-                                gender_id: gender_id,
-                                color_code_id: color_code_id,
-                                shape_id: shape_id,
-                                lens_color_id: lens_color_id,
-                                frame_color_id: frame_color_id,
-                                frame_type_id: frame_type_id,
-                                lens_material_id: lens_material_id,
-                                frame_material_id: frame_material_id,
+                                brand_id: brandModel.brand_id,
+                                collection_id: collectionModel.collection_id,
+                                gender_id: genderModel.gender_id,
+                                color_code_id: colorCodeModel.color_code_id,
+                                shape_id: shapeModel.shape_id,
+                                lens_color_id: lensColorModel.lens_color_id,
+                                frame_color_id: frameColorModel.frame_color_id,
+                                frame_type_id: frameTypeModel.frame_type_id,
+                                lens_material_id: lensMaterialModel.lens_material_id,
+                                frame_material_id: frameMaterialModel.frame_material_id,
                                 image_url: image_url,
                                 updated_at: new Date(),
                             },
@@ -379,14 +366,14 @@ class ProductController {
 
                     const product = await Product.create({
                         model_no,
-                        gender_id,
-                        color_code_id,
-                        shape_id,
-                        lens_color_id,
-                        frame_color_id,
-                        frame_type_id,
-                        lens_material_id,
-                        frame_material_id,
+                        gender_id: genderModel.gender_id,
+                        color_code_id: colorCodeModel.color_code_id,
+                        shape_id: shapeModel.shape_id,
+                        lens_color_id: lensColorModel.lens_color_id,
+                        frame_color_id: frameColorModel.frame_color_id,
+                        frame_type_id: frameTypeModel.frame_type_id,
+                        lens_material_id: lensMaterialModel.lens_material_id,
+                        frame_material_id: frameMaterialModel.frame_material_id,
                         mrp,
                         whp,
                         size_mm,
@@ -394,8 +381,8 @@ class ProductController {
                         tray_qty,
                         total_qty,
                         status,
-                        brand_id,
-                        collection_id,
+                        brand_id: brandModel.brand_id,
+                        collection_id: collectionModel.collection_id,
                         image_url,
                         created_at: new Date(),
                         updated_at: new Date(),
