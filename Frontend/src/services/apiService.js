@@ -2753,8 +2753,6 @@ export const getProducts = async () => {
  * @param {string} productData.brand_id - Brand ID (UUID)
  * @param {string} productData.collection_id - Collection ID (UUID)
  * @param {number} productData.warehouse_qty - Warehouse quantity
- * @param {number} productData.tray_qty - Tray quantity
- * @param {number} productData.total_qty - Total quantity
  * @param {string} productData.status - Product status (e.g., "draft")
  * @returns {Promise<Object>} Created product object
  */
@@ -2775,8 +2773,6 @@ export const createProduct = async (productData) => {
     brand_id,
     collection_id,
     warehouse_qty,
-    tray_qty,
-    total_qty,
     status,
   } = productData;
   
@@ -2798,8 +2794,6 @@ export const createProduct = async (productData) => {
       brand_id,
       collection_id,
       warehouse_qty,
-      tray_qty,
-      total_qty,
       status,
     },
     includeAuth: true,
@@ -2825,8 +2819,6 @@ export const createProduct = async (productData) => {
  * @param {string} productData.brand_id - Brand ID (UUID)
  * @param {string} productData.collection_id - Collection ID (UUID)
  * @param {number} productData.warehouse_qty - Warehouse quantity
- * @param {number} productData.tray_qty - Tray quantity
- * @param {number} productData.total_qty - Total quantity
  * @param {string} productData.status - Product status (e.g., "draft")
  * @returns {Promise<Object>} Response with message
  */
@@ -2848,6 +2840,74 @@ export const deleteProduct = async (productId) => {
     method: 'DELETE',
     includeAuth: true,
   });
+};
+
+/**
+ * Upload product image(s) - supports single or multiple images
+ * @param {File|File[]} productImages - Product image file(s) - can be a single File or array of Files
+ * @returns {Promise<Object>} Response with image data
+ */
+export const uploadProductImage = async (productImages) => {
+  const baseUrl = getBaseURL();
+  const fullUrl = `${baseUrl}/products/image-upload`;
+  
+  const formData = new FormData();
+  
+  // Handle both single file and multiple files
+  if (Array.isArray(productImages)) {
+    // Multiple files - append each one
+    productImages.forEach((file) => {
+      formData.append('product_image', file);
+    });
+  } else {
+    // Single file
+    formData.append('product_image', productImages);
+  }
+  
+  const token = getAuthToken();
+  const headers = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  // For FormData, don't set Content-Type header (browser will set it with boundary)
+  const response = await fetch(fullUrl, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    body: formData,
+  });
+  
+  return await handleResponse(response);
+};
+
+/**
+ * Bulk upload products from Excel file
+ * @param {File} file - Excel file (.xlsx) containing product data
+ * @returns {Promise<Object>} Response with upload results
+ */
+export const bulkUploadProducts = async (file) => {
+  const baseUrl = getBaseURL();
+  const fullUrl = `${baseUrl}/products/bulk-upload`;
+  
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const token = getAuthToken();
+  const headers = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  // For FormData, don't set Content-Type header (browser will set it with boundary)
+  const response = await fetch(fullUrl, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    body: formData,
+  });
+  
+  return await handleResponse(response);
 };
 
 // Export base URL for reference (use getBaseURL() for dynamic access)

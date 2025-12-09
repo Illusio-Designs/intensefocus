@@ -13,6 +13,7 @@ export default function TableWithControls({
   onAddNew,
   onExport,
   onImport,
+  secondaryActions = [],
   dateRange = null,
   onDateChange,
   rowSizeOptions = [8, 16, 24],
@@ -107,6 +108,16 @@ export default function TableWithControls({
       <div className="ui-table__header">
         <h4 className="ui-table__title">{title}</h4>
         <div className="ui-table__actions">
+          {secondaryActions.map((action, idx) => (
+            <Button
+              key={`secondary-${idx}`}
+              variant={action.variant || "secondary"}
+              onClick={action.onClick}
+              disabled={action.disabled}
+            >
+              {action.label}
+            </Button>
+          ))}
           {(onImport || onExport) && (
             <Button variant="secondary" onClick={onImport || onExport}>
               {importText || exportText}
