@@ -31,10 +31,10 @@ class ProductController {
             const user = req.user;
             const { model_no, gender_id, color_code_id, shape_id, lens_color_id,
                 frame_color_id, frame_type_id, lens_material_id, frame_material_id,
-                mrp, whp, size_mm, warehouse_qty, tray_qty, total_qty, status, brand_id, collection_id } = req.body;
+                mrp, whp, size_mm, warehouse_qty, status, brand_id, collection_id } = req.body;
             if (!model_no || !gender_id || !color_code_id || !shape_id || !lens_color_id
                 || !frame_color_id || !frame_type_id || !lens_material_id || !frame_material_id
-                || !mrp || !whp || !size_mm || !warehouse_qty || !tray_qty || !total_qty
+                || !mrp || !whp || !size_mm || !warehouse_qty
                 || !status || !brand_id || !collection_id) {
                 return res.status(400).json({ error: 'All fields are required' });
             }
@@ -60,8 +60,8 @@ class ProductController {
                 whp,
                 size_mm,
                 warehouse_qty,
-                tray_qty,
-                total_qty,
+                tray_qty: 0,
+                total_qty: warehouse_qty,
                 status,
                 brand_id,
                 collection_id,
@@ -225,16 +225,15 @@ class ProductController {
                 try {
                     const { model_no, gender, color_code, shape, lens_color, frame_color,
                         frame_type, lens_material, frame_material, mrp, whp, size_mm,
-                        warehouse_qty, tray_qty, total_qty, brand, collection } = item;
+                        warehouse_qty, brand, collection } = item;
 
-                    let { status, image_url } = item;
+                    let { status } = item;
 
                     if (!this.hasData(model_no) || !this.hasData(gender) || !this.hasData(color_code)
                         || !this.hasData(shape) || !this.hasData(lens_color) || !this.hasData(frame_color)
                         || !this.hasData(frame_type) || !this.hasData(lens_material) || !this.hasData(frame_material)
                         || !this.hasData(mrp) || !this.hasData(whp) || !this.hasData(size_mm)
-                        || !this.hasData(warehouse_qty) || !this.hasData(tray_qty) || !this.hasData(total_qty)
-                        || !this.hasData(brand) || !this.hasData(collection)) {
+                        || !this.hasData(warehouse_qty) || !this.hasData(brand) || !this.hasData(collection)) {
                         errors.push({ row: i + 1, model_no: model_no || 'N/A', error: 'All fields are required' });
                         errorCount++;
                         continue;
@@ -243,19 +242,7 @@ class ProductController {
                     if (!this.hasData(status)) {
                         status = 'draft';
                     }
-                    if (!this.hasData(image_url)) {
-                        console.log('image_url', image_url);
-                        const uploadPath = path.join(__dirname, '..', '..', 'uploads', PRODUCT_IMAGE_UPLOAD_DIR);
-                        const imagePath = path.join(uploadPath, image_url);
-                        console.log('imagePath', imagePath);
-                        if (fs.existsSync(imagePath)) {
-                            image_url = imagePath;
-                        } else {
-                            errors.push({ row: i + 1, model_no, error: 'Image not found' });
-                            errorCount++;
-                            continue;
-                        }
-                    }
+
                     let brandModel = await Brand.findOne({ where: { brand_name: brand } });
                     if (!brandModel) {
                         brandModel = await Brand.create({ brand_name: brand });
@@ -310,8 +297,6 @@ class ProductController {
                         Product.update({
                             status: status,
                             warehouse_qty: warehouse_qty,
-                            tray_qty: tray_qty,
-                            total_qty: total_qty,
                             mrp: mrp,
                             whp: whp,
                             size_mm: size_mm,
@@ -325,7 +310,6 @@ class ProductController {
                             frame_type_id: frameTypeModel.frame_type_id,
                             lens_material_id: lensMaterialModel.lens_material_id,
                             frame_material_id: frameMaterialModel.frame_material_id,
-                            image_url: image_url,
                             updated_at: new Date(),
                         }, { where: { product_id: existingProduct.product_id } });
                         await AuditLog.create({
@@ -338,8 +322,6 @@ class ProductController {
                             new_values: {
                                 status: status,
                                 warehouse_qty: warehouse_qty,
-                                tray_qty: tray_qty,
-                                total_qty: total_qty,
                                 mrp: mrp,
                                 whp: whp,
                                 size_mm: size_mm,
@@ -353,7 +335,6 @@ class ProductController {
                                 frame_type_id: frameTypeModel.frame_type_id,
                                 lens_material_id: lensMaterialModel.lens_material_id,
                                 frame_material_id: frameMaterialModel.frame_material_id,
-                                image_url: image_url,
                                 updated_at: new Date(),
                             },
                             ip_address: req.ip || 'N/A',
@@ -378,12 +359,11 @@ class ProductController {
                         whp,
                         size_mm,
                         warehouse_qty,
-                        tray_qty,
-                        total_qty,
+                        tray_qty: 0,
+                        total_qty: warehouse_qty,
                         status,
                         brand_id: brandModel.brand_id,
                         collection_id: collectionModel.collection_id,
-                        image_url,
                         created_at: new Date(),
                         updated_at: new Date(),
                     });

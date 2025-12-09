@@ -46,12 +46,9 @@ const parseProductFile = async (req, res, next) => {
                 whp: (record.whp || record.WHP || record['WHP']) || null,
                 size_mm: record.size_mm || record.sizeMm || record['Size (mm)'] || record.size || null,
                 warehouse_qty: (record.warehouse_qty || record.warehouseQty || record['Warehouse Qty'] || record.warehouse || 0) || 0,
-                tray_qty: (record.tray_qty || record.trayQty || record['Tray Qty'] || record.tray || 0) || 0,
-                total_qty: (record.total_qty || record.totalQty || record['Total Qty'] || record.total || 0) || 0,
                 status: record.status || record.Status || 'draft',
                 brand: record.brand || record.Brand || record['Brand'] || record.brand || null,
                 collection: record.collection || record.Collection || record['Collection'] || record.collection || null,
-                image_url: record.image_url || record.imageUrl || record['Image URL'] || record.image || null,
             }));
 
         } else if (fileExt === '.xlsx' || fileExt === '.xls') {
@@ -76,12 +73,9 @@ const parseProductFile = async (req, res, next) => {
                 whp: (record.whp || record.WHP || record['WHP']) || null,
                 size_mm: record.size_mm || record.sizeMm || record['Size (mm)'] || record.size || record['SIZE_MM'] || null,
                 warehouse_qty: (record.warehouse_qty || record.warehouseQty || record['Warehouse Qty'] || record.warehouse || record['WAREHOUSE_QTY'] || 0) || 0,
-                tray_qty: (record.tray_qty || record.trayQty || record['Tray Qty'] || record.tray || record['TRAY_QTY'] || 0) || 0,
-                total_qty: (record.total_qty || record.totalQty || record['Total Qty'] || record.total || record['TOTAL_QTY'] || 0) || 0,
                 status: record.status || record.Status || record['STATUS'] || 'draft',
                 brand: record.brand || record.Brand || record['Brand'] || record['BRAND_ID'] || null,
                 collection: record.collection || record.Collection || record['Collection'] || record.collection || record['COLLECTION_ID'] || null,
-                image_url: record.image_url || record.imageUrl || record['Image URL'] || record.image || null,
             }));
 
         } else {
