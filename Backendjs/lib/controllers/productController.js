@@ -174,27 +174,29 @@ class ProductController {
 
     async uploadProductImage(req, res) {
         try {
-            const fileInfo = req.fileInfo;
-            if (!fileInfo) {
+            const fileInfos = req.fileInfos;
+            if (!fileInfos || fileInfos.length === 0) {
                 return res.status(400).json({ error: 'Image not found' });
             }
-            const { originalName, path } = fileInfo;
-            const product = await Product.findOne({ where: { model_no: originalName } });
-            if (!product) {
-                return res.status(200).json({ message: 'Product not found, but image saved successfully' });
+            for (const fileInfo of fileInfos) {
+                const { originalName, path } = fileInfo;
+                const product = await Product.findOne({ where: { model_no: originalName } });
+                if (!product) {
+                    return res.status(200).json({ message: 'Product not found, but image saved successfully' });
+                }
+                await product.update({ image_url: path });
+                await AuditLog.create({
+                    user_id: req.user.user_id,
+                    action: 'update',
+                    description: 'Product image saved',
+                    table_name: 'products',
+                    record_id: product.product_id,
+                    old_values: { image_url: product.image_url },
+                    new_values: { image_url: path },
+                    ip_address: req.ip,
+                    created_at: new Date()
+                });
             }
-            await product.update({ image_url: path });
-            await AuditLog.create({
-                user_id: req.user.user_id,
-                action: 'update',
-                description: 'Product image saved',
-                table_name: 'products',
-                record_id: product.product_id,
-                old_values: { image_url: product.image_url },
-                new_values: { image_url: path },
-                ip_address: req.ip,
-                created_at: new Date()
-            });
             res.status(200).json({ message: 'Product image saved successfully' });
         } catch (error) {
             res.status(500).json({ error: error.message });

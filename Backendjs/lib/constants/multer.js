@@ -85,7 +85,7 @@ const productUpload = multer({
     fileSize: 5 * 1024 * 1024 // 5MB limit
   },
   fileFilter: fileFilter
-}).single('product_image');
+}).array('product_image');
 
 // Slider image upload with compression
 const sliderUpload = multer({
@@ -138,7 +138,7 @@ const productUploadStorage = multer.diskStorage({
   }
 });
 
-// Product file upload (Excel/CSV) - using .any() to accept any fields, then filter for 'file'
+// Product file upload (Excel/CSV) - using .array() to accept multiple files
 const productFileUploadBase = multer({
   storage: productUploadStorage,
   limits: {
@@ -160,9 +160,9 @@ const productFileUploadBase = multer({
       cb(new Error('Only CSV and Excel files (.csv, .xlsx, .xls) are allowed!'), false);
     }
   }
-}).any();
+}).array('file');
 
-// Wrapper middleware to handle file upload and filter for 'file' field
+// Wrapper middleware to handle file upload
 const productFileUpload = (req, res, next) => {
   productFileUploadBase(req, res, (err) => {
     // Handle multer errors
@@ -172,6 +172,12 @@ const productFileUpload = (req, res, next) => {
           return res.status(400).json({
             success: false,
             message: 'File too large. Maximum size is 10MB.'
+          });
+        }
+        if (err.code === 'LIMIT_FILE_COUNT') {
+          return res.status(400).json({
+            success: false,
+            message: 'Only one file is allowed per upload.'
           });
         }
         return res.status(400).json({
@@ -185,18 +191,8 @@ const productFileUpload = (req, res, next) => {
       });
     }
 
-    // Filter for the 'file' field from req.files array
-    if (req.files && req.files.length > 0) {
-      // Find the file with fieldname 'file', or use the first file if no 'file' field found
-      const fileField = req.files.find(f => f.fieldname === 'file') || req.files[0];
-      req.file = fileField;
-
-      // Remove other files from req.files to avoid confusion
-      req.files = [req.file];
-    }
-
-    // Check if file was uploaded
-    if (!req.file) {
+    // Check if files were uploaded
+    if (!req.files || req.files.length === 0) {
       return res.status(400).json({
         success: false,
         message: 'No file uploaded. Please upload a file with the field name "file".'
@@ -238,7 +234,7 @@ const processAndSaveImage = (uploadType = 'general') => {
           });
         }
 
-        if (!req.file) {
+        if (!req.files || req.files.length === 0) {
           return res.status(400).json({
             success: false,
             message: 'No file uploaded'
@@ -246,58 +242,62 @@ const processAndSaveImage = (uploadType = 'general') => {
         }
 
         try {
-          let processedBuffer = req.file.buffer;
-          let fileName = req.file.originalname;
+          let fileInfo = [];
+          for (const file of req.files) {
+            let processedBuffer = file.buffer;
+            let fileName = file.originalname;
 
-          // Compress image if it's an image file (not for bills)
-          if (uploadType !== 'bill' && req.file.mimetype.startsWith('image/')) {
-            const quality = uploadType === 'profile' ? 85 : 80;
-            processedBuffer = await compressImage(req.file, quality);
+            // Compress image if it's an image file (not for bills)
+            if (uploadType !== 'bill' && file.mimetype.startsWith('image/')) {
+              const quality = uploadType === 'profile' ? 85 : 80;
+              processedBuffer = await compressImage(file, quality);
 
-            // Generate optimized filename
-            const ext = path.extname(fileName).toLowerCase();
-            const nameWithoutExt = path.basename(fileName, ext);
-            const timestamp = Date.now();
-            fileName = `${nameWithoutExt}-${timestamp}${ext}`;
-          } else {
-            // For bills, keep original filename with timestamp
-            const ext = path.extname(fileName);
-            const nameWithoutExt = path.basename(fileName, ext);
-            const timestamp = Date.now();
-            fileName = `${nameWithoutExt}-${timestamp}${ext}`;
+              // Generate optimized filename
+              const ext = path.extname(fileName).toLowerCase();
+              const nameWithoutExt = path.basename(fileName, ext);
+              const timestamp = Date.now();
+              fileName = `${nameWithoutExt}-${timestamp}${ext}`;
+            } else {
+              // For bills, keep original filename with timestamp
+              const ext = path.extname(fileName);
+              const nameWithoutExt = path.basename(fileName, ext);
+              const timestamp = Date.now();
+              fileName = `${nameWithoutExt}-${timestamp}${ext}`;
+            }
+
+            // Determine upload path using absolute paths
+            let uploadPath;
+            switch (uploadType) {
+              case 'profile':
+                uploadPath = path.join(rootDir, 'uploads', 'profile');
+                break;
+              case 'product':
+                uploadPath = path.join(rootDir, 'uploads', PRODUCT_IMAGE_UPLOAD_DIR);
+                break;
+              case 'slider':
+                uploadPath = path.join(rootDir, 'uploads', 'sliders');
+                break;
+              case 'bill':
+                uploadPath = path.join(rootDir, 'uploads', 'bills');
+                break;
+              default:
+                uploadPath = path.join(rootDir, 'uploads', 'general');
+            }
+
+            // Save file
+            const fullPath = path.join(uploadPath, fileName);
+            fs.writeFileSync(fullPath, processedBuffer);
+
+            fileInfo.push({
+              filename: fileName,
+              path: fullPath,
+              size: processedBuffer.length,
+              mimetype: file.mimetype,
+              originalName: file.originalname
+            });
           }
-
-          // Determine upload path using absolute paths
-          let uploadPath;
-          switch (uploadType) {
-            case 'profile':
-              uploadPath = path.join(rootDir, 'uploads', 'profile');
-              break;
-            case 'product':
-              uploadPath = path.join(rootDir, 'uploads', PRODUCT_IMAGE_UPLOAD_DIR);
-              break;
-            case 'slider':
-              uploadPath = path.join(rootDir, 'uploads', 'sliders');
-              break;
-            case 'bill':
-              uploadPath = path.join(rootDir, 'uploads', 'bills');
-              break;
-            default:
-              uploadPath = path.join(rootDir, 'uploads', 'general');
-          }
-
-          // Save file
-          const fullPath = path.join(uploadPath, fileName);
-          fs.writeFileSync(fullPath, processedBuffer);
-
           // Add file info to request
-          req.fileInfo = {
-            filename: fileName,
-            path: fullPath,
-            size: processedBuffer.length,
-            mimetype: req.file.mimetype,
-            originalName: req.file.originalname
-          };
+          req.fileInfos = fileInfo;
 
           next();
         } catch (error) {
