@@ -2844,14 +2844,21 @@ export const deleteProduct = async (productId) => {
 
 /**
  * Upload product image(s) - supports single or multiple images
+ * Optionally attach to a specific product by ID
  * @param {File|File[]} productImages - Product image file(s) - can be a single File or array of Files
+ * @param {string|number} [productId] - Product identifier to attach the image(s) to
  * @returns {Promise<Object>} Response with image data
  */
-export const uploadProductImage = async (productImages) => {
+export const uploadProductImage = async (productImages, productId) => {
   const baseUrl = getBaseURL();
   const fullUrl = `${baseUrl}/products/image-upload`;
   
   const formData = new FormData();
+
+  // Attach product reference when provided so backend can link the file
+  if (productId) {
+    formData.append('product_id', productId);
+  }
   
   // Handle both single file and multiple files
   if (Array.isArray(productImages)) {

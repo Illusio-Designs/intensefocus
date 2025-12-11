@@ -1,7 +1,7 @@
 import React from 'react';
 
 // Reusable row action buttons: only renders buttons for handlers provided
-export default function RowActions({ onView, onEdit, onDownload, onDelete }) {
+export default function RowActions({ onView, onEdit, onDownload, onDelete, onUpload }) {
   return (
     <div style={{ display: 'flex', gap: 10 }}>
       {onView && (
@@ -40,6 +40,14 @@ export default function RowActions({ onView, onEdit, onDownload, onDelete }) {
             <path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
           <span className="ui-tt">Delete</span>
+        </button>
+      )}
+      {onUpload && (
+        <button className="ui-btn ui-btn--ghost ui-btn--sm has-tt" onClick={onUpload}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 5l6 6M12 5L6 11M12 5v13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          <span className="ui-tt">Upload Image</span>
         </button>
       )}
     </div>

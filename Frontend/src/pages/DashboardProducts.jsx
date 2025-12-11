@@ -24,6 +24,7 @@ import {
   uploadProductImage,
   bulkUploadProducts,
 } from '../services/apiService';
+import { showSuccess, showError } from '../services/notificationService';
 
 const DashboardProducts = () => {
   const [activeTab, setActiveTab] = useState('Products');
@@ -38,6 +39,7 @@ const DashboardProducts = () => {
   const [selectedImages, setSelectedImages] = useState([]);
   const [selectedBulkFile, setSelectedBulkFile] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(null);
+  const [imageTargetProduct, setImageTargetProduct] = useState(null);
   const imageInputRef = useRef(null);
   
   // Related data for dropdowns
@@ -136,20 +138,12 @@ const DashboardProducts = () => {
     }
   };
 
-  const columns = useMemo(() => ([
-    { key: 'model_no', label: 'MODEL NO' },
-    { key: 'brand', label: 'BRAND' },
-    { key: 'collection', label: 'COLLECTION' },
-    { key: 'mrp', label: 'MRP' },
-    { key: 'whp', label: 'WHP' },
-    { key: 'status', label: 'STATUS' },
-    { key: 'action', label: 'ACTION', render: (_v, row) => (
-      <RowActions 
-        onEdit={() => handleEdit(row)} 
-        onDelete={() => handleDelete(row)} 
-      />
-    ) },
-  ]), []);
+  const handleAttachImage = (row) => {
+    // Save the product we want to attach an image to, then open the picker
+    setImageTargetProduct(row);
+    setError(null);
+    imageInputRef.current?.click();
+  };
 
   const rows = useMemo(() => {
     return products.map(product => {
@@ -256,15 +250,43 @@ const DashboardProducts = () => {
       await deleteProduct(row.id);
       await fetchProducts();
       setError(null);
+      showSuccess('Product deleted successfully');
     } catch (error) {
       if (!error.message?.toLowerCase().includes('token expired') && 
           !error.message?.toLowerCase().includes('unauthorized')) {
         console.error('Error deleting product:', error);
-        setError(`Failed to delete product: ${error.message}`);
+        const message = `Failed to delete product: ${error.message}`;
+        setError(message);
+        showError(message);
       }
     } finally {
       setLoading(false);
     }
+  };
+
+  const columns = useMemo(() => ([
+    { key: 'model_no', label: 'MODEL NO' },
+    { key: 'brand', label: 'BRAND' },
+    { key: 'collection', label: 'COLLECTION' },
+    { key: 'mrp', label: 'MRP' },
+    { key: 'whp', label: 'WHP' },
+    { key: 'status', label: 'STATUS' },
+    { key: 'action', label: 'ACTION', render: (_v, row) => (
+      <RowActions 
+        onEdit={() => handleEdit(row)} 
+        onDelete={() => handleDelete(row)} 
+        onUpload={(!row.data?.image_url && activeTab === 'Unuploaded Media Gallery') 
+          ? () => handleAttachImage(row) 
+          : undefined}
+      />
+    ) },
+  ]), [handleEdit, handleDelete, handleAttachImage, activeTab]);
+
+  const handleOpenMediaUpload = () => {
+    // Media gallery allows generic uploads (no product binding)
+    setImageTargetProduct(null);
+    setError(null);
+    imageInputRef.current?.click();
   };
 
   const handleSubmit = async (e) => {
@@ -293,8 +315,10 @@ const DashboardProducts = () => {
       
       if (editRow) {
         await updateProduct(editRow.id, dataToSend);
+        showSuccess('Product updated successfully');
       } else {
         await createProduct(dataToSend);
+        showSuccess('Product created successfully');
       }
       
       await fetchProducts();
@@ -306,7 +330,9 @@ const DashboardProducts = () => {
       if (!error.message?.toLowerCase().includes('token expired') && 
           !error.message?.toLowerCase().includes('unauthorized')) {
         console.error('Error saving product:', error);
-        setError(`Failed to save product: ${error.message}`);
+        const message = `Failed to save product: ${error.message}`;
+        setError(message);
+        showError(message);
       }
     } finally {
       setLoading(false);
@@ -316,6 +342,25 @@ const DashboardProducts = () => {
   const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
+
+    const targetProduct = imageTargetProduct;
+    const targetProductId = targetProduct?.id 
+      || targetProduct?.product_id 
+      || targetProduct?.data?.product_id 
+      || targetProduct?.data?.id;
+    const targetLabel = targetProduct?.model_no 
+      || targetProduct?.data?.model_no 
+      || (activeTab === 'Media Gallery' ? 'media' : 'product');
+
+    const isMediaUpload = activeTab === 'Media Gallery';
+
+    if (!targetProductId && !isMediaUpload) {
+      setError('Please pick a product to attach images to (use Upload action in Unuploaded Media Gallery).');
+      if (e.target) {
+        e.target.value = '';
+      }
+      return;
+    }
 
     // Validate all files
     const invalidFiles = files.filter(file => !file.type.startsWith('image/'));
@@ -336,7 +381,7 @@ const DashboardProducts = () => {
       setError(null);
       setSelectedImages(files);
       
-      const response = await uploadProductImage(files);
+      const response = await uploadProductImage(files, targetProductId);
       
       // If upload successful, refresh products to get updated image URLs
       await fetchProducts();
@@ -345,9 +390,11 @@ const DashboardProducts = () => {
       setUploadProgress({
         success: true,
         message: fileCount === 1 
-          ? 'Image uploaded successfully!' 
-          : `${fileCount} images uploaded successfully!`,
+          ? (isMediaUpload ? 'Image uploaded successfully!' : `Image attached to ${targetLabel} successfully!`) 
+          : (isMediaUpload ? `${fileCount} images uploaded successfully!` : `${fileCount} images attached to ${targetLabel} successfully!`),
       });
+      showSuccess(isMediaUpload ? 'Images uploaded successfully' : 'Images attached to product successfully');
+      setImageTargetProduct(null);
       
       // Clear selection after 3 seconds
       setTimeout(() => {
@@ -362,7 +409,9 @@ const DashboardProducts = () => {
       console.error('Error uploading images:', error);
       if (!error.message?.toLowerCase().includes('token expired') && 
           !error.message?.toLowerCase().includes('unauthorized')) {
-        setError(`Failed to upload images: ${error.message}`);
+        const message = `Failed to upload images: ${error.message}`;
+        setError(message);
+        showError(message);
       }
       setSelectedImages([]);
       // Reset file input on error
@@ -406,6 +455,7 @@ const DashboardProducts = () => {
         message: successMessage,
         details: details,
       });
+      showSuccess(successMessage);
       
       // Refresh products list
       await fetchProducts();
@@ -420,7 +470,9 @@ const DashboardProducts = () => {
       console.error('Error uploading bulk file:', error);
       if (!error.message?.toLowerCase().includes('token expired') && 
           !error.message?.toLowerCase().includes('unauthorized')) {
-        setError(`Failed to upload file: ${error.message}`);
+        const message = `Failed to upload file: ${error.message}`;
+        setError(message);
+        showError(message);
       }
     } finally {
       setUploadingBulk(false);
@@ -468,7 +520,7 @@ const DashboardProducts = () => {
             </div>
           </div>
         )}
-        <div className="dash-row">
+        <div className="dash-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div className="order-tabs-container">
             {['Products', 'Media Gallery', 'Unuploaded Media Gallery'].map(tab => (
               <button
@@ -480,78 +532,110 @@ const DashboardProducts = () => {
               </button>
             ))}
           </div>
+          {activeTab === 'Media Gallery' && (
+            <button
+              className="ui-btn ui-btn--primary"
+              onClick={handleOpenMediaUpload}
+              disabled={uploadingImage}
+              style={{ whiteSpace: 'nowrap', padding: '10px 16px' }}
+            >
+              {uploadingImage ? 'Uploading...' : 'Upload Images'}
+            </button>
+          )}
         </div>
+        {uploadProgress && (
+          <div className="dash-row">
+            <div className="dash-card full">
+              <div style={{ 
+                padding: '12px',
+                backgroundColor: uploadProgress.success ? '#d4edda' : '#f8d7da',
+                border: `1px solid ${uploadProgress.success ? '#c3e6cb' : '#f5c6cb'}`,
+                borderRadius: '8px',
+                color: uploadProgress.success ? '#155724' : '#721c24'
+              }}>
+                <strong>{uploadProgress.success ? 'Success:' : 'Error:'}</strong> {uploadProgress.message}
+                {uploadProgress.details && (
+                  <div style={{ marginTop: '6px', fontSize: '14px' }}>
+                    {uploadProgress.details}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
         <div className="dash-row">
           <div className="dash-card full">
             {activeTab === 'Media Gallery' ? (
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                  gap: '16px',
-                  padding: '8px'
-                }}
-              >
-                {uploadedProducts.length === 0 && (
-                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#666' }}>
-                    No uploaded images found.
-                  </div>
-                )}
-                {uploadedProducts.map(product => (
-                  <div
-                    key={product.product_id || product.id}
-                    style={{
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '8px',
-                      overflow: 'hidden',
-                      background: '#fff',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      boxShadow: '0 1px 4px rgba(0,0,0,0.08)'
-                    }}
-                  >
-                    <div style={{ width: '100%', aspectRatio: '4/3', background: '#f5f5f5' }}>
-                      {product.image_url ? (
-                        <img
-                          src={product.image_url}
-                          alt={product.model_no || 'Product image'}
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        />
-                      ) : (
-                        <div style={{
-                          width: '100%',
-                          height: '100%',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: '#999',
-                          fontSize: '14px'
-                        }}>
-                          No Image
+              <div>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                    gap: '16px',
+                    padding: '8px'
+                  }}
+                >
+                  {uploadedProducts.length === 0 && (
+                    <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#666' }}>
+                      No uploaded images found.
+                    </div>
+                  )}
+                  {uploadedProducts.map(product => (
+                    <div
+                      key={product.product_id || product.id}
+                      style={{
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        overflow: 'hidden',
+                        background: '#fff',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        boxShadow: '0 1px 4px rgba(0,0,0,0.08)'
+                      }}
+                    >
+                      <div style={{ width: '100%', aspectRatio: '4/3', background: '#f5f5f5' }}>
+                        {product.image_url ? (
+                          <img
+                            src={product.image_url}
+                            alt={product.model_no || 'Product image'}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <div style={{
+                            width: '100%',
+                            height: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#999',
+                            fontSize: '14px'
+                          }}>
+                            No Image
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ padding: '12px' }}>
+                        <div style={{ fontWeight: 600, marginBottom: '6px' }}>
+                          {product.model_no || 'No Model'}
                         </div>
-                      )}
+                        <div style={{ fontSize: '13px', color: '#555', marginBottom: '4px' }}>
+                          Brand: {product.brand_name || product.brand || 'N/A'}
+                        </div>
+                        <div style={{ fontSize: '13px', color: '#555', marginBottom: '8px' }}>
+                          Collection: {product.collection_name || product.collection || 'N/A'}
+                        </div>
+                        <button
+                          className="ui-btn ui-btn--danger"
+                          style={{ width: '100%' }}
+                          onClick={() => handleDelete({ id: product.product_id || product.id, model_no: product.model_no, type: 'Product' })}
+                          disabled={loading}
+                        >
+                          {loading ? 'Deleting...' : 'Delete'}
+                        </button>
+                      </div>
                     </div>
-                    <div style={{ padding: '12px' }}>
-                      <div style={{ fontWeight: 600, marginBottom: '6px' }}>
-                        {product.model_no || 'No Model'}
-                      </div>
-                      <div style={{ fontSize: '13px', color: '#555', marginBottom: '4px' }}>
-                        Brand: {product.brand_name || product.brand || 'N/A'}
-                      </div>
-                      <div style={{ fontSize: '13px', color: '#555', marginBottom: '8px' }}>
-                        Collection: {product.collection_name || product.collection || 'N/A'}
-                      </div>
-                      <button
-                        className="ui-btn ui-btn--danger"
-                        style={{ width: '100%' }}
-                        onClick={() => handleDelete({ id: product.product_id || product.id, model_no: product.model_no, type: 'Product' })}
-                        disabled={loading}
-                      >
-                        {loading ? 'Deleting...' : 'Delete'}
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             ) : (
             <TableWithControls
@@ -562,15 +646,7 @@ const DashboardProducts = () => {
               addNewText="Add New Product"
               onImport={() => setOpenBulkUpload(true)}
               importText="Bulk Upload Products"
-              secondaryActions={[
-                {
-                  label: uploadingImage 
-                    ? `Uploading ${selectedImages.length > 0 ? `${selectedImages.length} ` : ''}Image${selectedImages.length > 1 ? 's' : ''}...` 
-                    : 'Upload Product Images',
-                  onClick: () => imageInputRef.current?.click(),
-                  disabled: uploadingImage,
-                },
-              ]}
+              secondaryActions={[]}
               searchPlaceholder="Search products"
             />
             )}
