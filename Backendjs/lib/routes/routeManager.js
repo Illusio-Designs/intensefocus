@@ -23,6 +23,9 @@ const shapesRoutes = require('./shapes');
 const frameMaterialRoutes = require('./frame_material');
 const brandRoutes = require('./brand');
 const collectionRoutes = require('./collection');
+const trayRoutes = require('./tray');
+const salesmanTrayRoutes = require('./salesman_tray');
+const trayProductsRoutes = require('./tray_products');
 
 router.use((req, res, next) => {
     const timestamp = new Date();
@@ -53,6 +56,9 @@ router.use('/shapes', shapesRoutes);
 router.use('/frame_materials', frameMaterialRoutes);
 router.use('/brands', brandRoutes);
 router.use('/collections', collectionRoutes);
+router.use('/trays', trayRoutes);
+router.use('/salesman_trays', salesmanTrayRoutes);
+router.use('/tray_products', trayProductsRoutes);
 
 // API documentation route
 router.get('/docs', (req, res) => {
@@ -95,6 +101,11 @@ router.get('/docs', (req, res) => {
             frame_materials: '/api/frame_materials',
             brands: '/api/brands',
             collections: '/api/collections',
+
+            // Tray endpoints
+            trays: '/api/trays',
+            salesman_trays: '/api/salesman_trays',
+            tray_products: '/api/tray_products',
         }
     });
 });
