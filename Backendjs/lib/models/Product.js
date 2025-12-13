@@ -27,6 +27,7 @@ FOREIGN KEY (frame_type_id) REFERENCES frame_types(frame_type_id),
 FOREIGN KEY (lens_material_id) REFERENCES lens_materials(lens_material_id),
 FOREIGN KEY (frame_material_id) REFERENCES frame_materials(frame_material_id)
 );
+
  */
 
 const { DataTypes } = require('sequelize');
@@ -107,8 +108,8 @@ const Product = sequelize.define('Product', {
             key: 'frame_material_id'
         }
     },
-    image_url: {
-        type: DataTypes.TEXT,
+    image_urls: {
+        type: DataTypes.JSON,
         allowNull: true
     },
     mrp: {

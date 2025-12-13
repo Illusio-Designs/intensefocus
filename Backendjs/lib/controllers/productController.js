@@ -31,7 +31,7 @@ class ProductController {
             const user = req.user;
             const { model_no, gender_id, color_code_id, shape_id, lens_color_id,
                 frame_color_id, frame_type_id, lens_material_id, frame_material_id,
-                mrp, whp, size_mm, warehouse_qty, status, brand_id, collection_id } = req.body;
+                mrp, whp, size_mm, warehouse_qty, status, brand_id, collection_id, image_urls } = req.body;
             if (!model_no || !gender_id || !color_code_id || !shape_id || !lens_color_id
                 || !frame_color_id || !frame_type_id || !lens_material_id || !frame_material_id
                 || !mrp || !whp || !size_mm || !warehouse_qty
@@ -56,6 +56,7 @@ class ProductController {
                 frame_type_id,
                 lens_material_id,
                 frame_material_id,
+                image_urls,
                 mrp,
                 whp,
                 size_mm,
@@ -93,7 +94,7 @@ class ProductController {
             const user = req.user;
             const { model_no, gender_id, color_code_id, shape_id, lens_color_id, frame_color_id,
                 frame_type_id, lens_material_id, frame_material_id, mrp, whp, size_mm,
-                warehouse_qty, tray_qty, total_qty, status, brand_id, collection_id } = req.body;
+                warehouse_qty, tray_qty, total_qty, status, brand_id, collection_id, image_urls } = req.body;
             const product = await Product.findByPk(id);
             if (!product) {
                 return res.status(404).json({ error: 'Product not found' });
@@ -116,6 +117,7 @@ class ProductController {
                 frame_type_id: frame_type_id || product.frame_type_id,
                 lens_material_id: lens_material_id || product.lens_material_id,
                 frame_material_id: frame_material_id || product.frame_material_id,
+                image_urls: image_urls || product.image_urls,
                 mrp: mrp || product.mrp,
                 whp: whp || product.whp,
                 size_mm: size_mm || product.size_mm,
@@ -178,26 +180,44 @@ class ProductController {
             if (!fileInfos || fileInfos.length === 0) {
                 return res.status(400).json({ error: 'Image not found' });
             }
-            for (const fileInfo of fileInfos) {
-                const { originalName, path } = fileInfo;
-                const product = await Product.findOne({ where: { model_no: originalName } });
-                if (!product) {
-                    return res.status(200).json({ message: 'Product not found, but image saved successfully' });
-                }
-                await product.update({ image_url: path });
-                await AuditLog.create({
-                    user_id: req.user.user_id,
-                    action: 'update',
-                    description: 'Product image saved',
-                    table_name: 'products',
-                    record_id: product.product_id,
-                    old_values: { image_url: product.image_url },
-                    new_values: { image_url: path },
-                    ip_address: req.ip,
-                    created_at: new Date()
-                });
-            }
-            res.status(200).json({ message: 'Product image saved successfully' });
+            // const updatedProducts = [];
+            // const productIdModels = {};
+            // const products = await Product.findAll();
+            // for (const product of products) {
+            //     productIdModels[product.model_no] = product.product_id;
+            // }
+            // const modelNos = Object.keys(productIdModels);
+            // for (const fileInfo of fileInfos) {
+            //     const { originalName, path } = fileInfo;
+            //     const names = originalName.split('.');
+            //     const fileName = names.length > 1 ? names[0] : originalName;
+            //     const productIdKey = modelNos.find(modelNo => fileName.includes(modelNo));
+            //     if (!productIdKey) {
+            //         continue;
+            //     }
+            //     const productId = productIdModels[productIdKey];
+            //     const product = await Product.findOne({ where: { product_id: productId } });
+            //     if (!product) {
+            //         continue;
+            //     }
+            //     let image_urls = product.image_urls || [];
+            //     image_urls.push(path);
+            //     await Product.update({ image_urls: image_urls }, { where: { product_id: productId } });
+            //     const updatedProduct = await Product.findOne({ where: { product_id: productId } });
+            //     await AuditLog.create({
+            //         user_id: req.user.user_id,
+            //         action: 'update',
+            //         description: 'Product image saved',
+            //         table_name: 'products',
+            //         record_id: product.product_id,
+            //         old_values: { image_urls: product.image_urls },
+            //         new_values: { image_urls: [...product.image_urls, path] },
+            //         ip_address: req.ip,
+            //         created_at: new Date()
+            //     });
+            //     updatedProducts.push(updatedProduct);
+            // }
+            res.status(200).json({ message: 'Product image saved successfully', data: fileInfos });
         } catch (error) {
             res.status(500).json({ error: error.message });
         }
@@ -357,6 +377,7 @@ class ProductController {
                         frame_type_id: frameTypeModel.frame_type_id,
                         lens_material_id: lensMaterialModel.lens_material_id,
                         frame_material_id: frameMaterialModel.frame_material_id,
+                        image_urls: [],
                         mrp,
                         whp,
                         size_mm,
