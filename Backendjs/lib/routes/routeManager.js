@@ -26,6 +26,8 @@ const collectionRoutes = require('./collection');
 const trayRoutes = require('./tray');
 const salesmanTrayRoutes = require('./salesman_tray');
 const trayProductsRoutes = require('./tray_products');
+const eventRoutes = require('./event');
+const orderRoutes = require('./order');
 
 router.use((req, res, next) => {
     const timestamp = new Date();
@@ -59,6 +61,8 @@ router.use('/collections', collectionRoutes);
 router.use('/trays', trayRoutes);
 router.use('/salesman_trays', salesmanTrayRoutes);
 router.use('/tray_products', trayProductsRoutes);
+router.use('/events', eventRoutes);
+router.use('/orders', orderRoutes);
 
 // API documentation route
 router.get('/docs', (req, res) => {
@@ -106,6 +110,12 @@ router.get('/docs', (req, res) => {
             trays: '/api/trays',
             salesman_trays: '/api/salesman_trays',
             tray_products: '/api/tray_products',
+
+            // Event endpoints
+            events: '/api/events',
+
+            // Order endpoints
+            orders: '/api/orders',
         }
     });
 });

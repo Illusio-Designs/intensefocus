@@ -2,7 +2,7 @@ const SalesmanTray = require('../models/SalesmanTray');
 const AuditLog = require('../models/AuditLog');
 const Salesman = require('../models/Salesman');
 const Tray = require('../models/Tray');
-const TrayStatus = require('../constants/tray_status');
+const { TrayStatus } = require('../constants/enums');
 
 class SalesmanTrayController {
     async getAssignedTrays(req, res) {

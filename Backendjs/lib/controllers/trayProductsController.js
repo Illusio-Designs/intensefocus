@@ -27,6 +27,23 @@ class TrayProductsController {
                 return res.status(400).json({ error: 'All fields are required' });
             }
             const user = req.user;
+            const alredyInTray = await TrayProducts.findOne({ where: { tray_id, product_id } });
+            if (alredyInTray) {
+                alredyInTray.qty = alredyInTray.qty + qty;
+                const updatedTrayProduct = await alredyInTray.save();
+                await AuditLog.create({
+                    user_id: user.user_id,
+                    action: 'create',
+                    description: 'Tray product quantity updated',
+                    table_name: 'tray_products',
+                    record_id: alredyInTray.id,
+                    old_values: alredyInTray,
+                    new_values: updatedTrayProduct,
+                    ip_address: req.ip,
+                    created_at: new Date(),
+                });
+                return res.status(200).json(updatedTrayProduct);
+            }
             const trayProduct = await TrayProducts.create({
                 tray_id,
                 product_id,
