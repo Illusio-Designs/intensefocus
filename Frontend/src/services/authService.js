@@ -39,6 +39,8 @@ export const logout = () => {
   localStorage.removeItem('token');
   // Dispatch custom event for same-tab updates
   window.dispatchEvent(new Event('authChange'));
+  // Dispatch token removal event
+  window.dispatchEvent(new CustomEvent('tokenRemoved'));
 };
 
 // Get auth token

@@ -5,6 +5,7 @@
 
 import { sendOTP } from './msg91Service';
 import { logout } from './authService';
+import { showError } from './notificationService';
 
 /**
  * Get Base URL from environment variable
@@ -39,6 +40,10 @@ const BASE_URL = getBaseURL();
 
 // Flag to prevent infinite redirect loops
 let isRedirecting = false;
+// Flag to prevent multiple logout notifications (shared across modules via window)
+if (typeof window !== 'undefined') {
+  window.__hasShownLogoutNotification = window.__hasShownLogoutNotification || false;
+}
 
 /**
  * Get authentication token from localStorage
@@ -135,26 +140,30 @@ const handleResponse = async (response) => {
                           errorMessage.toLowerCase().includes('unauthorized') ||
                           errorMessage.toLowerCase().includes('invalid token');
     
-    if (isTokenExpired && typeof window !== 'undefined' && !isRedirecting) {
+    if (isTokenExpired && typeof window !== 'undefined' && !isRedirecting && !window.__hasShownLogoutNotification) {
       isRedirecting = true;
+      window.__hasShownLogoutNotification = true;
       
-      // Clear authentication
+      // Show notification immediately
+      showError('Your session has expired. Please login again.');
+      
+      // Clear authentication immediately
       logout();
       
-      // Show user-friendly message
-      console.warn('Session expired. Please login again.');
-      
-      // Redirect to login page
+      // Redirect to login page after a short delay to ensure notification is visible
       // Check if we're not already on the login page to avoid infinite loops
       const currentPath = window.location.pathname;
       if (!currentPath.includes('/login')) {
-        window.location.href = '/login';
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 500); // Small delay to ensure notification is visible
+      } else {
+        // Reset flag if already on login page
+        setTimeout(() => {
+          isRedirecting = false;
+          window.__hasShownLogoutNotification = false;
+        }, 1000);
       }
-      
-      // Reset flag after a delay
-      setTimeout(() => {
-        isRedirecting = false;
-      }, 1000);
     }
     
     // Check for backend initialization error - mark it specially so components can handle it
@@ -186,6 +195,35 @@ const handleResponse = async (response) => {
  */
 const apiRequest = async (endpoint, options = {}) => {
   const { method = 'GET', body = null, includeAuth = true } = options;
+
+  // Check if token exists before making authenticated requests
+  // If token is missing and we need auth, log out immediately
+  if (includeAuth && typeof window !== 'undefined') {
+    const token = getAuthToken();
+    if (!token && !isRedirecting && !window.__hasShownLogoutNotification) {
+      isRedirecting = true;
+      window.__hasShownLogoutNotification = true;
+      showError('Your session has expired. Please login again.');
+      logout();
+      
+      const currentPath = window.location.pathname;
+      if (!currentPath.includes('/login')) {
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 500);
+      }
+      
+      setTimeout(() => {
+        isRedirecting = false;
+        window.__hasShownLogoutNotification = false;
+      }, 1000);
+      
+      // Throw error to prevent the API call
+      const error = new Error('Token not found. Please login again.');
+      error.statusCode = 401;
+      throw error;
+    }
+  }
 
   // Get base URL dynamically to ensure it's always correct
   const baseUrl = getBaseURL();
@@ -2819,13 +2857,55 @@ export const createProduct = async (productData) => {
  * @param {string} productData.brand_id - Brand ID (UUID)
  * @param {string} productData.collection_id - Collection ID (UUID)
  * @param {number} productData.warehouse_qty - Warehouse quantity
+ * @param {number} [productData.tray_qty] - Tray quantity
+ * @param {number} [productData.total_qty] - Total quantity
  * @param {string} productData.status - Product status (e.g., "draft")
  * @returns {Promise<Object>} Response with message
  */
 export const updateProduct = async (productId, productData) => {
+  const {
+    model_no,
+    gender_id,
+    color_code_id,
+    shape_id,
+    lens_color_id,
+    frame_color_id,
+    frame_type_id,
+    lens_material_id,
+    frame_material_id,
+    mrp,
+    whp,
+    size_mm,
+    brand_id,
+    collection_id,
+    warehouse_qty,
+    tray_qty,
+    total_qty,
+    status,
+  } = productData;
+  
   return apiRequest(`/products/${productId}`, {
     method: 'PUT',
-    body: productData,
+    body: {
+      model_no,
+      gender_id,
+      color_code_id,
+      shape_id,
+      lens_color_id,
+      frame_color_id,
+      frame_type_id,
+      lens_material_id,
+      frame_material_id,
+      mrp,
+      whp,
+      size_mm,
+      brand_id,
+      collection_id,
+      warehouse_qty,
+      tray_qty,
+      total_qty,
+      status,
+    },
     includeAuth: true,
   });
 };
@@ -2915,6 +2995,186 @@ export const bulkUploadProducts = async (file) => {
   });
   
   return await handleResponse(response);
+};
+
+// ==================== TRAYS ENDPOINTS ====================
+
+/**
+ * Get all trays
+ * @returns {Promise<Array>} Array of tray objects
+ */
+export const getTrays = async () => {
+  try {
+    const response = await apiRequest('/trays/', {
+      method: 'GET',
+      includeAuth: true,
+    });
+
+    if (Array.isArray(response)) return response;
+    if (response && Array.isArray(response.data)) return response.data;
+    return [];
+  } catch (error) {
+    const errorMessage = (error.message || '').toLowerCase();
+    const errorText = (error.errorData?.error || error.errorData?.message || '').toLowerCase();
+
+    if (
+      errorMessage.includes('trays not found') ||
+      errorText.includes('trays not found') ||
+      error.statusCode === 404
+    ) {
+      return [];
+    }
+    throw error;
+  }
+};
+
+/**
+ * Create tray
+ * @param {Object} trayData - Tray data
+ * @param {string} trayData.tray_name - Tray name
+ * @param {string} trayData.tray_status - Tray status (e.g., "draft")
+ * @returns {Promise<Object>} Created tray object
+ */
+export const createTray = async (trayData) => {
+  const { tray_name, tray_status } = trayData;
+  return apiRequest('/trays/', {
+    method: 'POST',
+    body: { tray_name, tray_status },
+    includeAuth: true,
+  });
+};
+
+/**
+ * Update tray
+ * @param {string} trayId - Tray ID (UUID)
+ * @param {Object} trayData - Tray data to update
+ * @param {string} trayData.tray_name - Tray name
+ * @param {string} trayData.tray_status - Tray status
+ * @returns {Promise<Object>} Response with message
+ */
+export const updateTray = async (trayId, trayData) => {
+  const { tray_name, tray_status } = trayData;
+  return apiRequest(`/trays/${trayId}`, {
+    method: 'PUT',
+    body: { tray_name, tray_status },
+    includeAuth: true,
+  });
+};
+
+/**
+ * Delete tray
+ * @param {string} trayId - Tray ID (UUID)
+ * @returns {Promise<Object>} Response with message
+ */
+export const deleteTray = async (trayId) => {
+  return apiRequest(`/trays/${trayId}`, {
+    method: 'DELETE',
+    includeAuth: true,
+  });
+};
+
+// ==================== TRAY TRANSACTIONS ====================
+
+/**
+ * Get trays assigned to a salesman
+ * @param {string} salesmanId - Salesman ID (UUID)
+ * @returns {Promise<Array>} Assigned tray records
+ */
+export const getAssignedTrays = async (salesmanId) => {
+  return apiRequest('/salesman_trays/', {
+    method: 'POST',
+    body: { salesman_id: salesmanId },
+    includeAuth: true,
+  });
+};
+
+/**
+ * Assign tray to salesman
+ * @param {Object} assignmentData - Assignment data
+ * @param {string} assignmentData.salesman_id - Salesman ID (UUID)
+ * @param {string} assignmentData.tray_id - Tray ID (UUID)
+ * @returns {Promise<Object>} Assignment record
+ */
+export const assignSalesmanTray = async (assignmentData) => {
+  const { salesman_id, tray_id } = assignmentData;
+  return apiRequest('/salesman_trays/assign', {
+    method: 'POST',
+    body: { salesman_id, tray_id },
+    includeAuth: true,
+  });
+};
+
+/**
+ * Unassign tray from salesman
+ * @param {string} assignmentId - Salesman tray assignment ID (UUID)
+ * @returns {Promise<Object>} Response with message
+ */
+export const unassignSalesmanTray = async (assignmentId) => {
+  return apiRequest(`/salesman_trays/${assignmentId}`, {
+    method: 'DELETE',
+    includeAuth: true,
+  });
+};
+
+/**
+ * Get products in a tray
+ * @param {string} trayId - Tray ID (UUID)
+ * @returns {Promise<Array>} Tray product records
+ */
+export const getProductsInTray = async (trayId) => {
+  return apiRequest(`/tray_products/${trayId}`, {
+    method: 'GET',
+    includeAuth: true,
+  });
+};
+
+/**
+ * Add product to tray
+ * @param {Object} trayProductData - Tray product data
+ * @param {string} trayProductData.tray_id - Tray ID (UUID)
+ * @param {string} trayProductData.product_id - Product ID (UUID)
+ * @param {number} trayProductData.qty - Quantity
+ * @param {string} trayProductData.status - Status (e.g., "alloted")
+ * @returns {Promise<Object>} Created tray product record
+ */
+export const addProductToTray = async (trayProductData) => {
+  const { tray_id, product_id, qty, status } = trayProductData;
+  return apiRequest('/tray_products/', {
+    method: 'POST',
+    body: { tray_id, product_id, qty, status },
+    includeAuth: true,
+  });
+};
+
+/**
+ * Update product in tray
+ * @param {string} trayProductId - Tray product record ID (UUID)
+ * @param {Object} trayProductData - Updated tray product data
+ * @param {string} trayProductData.tray_id - Tray ID (UUID)
+ * @param {string} trayProductData.product_id - Product ID (UUID)
+ * @param {number} trayProductData.qty - Quantity
+ * @param {string} trayProductData.status - Status
+ * @returns {Promise<Object>} Response with message
+ */
+export const updateProductInTray = async (trayProductId, trayProductData) => {
+  const { tray_id, product_id, qty, status } = trayProductData;
+  return apiRequest(`/tray_products/${trayProductId}`, {
+    method: 'PUT',
+    body: { tray_id, product_id, qty, status },
+    includeAuth: true,
+  });
+};
+
+/**
+ * Delete product from tray
+ * @param {string} trayProductId - Tray product record ID (UUID)
+ * @returns {Promise<Object>} Response with message
+ */
+export const deleteProductFromTray = async (trayProductId) => {
+  return apiRequest(`/tray_products/${trayProductId}`, {
+    method: 'DELETE',
+    includeAuth: true,
+  });
 };
 
 // Export base URL for reference (use getBaseURL() for dynamic access)

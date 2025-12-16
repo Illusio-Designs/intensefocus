@@ -3,6 +3,7 @@ import '../styles/pages/dashboard-layout.css';
 import DashboardHeader from '../components/DashboardHeader';
 import DashboardSidebar from '../components/DashboardSidebar';
 import DashboardFooter from '../components/DashboardFooter';
+import { useTokenMonitor } from '../hooks/useTokenMonitor';
 
 // Import Instrument Sans font in dashboard pages (font-face is best, but for now add Google font via link in head for demonstration)
 if (typeof window !== 'undefined' && !document.getElementById('instrument-sans-font')) {
@@ -15,6 +16,9 @@ if (typeof window !== 'undefined' && !document.getElementById('instrument-sans-f
 
 const DashboardLayout = ({ children, currentPage, onPageChange }) => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  // Monitor token presence - automatically log out if token is removed
+  useTokenMonitor(true);
 
   const layoutClassName = useMemo(() => {
     return isSidebarCollapsed ? 'collapsed' : 'expanded';

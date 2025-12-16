@@ -40,6 +40,7 @@ const DashboardProducts = () => {
   const [selectedBulkFile, setSelectedBulkFile] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(null);
   const [imageTargetProduct, setImageTargetProduct] = useState(null);
+  const [orphanedImages, setOrphanedImages] = useState([]); // Images uploaded without product_id
   const imageInputRef = useRef(null);
   
   // Related data for dropdowns
@@ -80,12 +81,121 @@ const DashboardProducts = () => {
     fetchRelatedData();
   }, []);
 
+  // Load orphaned images from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('orphanedImages');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Filter out temporary blob URLs that won't work after refresh
+        const validImages = parsed.filter(img => 
+          img.url && !img.url.startsWith('blob:') && !img.isTemporary
+        );
+        if (validImages.length > 0) {
+          setOrphanedImages(validImages);
+        }
+      }
+    } catch (e) {
+      console.error('Error loading orphaned images from localStorage:', e);
+    }
+  }, []);
+
+  // Save orphaned images to localStorage whenever they change
+  useEffect(() => {
+    try {
+      // Only save non-temporary images
+      const toSave = orphanedImages.filter(img => !img.isTemporary || !img.url.startsWith('blob:'));
+      if (toSave.length > 0) {
+        localStorage.setItem('orphanedImages', JSON.stringify(toSave));
+      } else {
+        localStorage.removeItem('orphanedImages');
+      }
+    } catch (e) {
+      console.error('Error saving orphaned images to localStorage:', e);
+    }
+  }, [orphanedImages]);
+
+  // Note: We don't fetch products when Media Gallery tab opens
+  // Products are already loaded on component mount
+  // Media Gallery shows both product images and orphaned images
+
+  // Cleanup object URLs when component unmounts or images are removed
+  useEffect(() => {
+    return () => {
+      orphanedImages.forEach(img => {
+        if (img.isTemporary && img.url && img.url.startsWith('blob:')) {
+          URL.revokeObjectURL(img.url);
+        }
+      });
+    };
+  }, [orphanedImages]);
+
   const fetchProducts = async () => {
     try {
       setLoading(true);
       setError(null);
       const data = await getProducts();
       setProducts(data || []);
+      
+      // After fetching products, try to verify orphaned images
+      // by checking if any match the pattern of existing product images
+      if (orphanedImages.length > 0 && data && data.length > 0) {
+        // Find a product with an image to understand the URL pattern
+        const productWithImage = data.find(p => p.image_url);
+        if (productWithImage && productWithImage.image_url) {
+          // Extract the base path pattern from existing product images
+          const imageUrl = productWithImage.image_url;
+          const urlParts = imageUrl.split('/');
+          const basePath = urlParts.slice(0, -1).join('/'); // Everything except filename
+          
+          // Update orphaned images with potential URLs based on product image pattern
+          setOrphanedImages(prev => prev.map(img => {
+            if (img.isTemporary && img.fileName && !img.verified) {
+              // Construct URL using the same pattern as product images
+              const constructedUrl = `${basePath}/${img.fileName}`;
+              return {
+                ...img,
+                potentialUrls: [constructedUrl, ...(img.potentialUrls || [])]
+              };
+            }
+            return img;
+          }));
+          
+          // Verify the constructed URLs asynchronously
+          setTimeout(async () => {
+            setOrphanedImages(currentImages => {
+              // Verify URLs asynchronously
+              Promise.all(
+                currentImages.map(async (img) => {
+                  if (img.isTemporary && img.potentialUrls && !img.verified) {
+                    for (const potentialUrl of img.potentialUrls) {
+                      try {
+                        const testResponse = await fetch(potentialUrl, { method: 'HEAD' });
+                        if (testResponse.ok) {
+                          URL.revokeObjectURL(img.url);
+                          return {
+                            ...img,
+                            url: potentialUrl,
+                            isTemporary: false,
+                            verified: true
+                          };
+                        }
+                      } catch (e) {
+                        continue;
+                      }
+                    }
+                  }
+                  return img;
+                })
+              ).then(verifiedImages => {
+                setOrphanedImages(verifiedImages);
+              });
+              
+              return currentImages; // Return current state while verifying
+            });
+          }, 500);
+        }
+      }
     } catch (error) {
       console.error('Error fetching products:', error);
       if (!error.message?.toLowerCase().includes('token expired') && 
@@ -171,6 +281,76 @@ const DashboardProducts = () => {
     [products]
   );
 
+  // Helper function to convert image URLs to use backend API or proxy
+  const normalizeImageUrl = (url) => {
+    if (!url) return null;
+
+    // Temporary blob URLs render as-is
+    if (url.startsWith('blob:')) return url;
+
+    // Absolute URLs pass through
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+
+    // Resolve base for images:
+    // 1) NEXT_PUBLIC_IMAGE_BASE_URL (if provided)
+    // 2) NEXT_PUBLIC_API_URL (strip /api)
+    // 3) fallback to /api (proxy)
+    const getImageBase = () => {
+      if (typeof window === 'undefined') return '';
+      const imgEnv = process.env.NEXT_PUBLIC_IMAGE_BASE_URL || '';
+      if (imgEnv) return imgEnv.replace(/\/$/, '');
+
+      const apiEnv = process.env.NEXT_PUBLIC_API_URL || '';
+      if (apiEnv) return apiEnv.replace(/\/api\/?$/, '').replace(/\/$/, '');
+
+      return '/api';
+    };
+
+    const base = getImageBase();
+
+    // Paths starting with /uploads should be served from base root
+    if (url.startsWith('/uploads')) {
+      return `${base}${url}`;
+    }
+
+    // Bare filenames or relative paths -> assume uploads/products
+    if (!url.startsWith('/')) {
+      return `${base}/uploads/products/${url}`;
+    }
+
+    // Generic relative path
+    return `${base}${url}`;
+  };
+
+  // Combine product images with orphaned images for Media Gallery display
+  const allMediaImages = useMemo(() => {
+    const productImages = uploadedProducts.map(p => ({
+      id: p.product_id || p.id,
+      image_url: normalizeImageUrl(p.image_url),
+      model_no: p.model_no,
+      brand_name: p.brand_name || p.brand,
+      collection_name: p.collection_name || p.collection,
+      type: 'product'
+    }));
+    
+    const orphaned = orphanedImages.map((img, idx) => {
+      // Get the image URL - prefer verified URLs over temporary blob URLs
+      const imageUrl = img.url || img.image_url || (typeof img === 'string' ? img : null);
+      return {
+        id: `orphaned-${idx}-${img.uploadedAt || Date.now()}`,
+        image_url: normalizeImageUrl(imageUrl),
+        model_no: img.model_no || 'Unassigned',
+        brand_name: img.brand_name || 'N/A',
+        collection_name: img.collection_name || 'N/A',
+        type: 'orphaned',
+        isTemporary: img.isTemporary,
+        fileName: img.fileName
+      };
+    });
+    
+    return [...productImages, ...orphaned];
+  }, [uploadedProducts, orphanedImages]);
+
   const unuploadedRows = useMemo(
     () => rows.filter(r => !r.data?.image_url),
     [rows]
@@ -235,6 +415,8 @@ const DashboardProducts = () => {
       brand_id: product.brand_id || '',
       collection_id: product.collection_id || '',
       warehouse_qty: product.warehouse_qty || '',
+      tray_qty: product.tray_qty || '',
+      total_qty: product.total_qty || '',
       status: product.status || 'draft',
     });
     setEditRow(row);
@@ -313,7 +495,10 @@ const DashboardProducts = () => {
         status: formData.status,
       };
       
+      // Include tray_qty and total_qty only when updating (edit mode)
       if (editRow) {
+        dataToSend.tray_qty = parseInt(formData.tray_qty) || 0;
+        dataToSend.total_qty = parseInt(formData.total_qty) || 0;
         await updateProduct(editRow.id, dataToSend);
         showSuccess('Product updated successfully');
       } else {
@@ -383,8 +568,114 @@ const DashboardProducts = () => {
       
       const response = await uploadProductImage(files, targetProductId);
       
+      // Log full response for debugging
+      console.log('Image upload response:', response);
+      console.log('Response keys:', response ? Object.keys(response) : 'No response');
+      
       // If upload successful, refresh products to get updated image URLs
-      await fetchProducts();
+      // Only refresh if we uploaded to a specific product
+      if (targetProductId) {
+        await fetchProducts();
+      }
+      
+      // Handle orphaned images (uploaded without product_id)
+      if (isMediaUpload && !targetProductId) {
+        // Extract image filenames from response - check all possible structures
+        let imageFiles = [];
+        
+        // Log the full response structure for debugging
+        console.log('Processing orphaned image upload response:', JSON.stringify(response, null, 2));
+        
+        // Get backend base URL for constructing image URLs
+        const getBackendBaseUrl = () => {
+          if (typeof window === 'undefined') return '';
+          const envUrl = process.env.NEXT_PUBLIC_API_URL || window.location.origin;
+          if (envUrl) {
+            let backendUrl = envUrl.endsWith('/') ? envUrl.slice(0, -1) : envUrl;
+            // Remove /api if present, images are typically served from /uploads
+            if (backendUrl.endsWith('/api')) {
+              backendUrl = backendUrl.slice(0, -4);
+            }
+            return backendUrl;
+          }
+          return 'https://stallion.nishree.com';
+        };
+        
+        const backendBaseUrl = getBackendBaseUrl();
+        
+        // Check different possible response structures
+        if (response?.data) {
+          if (Array.isArray(response.data)) {
+            // Response has data array with file info
+            imageFiles = response.data.map(item => ({
+              filename: item.filename || item.originalName || item.name,
+              path: item.path,
+              url: item.image_url || item.url || null
+            }));
+          } else if (response.data.filename) {
+            imageFiles = [{
+              filename: response.data.filename,
+              path: response.data.path,
+              url: response.data.image_url || response.data.url || null
+            }];
+          }
+        }
+        
+        // If no files extracted from response, use uploaded file names
+        if (imageFiles.length === 0 && files.length > 0) {
+          imageFiles = files.map(file => ({
+            filename: file.name,
+            path: null,
+            url: null
+          }));
+        }
+        
+        // Construct accessible image URLs from filenames
+        if (imageFiles.length > 0) {
+          const newOrphanedImages = imageFiles
+            .filter(file => file && file.filename)
+            .map(file => {
+              // Construct accessible URL from filename
+              // Images are typically served from /uploads/products/ directory
+              const imageUrl = `${backendBaseUrl}/uploads/products/${file.filename}`;
+              
+              return {
+                url: imageUrl,
+                filename: file.filename,
+                uploadedAt: new Date().toISOString(),
+                isTemporary: false,
+                verified: false
+              };
+            });
+          
+          setOrphanedImages(prev => [...prev, ...newOrphanedImages]);
+          
+          // Verify URLs work (optional, can be done in background)
+          setTimeout(async () => {
+            const verifiedImages = await Promise.all(
+              newOrphanedImages.map(async (img) => {
+                try {
+                  const testResponse = await fetch(img.url, { method: 'HEAD' });
+                  if (testResponse.ok) {
+                    return { ...img, verified: true };
+                  }
+                } catch (e) {
+                  console.warn('Image URL verification failed:', img.url, e);
+                }
+                return img;
+              })
+            );
+            
+            // Update with verified status
+            setOrphanedImages(current => {
+              return current.map(curr => {
+                const verified = verifiedImages.find(v => v.filename === curr.filename);
+                return verified || curr;
+              });
+            });
+          }, 500);
+        }
+      }
       
       const fileCount = files.length;
       setUploadProgress({
@@ -575,14 +866,14 @@ const DashboardProducts = () => {
                     padding: '8px'
                   }}
                 >
-                  {uploadedProducts.length === 0 && (
+                  {allMediaImages.length === 0 && (
                     <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#666' }}>
                       No uploaded images found.
                     </div>
                   )}
-                  {uploadedProducts.map(product => (
+                  {allMediaImages.map(item => (
                     <div
-                      key={product.product_id || product.id}
+                      key={item.id}
                       style={{
                         border: '1px solid #e5e7eb',
                         borderRadius: '8px',
@@ -590,48 +881,103 @@ const DashboardProducts = () => {
                         background: '#fff',
                         display: 'flex',
                         flexDirection: 'column',
-                        boxShadow: '0 1px 4px rgba(0,0,0,0.08)'
+                        boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+                        position: 'relative'
                       }}
                     >
-                      <div style={{ width: '100%', aspectRatio: '4/3', background: '#f5f5f5' }}>
-                        {product.image_url ? (
+                      {item.type === 'orphaned' && (
+                        <div style={{
+                          position: 'absolute',
+                          top: '8px',
+                          left: '8px',
+                          background: '#ff9800',
+                          color: '#fff',
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          zIndex: 2
+                        }}>
+                          Unassigned
+                        </div>
+                      )}
+                      <button
+                        style={{
+                          position: 'absolute',
+                          top: '8px',
+                          right: '8px',
+                          background: '#f44336',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '50%',
+                          width: '32px',
+                          height: '32px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          zIndex: 2,
+                        }}
+                        onClick={() => {
+                          if (item.type === 'product') {
+                            handleDelete({ id: item.id, model_no: item.model_no, type: 'Product' });
+                          } else {
+                            setOrphanedImages(prev => prev.filter((_, idx) => `orphaned-${idx}` !== item.id));
+                          }
+                        }}
+                        disabled={loading}
+                        aria-label="Delete image"
+                        title="Delete image"
+                      >
+                        ✕
+                      </button>
+                      <div style={{ width: '100%', aspectRatio: '4/3', background: '#f5f5f5', position: 'relative' }}>
+                        {item.image_url ? (
                           <img
-                            src={product.image_url}
-                            alt={product.model_no || 'Product image'}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            src={item.image_url}
+                            alt={item.model_no || 'Product image'}
+                            style={{ 
+                              width: '100%', 
+                              height: '100%', 
+                              objectFit: 'cover',
+                              display: 'block'
+                            }}
+                            onError={(e) => {
+                              console.error('Image failed to load:', item.image_url);
+                              e.target.style.display = 'none';
+                              const errorDiv = e.target.nextElementSibling;
+                              if (errorDiv) {
+                                errorDiv.style.display = 'flex';
+                                errorDiv.textContent = item.isTemporary 
+                                  ? 'Image uploading...' 
+                                  : 'Image not found';
+                              }
+                            }}
+                            onLoad={() => {
+                              const errorDiv = document.querySelector(`[data-image-error="${item.id}"]`);
+                              if (errorDiv) {
+                                errorDiv.style.display = 'none';
+                              }
+                            }}
                           />
-                        ) : (
-                          <div style={{
+                        ) : null}
+                        <div 
+                          data-image-error={item.id}
+                          style={{
                             width: '100%',
                             height: '100%',
-                            display: 'flex',
+                            display: item.image_url ? 'none' : 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             color: '#999',
-                            fontSize: '14px'
-                          }}>
-                            No Image
-                          </div>
-                        )}
-                      </div>
-                      <div style={{ padding: '12px' }}>
-                        <div style={{ fontWeight: 600, marginBottom: '6px' }}>
-                          {product.model_no || 'No Model'}
-                        </div>
-                        <div style={{ fontSize: '13px', color: '#555', marginBottom: '4px' }}>
-                          Brand: {product.brand_name || product.brand || 'N/A'}
-                        </div>
-                        <div style={{ fontSize: '13px', color: '#555', marginBottom: '8px' }}>
-                          Collection: {product.collection_name || product.collection || 'N/A'}
-                        </div>
-                        <button
-                          className="ui-btn ui-btn--danger"
-                          style={{ width: '100%' }}
-                          onClick={() => handleDelete({ id: product.product_id || product.id, model_no: product.model_no, type: 'Product' })}
-                          disabled={loading}
+                            fontSize: '14px',
+                            position: 'absolute',
+                            top: 0,
+                            left: 0
+                          }}
                         >
-                          {loading ? 'Deleting...' : 'Delete'}
-                        </button>
+                          {item.isTemporary ? 'Loading...' : 'No Image'}
+                        </div>
                       </div>
                     </div>
                   ))}
