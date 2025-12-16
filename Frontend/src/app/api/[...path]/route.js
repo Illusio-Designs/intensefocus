@@ -29,12 +29,29 @@ async function handleRequest(request, params, method) {
     const path = params.path ? params.path.join('/') : '';
     
     // Get the backend API URL from environment variable or use default
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://stallion.nishree.com/api';
-    const baseUrl = backendUrl.endsWith('/api') ? backendUrl : `${backendUrl}/api`;
+    // Ensure we always use the live URL from environment variable
+    let backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://stallion.nishree.com/api';
+    
+    // Log the environment variable value for debugging
+    console.log(`[Proxy] NEXT_PUBLIC_API_URL from env: ${process.env.NEXT_PUBLIC_API_URL || 'NOT SET'}`);
+    
+    // Normalize the URL - remove trailing slashes
+    backendUrl = backendUrl.trim().replace(/\/+$/, '');
+    
+    // Ensure it ends with /api
+    let baseUrl = backendUrl;
+    if (!baseUrl.endsWith('/api')) {
+      // If it doesn't end with /api, add it
+      baseUrl = baseUrl.endsWith('/') ? `${baseUrl}api` : `${baseUrl}/api`;
+    }
     
     // Construct the full backend URL
     const backendPath = path ? `/${path}` : '';
     const url = `${baseUrl}${backendPath}`;
+    
+    // Log for debugging - this confirms we're using the live URL
+    console.log(`[Proxy] Backend base URL: ${baseUrl}`);
+    console.log(`[Proxy] Forwarding to: ${url}`);
     
     // Get query parameters from the request
     const { searchParams } = new URL(request.url);

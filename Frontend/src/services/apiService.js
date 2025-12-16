@@ -3177,6 +3177,168 @@ export const deleteProductFromTray = async (trayProductId) => {
   });
 };
 
+// ==================== EVENT ENDPOINTS ====================
+
+/**
+ * Get all events
+ * @returns {Promise<Array>} Array of event objects
+ */
+export const getEvents = async () => {
+  return apiRequest('/events/', {
+    method: 'GET',
+    includeAuth: true,
+  });
+};
+
+/**
+ * Create a new event
+ * @param {Object} eventData - Event data
+ * @param {string} eventData.event_name - Event name
+ * @param {number} eventData.latitude - Latitude coordinate
+ * @param {number} eventData.longitude - Longitude coordinate
+ * @param {string} eventData.event_date - Event date (ISO string)
+ * @param {string} eventData.event_status - Event status (e.g., "active", "completed")
+ * @returns {Promise<Object>} Created event object
+ */
+export const createEvent = async (eventData) => {
+  const { event_name, latitude, longitude, event_date, event_status } = eventData;
+  return apiRequest('/events/', {
+    method: 'POST',
+    body: { event_name, latitude, longitude, event_date, event_status },
+    includeAuth: true,
+  });
+};
+
+/**
+ * Update an event
+ * @param {string} eventId - Event ID (UUID)
+ * @param {Object} eventData - Updated event data
+ * @param {string} eventData.event_name - Event name
+ * @param {number} eventData.latitude - Latitude coordinate
+ * @param {number} eventData.longitude - Longitude coordinate
+ * @param {string} eventData.event_date - Event date (ISO string)
+ * @param {string} eventData.event_status - Event status (e.g., "active", "completed")
+ * @returns {Promise<Object>} Response with message
+ */
+export const updateEvent = async (eventId, eventData) => {
+  const { event_name, latitude, longitude, event_date, event_status } = eventData;
+  return apiRequest(`/events/${eventId}`, {
+    method: 'PUT',
+    body: { event_name, latitude, longitude, event_date, event_status },
+    includeAuth: true,
+  });
+};
+
+/**
+ * Delete an event
+ * @param {string} eventId - Event ID (UUID)
+ * @returns {Promise<Object>} Response with message
+ */
+export const deleteEvent = async (eventId) => {
+  return apiRequest(`/events/${eventId}`, {
+    method: 'DELETE',
+    includeAuth: true,
+  });
+};
+
+// ==================== ORDER ENDPOINTS ====================
+
+/**
+ * Get all orders
+ * @returns {Promise<Array>} Array of order objects
+ */
+export const getOrders = async () => {
+  return apiRequest('/orders/', {
+    method: 'GET',
+    includeAuth: true,
+  });
+};
+
+/**
+ * Create a new order
+ * @param {Object} orderData - Order data
+ * @param {string} orderData.order_date - Order date (ISO string)
+ * @param {string} orderData.order_type - Order type (e.g., "event_order", "party_order", "distributor_order", "visit_order", "whatsapp_order")
+ * @param {string} [orderData.party_id] - Party ID (UUID) - required for event_order, party_order, visit_order, whatsapp_order
+ * @param {string} [orderData.distributor_id] - Distributor ID (UUID) - required for event_order, party_order, distributor_order, visit_order, whatsapp_order
+ * @param {string} [orderData.salesman_id] - Salesman ID (UUID) - required for event_order, visit_order, whatsapp_order
+ * @param {string} [orderData.event_id] - Event ID (UUID) - required for event_order
+ * @param {Array<Object>} orderData.order_items - Array of order items
+ * @param {string} orderData.order_items[].product_id - Product ID (UUID)
+ * @param {number} orderData.order_items[].quantity - Quantity
+ * @param {number} orderData.order_items[].price - Price per unit
+ * @param {string} [orderData.order_notes] - Order notes
+ * @returns {Promise<Object>} Created order object
+ */
+export const createOrder = async (orderData) => {
+  const {
+    order_date,
+    order_type,
+    party_id,
+    distributor_id,
+    salesman_id,
+    event_id,
+    order_items,
+    order_notes,
+  } = orderData;
+
+  const body = {
+    order_date,
+    order_type,
+    order_items,
+  };
+
+  if (party_id) body.party_id = party_id;
+  if (distributor_id) body.distributor_id = distributor_id;
+  if (salesman_id) body.salesman_id = salesman_id;
+  if (event_id) body.event_id = event_id;
+  if (order_notes) body.order_notes = order_notes;
+
+  return apiRequest('/orders/', {
+    method: 'POST',
+    body,
+    includeAuth: true,
+  });
+};
+
+/**
+ * Update order status
+ * @param {string} orderId - Order ID (UUID)
+ * @param {Object} orderStatusData - Order status update data
+ * @param {string} orderStatusData.order_status - Order status (e.g., "processed", "cancelled", "dispatched", "partially_dispatched", "hold_by_tray", "completed")
+ * @param {string} [orderStatusData.courier_name] - Courier name - required if order_status is "dispatched" or "partially_dispatched"
+ * @param {string} [orderStatusData.courier_tracking_number] - Courier tracking number - required if order_status is "dispatched" or "partially_dispatched"
+ * @param {number} [orderStatusData.partial_dispatch_qty] - Partial dispatch quantity - required if order_status is "partially_dispatched"
+ * @returns {Promise<Object>} Updated order object
+ */
+export const updateOrderStatus = async (orderId, orderStatusData) => {
+  const { order_status, courier_name, courier_tracking_number, partial_dispatch_qty } = orderStatusData;
+
+  const body = { order_status };
+
+  if (courier_name) body.courier_name = courier_name;
+  if (courier_tracking_number) body.courier_tracking_number = courier_tracking_number;
+  if (partial_dispatch_qty !== undefined) body.partial_dispatch_qty = partial_dispatch_qty;
+
+  return apiRequest(`/orders/${orderId}`, {
+    method: 'PUT',
+    body,
+    includeAuth: true,
+  });
+};
+
+/**
+ * Delete an order
+ * @param {string} orderId - Order ID (UUID)
+ * @returns {Promise<Object>} Response with message
+ */
+export const deleteOrder = async (orderId) => {
+  return apiRequest(`/orders/${orderId}`, {
+    method: 'DELETE',
+    includeAuth: true,
+  });
+};
+
 // Export base URL for reference (use getBaseURL() for dynamic access)
 export { BASE_URL, getBaseURL };
 

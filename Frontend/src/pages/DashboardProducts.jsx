@@ -34,6 +34,7 @@ const DashboardProducts = () => {
   const [openAdd, setOpenAdd] = useState(false);
   const [editRow, setEditRow] = useState(null);
   const [openBulkUpload, setOpenBulkUpload] = useState(false);
+  const [openImageSelectModal, setOpenImageSelectModal] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingBulk, setUploadingBulk] = useState(false);
   const [selectedImages, setSelectedImages] = useState([]);
@@ -41,6 +42,7 @@ const DashboardProducts = () => {
   const [uploadProgress, setUploadProgress] = useState(null);
   const [imageTargetProduct, setImageTargetProduct] = useState(null);
   const [orphanedImages, setOrphanedImages] = useState([]); // Images uploaded without product_id
+  const [invalidImageUrls, setInvalidImageUrls] = useState(new Set()); // Track images that failed to load
   const imageInputRef = useRef(null);
   
   // Related data for dropdowns
@@ -249,10 +251,127 @@ const DashboardProducts = () => {
   };
 
   const handleAttachImage = (row) => {
-    // Save the product we want to attach an image to, then open the picker
+    // Save the product we want to attach an image to, then open the modal
     setImageTargetProduct(row);
     setError(null);
-    imageInputRef.current?.click();
+    setOpenImageSelectModal(true);
+  };
+
+  const handleAttachExistingImage = async (imageItem) => {
+    if (!imageTargetProduct || !imageItem || !imageItem.image_url) {
+      setError('Invalid image or product selected');
+      return;
+    }
+
+    const productId = imageTargetProduct.id || imageTargetProduct.product_id || imageTargetProduct.data?.product_id || imageTargetProduct.data?.id;
+    if (!productId) {
+      setError('Product ID not found');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Extract the image filename from the URL
+      const imageUrl = imageItem.image_url;
+      let filename = null;
+      
+      // Try to extract filename from URL
+      if (imageUrl.includes('/uploads/products/')) {
+        filename = imageUrl.split('/uploads/products/')[1]?.split('?')[0];
+      } else if (imageUrl.includes('/')) {
+        filename = imageUrl.split('/').pop()?.split('?')[0];
+      }
+
+      if (!filename && imageItem.fileName) {
+        filename = imageItem.fileName;
+      }
+
+      if (!filename) {
+        setError('Could not determine image filename. Please upload the image directly to the product.');
+        return;
+      }
+
+      // Create a File object from the image URL
+      // Handle blob URLs
+      if (imageUrl.startsWith('blob:')) {
+        setError('Cannot attach blob URL. Please upload the image directly.');
+        return;
+      }
+      
+      // Use Next.js API route to fetch image server-side (avoids CORS)
+      // Encode the image URL as a query parameter
+      const encodedUrl = encodeURIComponent(imageUrl);
+      const proxyUrl = `/api/fetch-image?url=${encodedUrl}`;
+      
+      // Fetch the image through our proxy
+      let response;
+      try {
+        response = await fetch(proxyUrl, {
+          method: 'GET',
+          credentials: 'include',
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+        }
+      } catch (fetchError) {
+        console.error('Error fetching image through proxy:', fetchError);
+        console.error('Original image URL:', imageUrl);
+        console.error('Proxy URL:', proxyUrl);
+        
+        // Provide a helpful error message
+        const errorMessage = fetchError.message || 'Unknown error';
+        throw new Error(
+          `Unable to fetch the image: ${errorMessage}. ` +
+          `Please try uploading the image directly using the "Upload New Image" button.`
+        );
+      }
+
+      const blob = await response.blob();
+      
+      // Validate that we got an image blob
+      if (blob.size === 0) {
+        throw new Error('The fetched file is empty');
+      }
+      
+      // Use the content-type from response or default to image/jpeg
+      const contentType = response.headers.get('content-type') || 'image/jpeg';
+      if (!contentType.startsWith('image/')) {
+        console.warn('Content-type is not an image, but proceeding:', contentType);
+      }
+      
+      const file = new File([blob], filename, { 
+        type: contentType 
+      });
+
+      // Upload the image to the product
+      await uploadProductImage(file, productId);
+      
+      // Refresh products to get updated image URLs
+      await fetchProducts();
+      
+      // Remove the image from orphaned images if it was orphaned
+      if (imageItem.type === 'orphaned') {
+        setOrphanedImages(prev => prev.filter(img => {
+          const imgUrl = img.url || img.image_url;
+          return imgUrl !== imageUrl;
+        }));
+      }
+
+      showSuccess(`Image attached to product ${imageTargetProduct.model_no || imageTargetProduct.data?.model_no || 'successfully'}!`);
+      setOpenImageSelectModal(false);
+      setImageTargetProduct(null);
+    } catch (error) {
+      console.error('Error attaching image:', error);
+      const message = `Failed to attach image: ${error.message}`;
+      setError(message);
+      showError(message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const rows = useMemo(() => {
@@ -350,6 +469,50 @@ const DashboardProducts = () => {
     
     return [...productImages, ...orphaned];
   }, [uploadedProducts, orphanedImages]);
+
+  // Get only orphaned/unassigned images for the modal
+  // Filter to only show images that are in uploads/products directory and are valid
+  const orphanedMediaImages = useMemo(() => {
+    return orphanedImages
+      .filter((img) => {
+        const imageUrl = img.url || img.image_url || (typeof img === 'string' ? img : null);
+        if (!imageUrl) return false;
+        
+        // Exclude blob URLs (temporary)
+        if (imageUrl.startsWith('blob:')) return false;
+        
+        // Exclude images that failed to load
+        const normalizedUrl = normalizeImageUrl(imageUrl);
+        if (invalidImageUrls.has(normalizedUrl) || invalidImageUrls.has(imageUrl)) {
+          return false;
+        }
+        
+        // Check if the image is in uploads/products directory
+        // Accept if URL contains /uploads/products/ or has a valid filename
+        const hasUploadsProducts = normalizedUrl.includes('/uploads/products/') || 
+                                   imageUrl.includes('/uploads/products/') ||
+                                   (img.fileName && img.fileName.length > 0);
+        
+        return hasUploadsProducts;
+      })
+      .map((img, idx) => {
+        const imageUrl = img.url || img.image_url || (typeof img === 'string' ? img : null);
+        const normalizedUrl = normalizeImageUrl(imageUrl);
+        
+        return {
+          id: `orphaned-${idx}-${img.uploadedAt || Date.now()}`,
+          image_url: normalizedUrl,
+          model_no: img.model_no || 'Unassigned',
+          brand_name: img.brand_name || 'N/A',
+          collection_name: img.collection_name || 'N/A',
+          type: 'orphaned',
+          isTemporary: img.isTemporary,
+          fileName: img.fileName || (normalizedUrl.includes('/uploads/products/') 
+            ? normalizedUrl.split('/uploads/products/')[1]?.split('?')[0] 
+            : null)
+        };
+      });
+  }, [orphanedImages, invalidImageUrls]);
 
   const unuploadedRows = useMemo(
     () => rows.filter(r => !r.data?.image_url),
@@ -685,6 +848,11 @@ const DashboardProducts = () => {
           : (isMediaUpload ? `${fileCount} images uploaded successfully!` : `${fileCount} images attached to ${targetLabel} successfully!`),
       });
       showSuccess(isMediaUpload ? 'Images uploaded successfully' : 'Images attached to product successfully');
+      
+      // Close the modal if it was open
+      if (openImageSelectModal) {
+        setOpenImageSelectModal(false);
+      }
       setImageTargetProduct(null);
       
       // Clear selection after 3 seconds
@@ -1504,6 +1672,162 @@ const DashboardProducts = () => {
                 </div>
               )}
           </div>
+          )}
+        </div>
+      </Modal>
+      <Modal
+        open={openImageSelectModal}
+        onClose={() => {
+          setOpenImageSelectModal(false);
+          setImageTargetProduct(null);
+          setError(null);
+        }}
+        title={`Attach Image to Product: ${imageTargetProduct?.model_no || imageTargetProduct?.data?.model_no || ''}`}
+        footer={(
+          <>
+            <button 
+              className="ui-btn ui-btn--secondary" 
+              onClick={() => {
+                setOpenImageSelectModal(false);
+                setImageTargetProduct(null);
+                setError(null);
+              }}
+              disabled={loading}
+            >
+              Cancel
+            </button>
+            <button 
+              className="ui-btn ui-btn--primary" 
+              onClick={() => {
+                imageInputRef.current?.click();
+              }}
+              disabled={loading || uploadingImage}
+            >
+              Upload New Image
+            </button>
+          </>
+        )}
+      >
+        <div style={{ padding: '16px' }}>
+          {orphanedMediaImages.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
+              <p>No unassigned images available.</p>
+              <p style={{ marginTop: '8px', fontSize: '14px' }}>
+                Click "Upload New Image" to upload an image for this product.
+              </p>
+            </div>
+          ) : (
+            <>
+              <p style={{ marginBottom: '16px', color: '#666', fontSize: '14px' }}>
+                Select an image from the gallery below to attach to this product, or upload a new image.
+              </p>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+                  gap: '16px',
+                  maxHeight: '500px',
+                  overflowY: 'auto',
+                  padding: '8px'
+                }}
+              >
+                {orphanedMediaImages.map(item => (
+                  <div
+                    key={item.id}
+                    style={{
+                      border: '2px solid #e5e7eb',
+                      borderRadius: '8px',
+                      overflow: 'hidden',
+                      background: '#fff',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      position: 'relative'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = '#3b82f6';
+                      e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = '#e5e7eb';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                    onClick={() => handleAttachExistingImage(item)}
+                  >
+                    <div style={{ width: '100%', aspectRatio: '4/3', background: '#f5f5f5', position: 'relative' }}>
+                      {item.image_url ? (
+                        <img
+                          src={item.image_url}
+                          alt={item.model_no || 'Unassigned image'}
+                          style={{ 
+                            width: '100%', 
+                            height: '100%', 
+                            objectFit: 'cover',
+                            display: 'block'
+                          }}
+                          onError={(e) => {
+                            // Mark this image URL as invalid
+                            setInvalidImageUrls(prev => new Set([...prev, item.image_url]));
+                            e.target.style.display = 'none';
+                            const errorDiv = e.target.nextElementSibling;
+                            if (errorDiv) {
+                              errorDiv.style.display = 'flex';
+                            }
+                          }}
+                          onLoad={() => {
+                            // Image loaded successfully, ensure it's not marked as invalid
+                            setInvalidImageUrls(prev => {
+                              const newSet = new Set(prev);
+                              newSet.delete(item.image_url);
+                              return newSet;
+                            });
+                          }}
+                        />
+                      ) : null}
+                      <div 
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          display: item.image_url ? 'none' : 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#999',
+                          fontSize: '12px',
+                          position: 'absolute',
+                          top: 0,
+                          left: 0
+                        }}
+                      >
+                        No Image
+                      </div>
+                    </div>
+                    <div style={{ 
+                      padding: '8px', 
+                      background: '#ff9800', 
+                      color: '#fff', 
+                      fontSize: '11px', 
+                      fontWeight: 600,
+                      textAlign: 'center'
+                    }}>
+                      Unassigned
+                    </div>
+                    <div style={{
+                      position: 'absolute',
+                      top: '4px',
+                      right: '4px',
+                      background: 'rgba(59, 130, 246, 0.9)',
+                      color: '#fff',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      fontSize: '10px',
+                      fontWeight: 600,
+                      pointerEvents: 'none'
+                    }}>
+                      Click to Attach
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
       </Modal>
