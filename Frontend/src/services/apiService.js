@@ -10,28 +10,20 @@ import { showError } from './notificationService';
 /**
  * Get Base URL from environment variable
  * Falls back to default if not set
- * Uses Next.js API proxy in browser to avoid CORS issues
+ * Always uses live API URL directly
  */
 const getBaseURL = () => {
-  // In Next.js, environment variables are available at build time
-  // For client-side code, use NEXT_PUBLIC_ prefix
-  if (typeof window !== 'undefined') {
-    // Client-side: Use Next.js API proxy to avoid CORS issues
-    // The proxy route at /api/[...path] will forward requests to the backend
-    return '/api';
-  } else {
-    // Server-side: Use direct backend URL (no CORS issues on server)
-    const envUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (envUrl) {
-      let url = envUrl.endsWith('/') ? envUrl.slice(0, -1) : envUrl;
-      if (!url.includes('/api')) {
-        url = `${url}/api`;
-      }
-      return url;
+  // Always use the live API URL directly (no proxy)
+  const envUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (envUrl) {
+    let url = envUrl.endsWith('/') ? envUrl.slice(0, -1) : envUrl;
+    if (!url.includes('/api')) {
+      url = `${url}/api`;
     }
-    // Default URL for server-side
-    return 'https://stallion.nishree.com/api';
+    return url;
   }
+  // Default to live API URL
+  return 'https://stallion.nishree.com/api';
 };
 
 // Get BASE_URL - will be evaluated at module load time

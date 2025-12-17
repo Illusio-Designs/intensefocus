@@ -300,27 +300,48 @@ const DashboardProducts = () => {
         return;
       }
       
-      // Use Next.js API route to fetch image server-side (avoids CORS)
-      // Encode the image URL as a query parameter
-      const encodedUrl = encodeURIComponent(imageUrl);
-      const proxyUrl = `/api/fetch-image?url=${encodedUrl}`;
+      // Get the live API base URL
+      const getLiveApiBaseUrl = () => {
+        if (typeof window === 'undefined') return '';
+        const envUrl = process.env.NEXT_PUBLIC_API_URL || 'https://stallion.nishree.com/api';
+        let baseUrl = envUrl.endsWith('/') ? envUrl.slice(0, -1) : envUrl;
+        // Remove /api if present, images are served from root
+        if (baseUrl.endsWith('/api')) {
+          baseUrl = baseUrl.slice(0, -4);
+        }
+        return baseUrl;
+      };
       
-      // Fetch the image through our proxy
+      // Construct the full image URL if it's relative
+      let fullImageUrl = imageUrl;
+      if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
+        const baseUrl = getLiveApiBaseUrl();
+        if (imageUrl.startsWith('/uploads')) {
+          fullImageUrl = `${baseUrl}${imageUrl}`;
+        } else if (imageUrl.startsWith('/')) {
+          fullImageUrl = `${baseUrl}${imageUrl}`;
+        } else {
+          fullImageUrl = `${baseUrl}/uploads/products/${imageUrl}`;
+        }
+      }
+      
+      // Fetch the image directly from the live API
       let response;
       try {
-        response = await fetch(proxyUrl, {
+        response = await fetch(fullImageUrl, {
           method: 'GET',
           credentials: 'include',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+          },
         });
         
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-          throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
       } catch (fetchError) {
-        console.error('Error fetching image through proxy:', fetchError);
-        console.error('Original image URL:', imageUrl);
-        console.error('Proxy URL:', proxyUrl);
+        console.error('Error fetching image from live API:', fetchError);
+        console.error('Image URL:', fullImageUrl);
         
         // Provide a helpful error message
         const errorMessage = fetchError.message || 'Unknown error';
@@ -400,7 +421,7 @@ const DashboardProducts = () => {
     [products]
   );
 
-  // Helper function to convert image URLs to use backend API or proxy
+  // Helper function to convert image URLs to use live API
   const normalizeImageUrl = (url) => {
     if (!url) return null;
 
@@ -413,7 +434,7 @@ const DashboardProducts = () => {
     // Resolve base for images:
     // 1) NEXT_PUBLIC_IMAGE_BASE_URL (if provided)
     // 2) NEXT_PUBLIC_API_URL (strip /api)
-    // 3) fallback to /api (proxy)
+    // 3) fallback to live API URL
     const getImageBase = () => {
       if (typeof window === 'undefined') return '';
       const imgEnv = process.env.NEXT_PUBLIC_IMAGE_BASE_URL || '';
@@ -422,7 +443,8 @@ const DashboardProducts = () => {
       const apiEnv = process.env.NEXT_PUBLIC_API_URL || '';
       if (apiEnv) return apiEnv.replace(/\/api\/?$/, '').replace(/\/$/, '');
 
-      return '/api';
+      // Default to live API URL
+      return 'https://stallion.nishree.com';
     };
 
     const base = getImageBase();
@@ -752,7 +774,7 @@ const DashboardProducts = () => {
         // Get backend base URL for constructing image URLs
         const getBackendBaseUrl = () => {
           if (typeof window === 'undefined') return '';
-          const envUrl = process.env.NEXT_PUBLIC_API_URL || window.location.origin;
+          const envUrl = process.env.NEXT_PUBLIC_API_URL || 'https://stallion.nishree.com/api';
           if (envUrl) {
             let backendUrl = envUrl.endsWith('/') ? envUrl.slice(0, -1) : envUrl;
             // Remove /api if present, images are typically served from /uploads
@@ -761,6 +783,7 @@ const DashboardProducts = () => {
             }
             return backendUrl;
           }
+          // Default to live API URL
           return 'https://stallion.nishree.com';
         };
         
