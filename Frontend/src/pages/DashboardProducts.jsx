@@ -23,6 +23,7 @@ import {
   getFrameMaterials,
   uploadProductImage,
   bulkUploadProducts,
+  getAllUploads,
 } from '../services/apiService';
 import { showSuccess, showError } from '../services/notificationService';
 
@@ -43,6 +44,8 @@ const DashboardProducts = () => {
   const [imageTargetProduct, setImageTargetProduct] = useState(null);
   const [orphanedImages, setOrphanedImages] = useState([]); // Images uploaded without product_id
   const [invalidImageUrls, setInvalidImageUrls] = useState(new Set()); // Track images that failed to load
+  const [selectedImageIds, setSelectedImageIds] = useState(new Set()); // For multiple selection in modal
+  const [allUploads, setAllUploads] = useState([]); // All uploaded images from API
   const imageInputRef = useRef(null);
   
   // Related data for dropdowns
@@ -76,12 +79,6 @@ const DashboardProducts = () => {
     warehouse_qty: '',
     status: 'draft',
   });
-
-  // Fetch products and related data
-  useEffect(() => {
-    fetchProducts();
-    fetchRelatedData();
-  }, []);
 
   // Load orphaned images from localStorage on mount
   useEffect(() => {
@@ -117,9 +114,154 @@ const DashboardProducts = () => {
     }
   }, [orphanedImages]);
 
-  // Note: We don't fetch products when Media Gallery tab opens
-  // Products are already loaded on component mount
-  // Media Gallery shows both product images and orphaned images
+  // Fetch all images from uploads/products folder
+  const fetchAllUploads = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const uploadsUrl = 'https://stallion.nishree.com/uploads/products';
+      const baseUrl = 'https://stallion.nishree.com';
+      const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'];
+      
+      // Try to fetch directory listing
+      try {
+        const response = await fetch(uploadsUrl, {
+          method: 'GET',
+          mode: 'cors',
+          headers: {
+            'Accept': 'application/json, text/html, */*',
+          },
+        });
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            setAllUploads([]);
+            return;
+          }
+          throw new Error(`Failed to fetch: ${response.status}`);
+        }
+
+        const contentType = response.headers.get('content-type') || '';
+        const isJson = contentType.includes('application/json');
+        
+        let imageFiles = [];
+        
+        if (isJson) {
+          // If JSON response
+          const data = await response.json();
+          const files = Array.isArray(data) ? data : (data.files || data.items || []);
+          
+          imageFiles = files
+            .filter(file => {
+              const filename = file.filename || file.name || file.file || file.path || '';
+              const lowerFilename = filename.toLowerCase();
+              return imageExtensions.some(ext => lowerFilename.endsWith(ext));
+            })
+            .map(file => {
+              let imageUrl = file.path || file.url || file.image_url || file.file || file.filename;
+              const filename = file.filename || file.name || file.file || imageUrl.split('/').pop();
+              
+              if (!imageUrl.startsWith('http')) {
+                imageUrl = imageUrl.startsWith('/') 
+                  ? `${baseUrl}${imageUrl}` 
+                  : `${uploadsUrl}/${imageUrl}`;
+              }
+              
+              return {
+                id: `upload-${Date.now()}-${Math.random()}`,
+                filename: filename,
+                path: imageUrl,
+                url: imageUrl,
+                image_url: imageUrl,
+              };
+            });
+        } else {
+          // Parse HTML directory listing
+          const html = await response.text();
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(html, 'text/html');
+          const links = doc.querySelectorAll('a[href]');
+          
+          links.forEach(link => {
+            let url = link.href || link.getAttribute('href');
+            if (!url) return;
+            
+            // Skip parent directory and non-image files
+            if (url.includes('..') || url === '/' || url === uploadsUrl) return;
+            
+            url = url.split('?')[0].split('#')[0];
+            const lowerUrl = url.toLowerCase();
+            
+            // Only include image files
+            if (imageExtensions.some(ext => lowerUrl.endsWith(ext))) {
+              // Construct full URL if relative
+              if (!url.startsWith('http')) {
+                url = url.startsWith('/') 
+                  ? `${baseUrl}${url}` 
+                  : `${uploadsUrl}/${url}`;
+              }
+              
+              // Only include if from products folder
+              if (url.includes('/uploads/products/')) {
+                const filename = url.split('/').pop();
+                imageFiles.push({
+                  id: `upload-${Date.now()}-${Math.random()}`,
+                  filename: filename,
+                  path: url,
+                  url: url,
+                  image_url: url,
+                });
+              }
+            }
+          });
+        }
+        
+        // Remove duplicates
+        const uniqueImages = [];
+        const seenUrls = new Set();
+        imageFiles.forEach(img => {
+          if (!seenUrls.has(img.url)) {
+            seenUrls.add(img.url);
+            uniqueImages.push(img);
+          }
+        });
+        
+        setAllUploads(uniqueImages);
+      } catch (fetchError) {
+        // CORS error or fetch failed
+        console.warn('Could not fetch directory listing (CORS may be blocking):', fetchError.message);
+        setAllUploads([]);
+      }
+    } catch (error) {
+      console.error('Error fetching uploads:', error);
+      setAllUploads([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch data based on active tab
+  useEffect(() => {
+    if (activeTab === 'Products') {
+      // Fetch products and related data when Products tab is active
+      fetchProducts();
+      fetchRelatedData();
+    } else if (activeTab === 'Media Gallery') {
+      // Only fetch images from uploads/products folder - no products API call
+      fetchAllUploads();
+    } else if (activeTab === 'Unuploaded Media Gallery') {
+      // Fetch products to check which ones don't have images when Unuploaded Media Gallery tab is active
+      fetchProducts();
+      fetchRelatedData();
+    }
+  }, [activeTab]);
+
+  // Initial fetch on component mount
+  useEffect(() => {
+    fetchProducts();
+    fetchRelatedData();
+  }, []);
 
   // Cleanup object URLs when component unmounts or images are removed
   useEffect(() => {
@@ -138,6 +280,88 @@ const DashboardProducts = () => {
       setError(null);
       const data = await getProducts();
       setProducts(data || []);
+      
+      // Get all product image URLs to identify which orphaned images are now assigned
+      const productImageUrls = new Set(); // Store original URLs
+      const productNormalizedUrls = new Set(); // Store normalized URLs for comparison
+      const productImageFilenames = new Set();
+      
+      if (data && data.length > 0) {
+        data.forEach(product => {
+          // Handle image_urls array (API returns array)
+          // Ensure imageUrls is always an array
+          let imageUrls = [];
+          if (Array.isArray(product.image_urls)) {
+            imageUrls = product.image_urls;
+          } else if (product.image_urls) {
+            // If it's a string or other truthy value, convert to array
+            imageUrls = [product.image_urls];
+          } else if (product.image_url) {
+            imageUrls = [product.image_url];
+          }
+          imageUrls.forEach(imageUrl => {
+            if (imageUrl) {
+              productImageUrls.add(imageUrl);
+              // Also store normalized URL for better comparison
+              const normalizedUrl = normalizeImageUrl(imageUrl);
+              if (normalizedUrl) {
+                productNormalizedUrls.add(normalizedUrl);
+              }
+              // Extract filename for comparison
+              const urlParts = imageUrl.split('/');
+              const filename = urlParts[urlParts.length - 1]?.split('?')[0]?.split('#')[0];
+              if (filename) {
+                productImageFilenames.add(filename);
+              }
+            }
+          });
+        });
+      }
+      
+      // If database has no images at all, clear all orphaned images
+      // This ensures we don't show stale orphaned images when database is empty
+      if (productImageFilenames.size === 0 && productImageUrls.size === 0) {
+        setOrphanedImages([]);
+        // Also clear from localStorage
+        try {
+          localStorage.removeItem('orphanedImages');
+        } catch (e) {
+          console.error('Error clearing orphaned images from localStorage:', e);
+        }
+      } else {
+      // Remove orphaned images that are now assigned to products
+      setOrphanedImages(prev => {
+        return prev.filter(img => {
+          const imageUrl = img.url || img.image_url;
+          if (!imageUrl) return false;
+          
+            // Check if this image URL (original) is assigned to any product
+          if (productImageUrls.has(imageUrl)) {
+            return false; // Remove - it's assigned
+          }
+            
+            // Check if normalized URL matches any assigned image
+            const normalizedUrl = normalizeImageUrl(imageUrl);
+            if (normalizedUrl && productNormalizedUrls.has(normalizedUrl)) {
+            return false; // Remove - it's assigned
+          }
+          
+          // Check by filename
+          const urlParts = imageUrl.split('/');
+            const filename = urlParts[urlParts.length - 1]?.split('?')[0]?.split('#')[0];
+          if (filename && productImageFilenames.has(filename)) {
+            return false; // Remove - it's assigned
+          }
+          
+          // Check if filename matches
+          if (img.fileName && productImageFilenames.has(img.fileName)) {
+            return false; // Remove - it's assigned
+          }
+          
+          return true; // Keep - still unassigned
+        });
+      });
+      }
       
       // After fetching products, try to verify orphaned images
       // by checking if any match the pattern of existing product images
@@ -325,69 +549,199 @@ const DashboardProducts = () => {
         }
       }
       
-      // Fetch the image directly from the live API
-      let response;
+      // Try to assign existing image by downloading and re-uploading
+      // The backend doesn't support existing_filename parameter, so we need to download and re-upload
       try {
-        response = await fetch(fullImageUrl, {
-          method: 'GET',
-          credentials: 'include',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
-          },
-        });
-        
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-      } catch (fetchError) {
-        console.error('Error fetching image from live API:', fetchError);
-        console.error('Image URL:', fullImageUrl);
-        
-        // Provide a helpful error message
-        const errorMessage = fetchError.message || 'Unknown error';
+        // Download the image and convert to blob (avoids CORS)
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          
+          await new Promise((resolve, reject) => {
+            img.onload = () => resolve();
+            img.onerror = () => reject(new Error('Failed to load image'));
+            img.src = fullImageUrl;
+          });
+          
+          // Convert image to blob using canvas (this avoids CORS issues)
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          
+          const blob = await new Promise((resolve, reject) => {
+            canvas.toBlob((blob) => {
+              if (!blob) {
+                reject(new Error('Failed to convert image to blob'));
+              } else {
+                resolve(blob);
+              }
+            }, 'image/jpeg');
+          });
+          
+          const file = new File([blob], filename, { type: 'image/jpeg' });
+          await uploadProductImage(file, productId);
+      } catch (error) {
+        console.error('Error attaching image:', error);
         throw new Error(
-          `Unable to fetch the image: ${errorMessage}. ` +
+          `Unable to attach image: ${error.message}. ` +
           `Please try uploading the image directly using the "Upload New Image" button.`
         );
       }
-
-      const blob = await response.blob();
       
-      // Validate that we got an image blob
-      if (blob.size === 0) {
-        throw new Error('The fetched file is empty');
-      }
-      
-      // Use the content-type from response or default to image/jpeg
-      const contentType = response.headers.get('content-type') || 'image/jpeg';
-      if (!contentType.startsWith('image/')) {
-        console.warn('Content-type is not an image, but proceeding:', contentType);
-      }
-      
-      const file = new File([blob], filename, { 
-        type: contentType 
-      });
-
-      // Upload the image to the product
-      await uploadProductImage(file, productId);
-      
-      // Refresh products to get updated image URLs
+      // Don't remove from orphaned images - just refresh products so it shows as "Assigned"
+      // The image will now appear in products list and Media Gallery will show it as "Assigned"
       await fetchProducts();
-      
-      // Remove the image from orphaned images if it was orphaned
-      if (imageItem.type === 'orphaned') {
-        setOrphanedImages(prev => prev.filter(img => {
-          const imgUrl = img.url || img.image_url;
-          return imgUrl !== imageUrl;
-        }));
-      }
 
       showSuccess(`Image attached to product ${imageTargetProduct.model_no || imageTargetProduct.data?.model_no || 'successfully'}!`);
       setOpenImageSelectModal(false);
       setImageTargetProduct(null);
+      setSelectedImageIds(new Set()); // Clear selection
     } catch (error) {
       console.error('Error attaching image:', error);
       const message = `Failed to attach image: ${error.message}`;
+      setError(message);
+      showError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle attaching multiple selected images
+  const handleAttachMultipleImages = async () => {
+    if (!imageTargetProduct || selectedImageIds.size === 0) {
+      setError('Please select at least one image to attach');
+      return;
+    }
+
+    const productId = imageTargetProduct.id || imageTargetProduct.product_id || imageTargetProduct.data?.product_id || imageTargetProduct.data?.id;
+    if (!productId) {
+      setError('Product ID not found');
+      return;
+    }
+
+    // Get selected images
+    const imagesToAttach = orphanedMediaImages.filter(img => selectedImageIds.has(img.id));
+    
+    if (imagesToAttach.length === 0) {
+      setError('No valid images selected');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      let successCount = 0;
+      let errorCount = 0;
+      const errors = [];
+
+      // Process each image
+      for (const imageItem of imagesToAttach) {
+        try {
+          const imageUrl = imageItem.image_url;
+          let filename = null;
+          
+          if (imageUrl.includes('/uploads/products/')) {
+            filename = imageUrl.split('/uploads/products/')[1]?.split('?')[0];
+          } else if (imageUrl.includes('/')) {
+            filename = imageUrl.split('/').pop()?.split('?')[0];
+          }
+
+          if (!filename && imageItem.fileName) {
+            filename = imageItem.fileName;
+          }
+
+          if (!filename || imageUrl.startsWith('blob:')) {
+            errorCount++;
+            errors.push(`Skipped ${imageItem.model_no || 'image'}: Invalid format`);
+            continue;
+          }
+
+          const getLiveApiBaseUrl = () => {
+            if (typeof window === 'undefined') return '';
+            const envUrl = process.env.NEXT_PUBLIC_API_URL || 'https://stallion.nishree.com/api';
+            let baseUrl = envUrl.endsWith('/') ? envUrl.slice(0, -1) : envUrl;
+            if (baseUrl.endsWith('/api')) {
+              baseUrl = baseUrl.slice(0, -4);
+            }
+            return baseUrl;
+          };
+          
+          let fullImageUrl = imageUrl;
+          if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
+            const baseUrl = getLiveApiBaseUrl();
+            if (imageUrl.startsWith('/uploads')) {
+              fullImageUrl = `${baseUrl}${imageUrl}`;
+            } else if (imageUrl.startsWith('/')) {
+              fullImageUrl = `${baseUrl}${imageUrl}`;
+            } else {
+              fullImageUrl = `${baseUrl}/uploads/products/${imageUrl}`;
+            }
+          }
+          
+          // Try to assign existing image by downloading and re-uploading
+          // The backend doesn't support existing_filename parameter, so we need to download and re-upload
+          try {
+            // Download the image and convert to blob (avoids CORS)
+              const img = new Image();
+              img.crossOrigin = 'anonymous';
+              
+              await new Promise((resolve, reject) => {
+                img.onload = () => resolve();
+                img.onerror = () => reject(new Error('Failed to load image'));
+                img.src = fullImageUrl;
+              });
+              
+              const canvas = document.createElement('canvas');
+              canvas.width = img.naturalWidth;
+              canvas.height = img.naturalHeight;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0);
+              
+              await new Promise((resolve, reject) => {
+                canvas.toBlob(async (blob) => {
+                  if (!blob) {
+                    reject(new Error('Failed to convert image to blob'));
+                    return;
+                  }
+                  
+                  try {
+                    const file = new File([blob], filename, { type: 'image/jpeg' });
+                    await uploadProductImage(file, productId);
+                    resolve();
+                  } catch (err) {
+                    reject(err);
+                  }
+                }, 'image/jpeg');
+              });
+            
+            successCount++;
+          } catch (fetchError) {
+            throw fetchError;
+          }
+        } catch (error) {
+          errorCount++;
+          errors.push(`${imageItem.model_no || 'Image'}: ${error.message}`);
+        }
+      }
+
+      // Don't remove from orphaned images - just refresh products
+      // The images will now appear in products list and Media Gallery will show them as "Assigned"
+      await fetchProducts();
+
+      if (errorCount > 0) {
+        showError(`${successCount} attached, ${errorCount} failed. ${errors.join('; ')}`);
+      } else {
+        showSuccess(`${successCount} image(s) attached successfully!`);
+      }
+      
+      setOpenImageSelectModal(false);
+      setImageTargetProduct(null);
+      setSelectedImageIds(new Set());
+    } catch (error) {
+      console.error('Error attaching images:', error);
+      const message = `Failed to attach images: ${error.message}`;
       setError(message);
       showError(message);
     } finally {
@@ -410,26 +764,80 @@ const DashboardProducts = () => {
         mrp: `₹${parseFloat(product.mrp || 0).toLocaleString('en-IN')}`,
         whp: `₹${parseFloat(product.whp || 0).toLocaleString('en-IN')}`,
         status: product.status || 'draft',
-        hasUploadedMedia: !!product.image_url,
+        hasUploadedMedia: !!(Array.isArray(product.image_urls) && product.image_urls.length > 0) || !!product.image_url || !!product.image_urls,
         data: product,
       };
     });
   }, [products, brands, collections]);
 
   const uploadedProducts = useMemo(
-    () => products.filter(p => !!p.image_url),
+    () => products.filter(p => {
+      // Check if product has valid images - support both image_urls array and legacy image_url string
+      // Filter out empty strings, null, undefined, and whitespace-only values
+      const hasImageUrls = Array.isArray(p.image_urls) && p.image_urls.length > 0 && 
+        p.image_urls.some(url => url && typeof url === 'string' && url.trim().length > 0);
+      const hasImageUrl = !!p.image_url && typeof p.image_url === 'string' && p.image_url.trim().length > 0;
+      const hasImageUrlsString = !!p.image_urls && !Array.isArray(p.image_urls) && 
+        typeof p.image_urls === 'string' && p.image_urls.trim().length > 0;
+      return hasImageUrls || hasImageUrl || hasImageUrlsString;
+    }),
     [products]
   );
 
+  // Helper function to extract relative path from absolute server paths
+  // Always returns path in format: /uploads/products/filename.jpg
+  const extractRelativePath = (path) => {
+    if (!path) return null;
+    
+    // Ensure path is a string
+    if (typeof path !== 'string') return null;
+    
+    // Extract filename from any path format
+    let filename = path;
+    
+    // If path contains slashes, extract the filename
+    if (path.includes('/')) {
+      filename = path.split('/').pop();
+    }
+    
+    // Remove any query parameters or fragments from filename
+    filename = filename.split('?')[0].split('#')[0];
+    
+    // Trim whitespace and validate filename is not empty
+    filename = filename.trim();
+    if (!filename || filename.length === 0) return null;
+    
+    // Always return in the format: /uploads/products/filename
+    return `/uploads/products/${filename}`;
+  };
+
   // Helper function to convert image URLs to use live API
+  // Always ensures paths are in format: https://stallion.nishree.com/uploads/products/filename.jpg
   const normalizeImageUrl = (url) => {
     if (!url) return null;
 
     // Temporary blob URLs render as-is
     if (url.startsWith('blob:')) return url;
 
-    // Absolute URLs pass through
-    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    // Absolute URLs - extract relative path if it contains /uploads/ to ensure /products/ segment
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      // Check if URL contains /uploads/ but might be missing /products/
+      const uploadsIndex = url.indexOf('/uploads/');
+      if (uploadsIndex !== -1) {
+        const pathAfterUploads = url.substring(uploadsIndex + '/uploads/'.length);
+        // If path doesn't start with 'products/', extract filename and reconstruct
+        if (!pathAfterUploads.startsWith('products/')) {
+          const filename = pathAfterUploads.split('/').pop().split('?')[0].split('#')[0];
+          const baseUrl = url.substring(0, url.indexOf('/uploads/'));
+          return `${baseUrl}/uploads/products/${filename}`;
+        }
+      }
+      return url; // Already has correct format or doesn't need normalization
+    }
+    
+    // For relative paths, use extractRelativePath to ensure /uploads/products/ format
+    const relativePath = extractRelativePath(url);
+    if (!relativePath) return null;
 
     // Resolve base for images:
     // 1) NEXT_PUBLIC_IMAGE_BASE_URL (if provided)
@@ -448,53 +856,104 @@ const DashboardProducts = () => {
     };
 
     const base = getImageBase();
-
-    // Paths starting with /uploads should be served from base root
-    if (url.startsWith('/uploads')) {
-      return `${base}${url}`;
-    }
-
-    // Bare filenames or relative paths -> assume uploads/products
-    if (!url.startsWith('/')) {
-      return `${base}/uploads/products/${url}`;
-    }
-
-    // Generic relative path
-    return `${base}${url}`;
+    return `${base}${relativePath}`;
   };
 
-  // Combine product images with orphaned images for Media Gallery display
+  // Display all images from uploads/products folder for Media Gallery
+  // Only shows images from the folder, no product database calls
   const allMediaImages = useMemo(() => {
-    const productImages = uploadedProducts.map(p => ({
-      id: p.product_id || p.id,
-      image_url: normalizeImageUrl(p.image_url),
-      model_no: p.model_no,
-      brand_name: p.brand_name || p.brand,
-      collection_name: p.collection_name || p.collection,
-      type: 'product'
-    }));
+    // Only include images from allUploads (from uploads/products folder)
+    const mediaImages = [];
+    const seenUrls = new Set();
     
-    const orphaned = orphanedImages.map((img, idx) => {
-      // Get the image URL - prefer verified URLs over temporary blob URLs
-      const imageUrl = img.url || img.image_url || (typeof img === 'string' ? img : null);
-      return {
-        id: `orphaned-${idx}-${img.uploadedAt || Date.now()}`,
-        image_url: normalizeImageUrl(imageUrl),
-        model_no: img.model_no || 'Unassigned',
-        brand_name: img.brand_name || 'N/A',
-        collection_name: img.collection_name || 'N/A',
-        type: 'orphaned',
-        isTemporary: img.isTemporary,
-        fileName: img.fileName
-      };
-    });
+    if (allUploads && Array.isArray(allUploads) && allUploads.length > 0) {
+      allUploads.forEach((upload, idx) => {
+        // Handle different possible response formats
+        let imageUrl = upload.path || upload.url || upload.image_url || upload.file || upload.filename;
+        let fileName = upload.filename || upload.name || upload.file;
+        
+        // If fileName is a full path, extract just the filename
+        if (fileName && fileName.includes('/')) {
+          fileName = fileName.split('/').pop()?.split('?')[0];
+        }
+        
+        // If imageUrl is just a filename, construct full path
+        if (imageUrl && !imageUrl.includes('/') && !imageUrl.startsWith('http')) {
+          imageUrl = `/uploads/products/${imageUrl}`;
+        }
+        
+        // Skip if no valid URL
+        if (!imageUrl) return;
+        
+        // Ensure URL is normalized and from products folder
+        const normalizedUrl = normalizeImageUrl(imageUrl);
+        if (!normalizedUrl) return;
+        
+        // Only include images from uploads/products folder
+        if (!normalizedUrl.includes('/uploads/products/')) {
+          return; // Skip - not from products folder
+        }
+        
+        // Skip duplicates
+        if (seenUrls.has(normalizedUrl)) return;
+        seenUrls.add(normalizedUrl);
+        
+        // Extract filename if not provided
+        if (!fileName) {
+          const urlParts = normalizedUrl.split('/');
+          fileName = urlParts[urlParts.length - 1]?.split('?')[0];
+        }
+        
+        mediaImages.push({
+          id: `media-${idx}-${upload.id || Date.now()}`,
+          image_url: normalizedUrl,
+          originalImageUrl: imageUrl,
+          model_no: upload.model_no || 'Unassigned',
+          brand_name: upload.brand_name || 'N/A',
+          collection_name: upload.collection_name || 'N/A',
+          type: 'unassigned',
+          isTemporary: false,
+          fileName: fileName,
+          originalData: upload,
+          source: 'uploads' // Mark as from uploads folder
+        });
+      });
+    }
     
-    return [...productImages, ...orphaned];
-  }, [uploadedProducts, orphanedImages]);
+    return mediaImages;
+  }, [allUploads]);
 
   // Get only orphaned/unassigned images for the modal
-  // Filter to only show images that are in uploads/products directory and are valid
+  // Filter to only show images that are in uploads/products directory, are valid, and NOT assigned to any product
   const orphanedMediaImages = useMemo(() => {
+    // Get all product image URLs and filenames to exclude assigned images
+    const productImageUrls = new Set();
+    const productImageFilenames = new Set();
+    
+    products.forEach(product => {
+      // Handle image_urls array (API returns array)
+      // Ensure imageUrls is always an array
+      let imageUrls = [];
+      if (Array.isArray(product.image_urls)) {
+        imageUrls = product.image_urls;
+      } else if (product.image_urls) {
+        // If it's a string or other truthy value, convert to array
+        imageUrls = [product.image_urls];
+      } else if (product.image_url) {
+        imageUrls = [product.image_url];
+      }
+      imageUrls.forEach(imageUrl => {
+        if (imageUrl) {
+          productImageUrls.add(imageUrl);
+          const urlParts = imageUrl.split('/');
+          const filename = urlParts[urlParts.length - 1]?.split('?')[0];
+          if (filename) {
+            productImageFilenames.add(filename);
+          }
+        }
+      });
+    });
+    
     return orphanedImages
       .filter((img) => {
         const imageUrl = img.url || img.image_url || (typeof img === 'string' ? img : null);
@@ -507,6 +966,23 @@ const DashboardProducts = () => {
         const normalizedUrl = normalizeImageUrl(imageUrl);
         if (invalidImageUrls.has(normalizedUrl) || invalidImageUrls.has(imageUrl)) {
           return false;
+        }
+        
+        // Exclude if this image is assigned to any product
+        if (productImageUrls.has(imageUrl) || productImageUrls.has(normalizedUrl)) {
+          return false; // This image is assigned
+        }
+        
+        // Check by filename
+        const urlParts = normalizedUrl.split('/');
+        const filename = urlParts[urlParts.length - 1]?.split('?')[0];
+        if (filename && productImageFilenames.has(filename)) {
+          return false; // This image is assigned
+        }
+        
+        // Check by fileName property
+        if (img.fileName && productImageFilenames.has(img.fileName)) {
+          return false; // This image is assigned
         }
         
         // Check if the image is in uploads/products directory
@@ -531,13 +1007,27 @@ const DashboardProducts = () => {
           isTemporary: img.isTemporary,
           fileName: img.fileName || (normalizedUrl.includes('/uploads/products/') 
             ? normalizedUrl.split('/uploads/products/')[1]?.split('?')[0] 
-            : null)
+            : null),
+          originalData: img // Keep reference for removal
         };
       });
-  }, [orphanedImages, invalidImageUrls]);
+  }, [orphanedImages, invalidImageUrls, products]);
 
   const unuploadedRows = useMemo(
-    () => rows.filter(r => !r.data?.image_url),
+    () => rows.filter(r => {
+      const product = r.data;
+      
+      // Check if product has valid images - support both image_urls array and legacy image_url string
+      // Filter out empty strings, null, undefined, and whitespace-only values
+      const hasImageUrls = Array.isArray(product?.image_urls) && product.image_urls.length > 0 && 
+        product.image_urls.some(url => url && typeof url === 'string' && url.trim().length > 0);
+      const hasImageUrl = !!product?.image_url && typeof product.image_url === 'string' && product.image_url.trim().length > 0;
+      const hasImageUrlsString = !!product?.image_urls && !Array.isArray(product.image_urls) && 
+        typeof product.image_urls === 'string' && product.image_urls.trim().length > 0;
+      
+      // Return products that have NO valid images
+      return !(hasImageUrls || hasImageUrl || hasImageUrlsString);
+    }),
     [rows]
   );
 
@@ -755,111 +1245,83 @@ const DashboardProducts = () => {
       
       // Log full response for debugging
       console.log('Image upload response:', response);
-      console.log('Response keys:', response ? Object.keys(response) : 'No response');
       
-      // If upload successful, refresh products to get updated image URLs
-      // Only refresh if we uploaded to a specific product
+      // If upload successful and uploaded to a specific product, refresh to get updated image_urls
       if (targetProductId) {
         await fetchProducts();
       }
       
       // Handle orphaned images (uploaded without product_id)
       if (isMediaUpload && !targetProductId) {
-        // Extract image filenames from response - check all possible structures
+        // Extract image paths from response - API returns { data: [{ path, filename, ... }] }
         let imageFiles = [];
         
-        // Log the full response structure for debugging
-        console.log('Processing orphaned image upload response:', JSON.stringify(response, null, 2));
-        
-        // Get backend base URL for constructing image URLs
-        const getBackendBaseUrl = () => {
-          if (typeof window === 'undefined') return '';
-          const envUrl = process.env.NEXT_PUBLIC_API_URL || 'https://stallion.nishree.com/api';
-          if (envUrl) {
-            let backendUrl = envUrl.endsWith('/') ? envUrl.slice(0, -1) : envUrl;
-            // Remove /api if present, images are typically served from /uploads
-            if (backendUrl.endsWith('/api')) {
-              backendUrl = backendUrl.slice(0, -4);
-            }
-            return backendUrl;
-          }
-          // Default to live API URL
-          return 'https://stallion.nishree.com';
-        };
-        
-        const backendBaseUrl = getBackendBaseUrl();
-        
-        // Check different possible response structures
         if (response?.data) {
           if (Array.isArray(response.data)) {
             // Response has data array with file info
-            imageFiles = response.data.map(item => ({
+            imageFiles = response.data.map(item => {
+              // Extract relative path from absolute server path
+              const relativePath = extractRelativePath(item.path);
+              return {
               filename: item.filename || item.originalName || item.name,
-              path: item.path,
-              url: item.image_url || item.url || null
-            }));
-          } else if (response.data.filename) {
+                path: relativePath, // Convert absolute path to relative path
+                url: relativePath || item.image_url || item.url || null
+              };
+            });
+          } else if (response.data.path || response.data.filename) {
+            // Extract relative path from absolute server path
+            const relativePath = extractRelativePath(response.data.path);
             imageFiles = [{
-              filename: response.data.filename,
-              path: response.data.path,
-              url: response.data.image_url || response.data.url || null
+              filename: response.data.filename || response.data.originalName,
+              path: relativePath, // Convert absolute path to relative path
+              url: relativePath || response.data.image_url || response.data.url || null
             }];
           }
         }
         
         // If no files extracted from response, use uploaded file names
         if (imageFiles.length === 0 && files.length > 0) {
+          // Get backend base URL for constructing image URLs
+          const getBackendBaseUrl = () => {
+            if (typeof window === 'undefined') return '';
+            const envUrl = process.env.NEXT_PUBLIC_API_URL || 'https://stallion.nishree.com/api';
+            if (envUrl) {
+              let backendUrl = envUrl.endsWith('/') ? envUrl.slice(0, -1) : envUrl;
+              if (backendUrl.endsWith('/api')) {
+                backendUrl = backendUrl.slice(0, -4);
+              }
+              return backendUrl;
+            }
+            return 'https://stallion.nishree.com';
+          };
+          
+          const backendBaseUrl = getBackendBaseUrl();
           imageFiles = files.map(file => ({
             filename: file.name,
             path: null,
-            url: null
+            url: `${backendBaseUrl}/uploads/products/${file.name}`
           }));
         }
         
-        // Construct accessible image URLs from filenames
+        // Add to orphaned images using path from API response
         if (imageFiles.length > 0) {
           const newOrphanedImages = imageFiles
-            .filter(file => file && file.filename)
+            .filter(file => file && (file.path || file.filename))
             .map(file => {
-              // Construct accessible URL from filename
-              // Images are typically served from /uploads/products/ directory
-              const imageUrl = `${backendBaseUrl}/uploads/products/${file.filename}`;
+              // Use path from API response (already converted to relative), or construct URL from filename
+              const imageUrl = file.path || file.url || (file.filename ? `/uploads/products/${file.filename}` : null);
               
               return {
                 url: imageUrl,
+                image_url: imageUrl,
                 filename: file.filename,
                 uploadedAt: new Date().toISOString(),
                 isTemporary: false,
-                verified: false
+                verified: !!file.path // Verified if we got path from API
               };
             });
           
           setOrphanedImages(prev => [...prev, ...newOrphanedImages]);
-          
-          // Verify URLs work (optional, can be done in background)
-          setTimeout(async () => {
-            const verifiedImages = await Promise.all(
-              newOrphanedImages.map(async (img) => {
-                try {
-                  const testResponse = await fetch(img.url, { method: 'HEAD' });
-                  if (testResponse.ok) {
-                    return { ...img, verified: true };
-                  }
-                } catch (e) {
-                  console.warn('Image URL verification failed:', img.url, e);
-                }
-                return img;
-              })
-            );
-            
-            // Update with verified status
-            setOrphanedImages(current => {
-              return current.map(curr => {
-                const verified = verifiedImages.find(v => v.filename === curr.filename);
-                return verified || curr;
-              });
-            });
-          }, 500);
         }
       }
       
@@ -1052,13 +1514,13 @@ const DashboardProducts = () => {
                 <div
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                    gap: '16px',
-                    padding: '8px'
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
+                    gap: '20px',
+                    padding: '20px'
                   }}
                 >
                   {allMediaImages.length === 0 && (
-                    <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#666' }}>
+                    <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#666', padding: '40px' }}>
                       No uploaded images found.
                     </div>
                   )}
@@ -1067,54 +1529,125 @@ const DashboardProducts = () => {
                       key={item.id}
                       style={{
                         border: '1px solid #e5e7eb',
-                        borderRadius: '8px',
+                        borderRadius: '12px',
                         overflow: 'hidden',
                         background: '#fff',
                         display: 'flex',
                         flexDirection: 'column',
-                        boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-                        position: 'relative'
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                        position: 'relative',
+                        transition: 'transform 0.2s, box-shadow 0.2s',
+                        cursor: 'pointer'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-4px)';
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
                       }}
                     >
-                      {item.type === 'orphaned' && (
-                        <div style={{
-                          position: 'absolute',
-                          top: '8px',
-                          left: '8px',
-                          background: '#ff9800',
-                          color: '#fff',
-                          padding: '4px 8px',
-                          borderRadius: '4px',
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          zIndex: 2
-                        }}>
-                          Unassigned
-                        </div>
-                      )}
+                      {/* Status Tag */}
+                      <div style={{
+                        position: 'absolute',
+                        top: '12px',
+                        left: '12px',
+                        background: item.type === 'assigned' ? '#4caf50' : '#ff9800',
+                        color: '#fff',
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        zIndex: 2,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px'
+                      }}>
+                        {item.type === 'assigned' ? 'Assigned' : 'Unassigned'}
+                      </div>
+                      
+                      {/* Delete Button */}
                       <button
                         style={{
                           position: 'absolute',
-                          top: '8px',
-                          right: '8px',
+                          top: '12px',
+                          right: '12px',
                           background: '#f44336',
                           color: '#fff',
                           border: 'none',
                           borderRadius: '50%',
-                          width: '32px',
-                          height: '32px',
+                          width: '36px',
+                          height: '36px',
                           cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           zIndex: 2,
+                          fontSize: '18px',
+                          fontWeight: 'bold',
+                          transition: 'background 0.2s',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                         }}
-                        onClick={() => {
-                          if (item.type === 'product') {
-                            handleDelete({ id: item.id, model_no: item.model_no, type: 'Product' });
-                          } else {
-                            setOrphanedImages(prev => prev.filter((_, idx) => `orphaned-${idx}` !== item.id));
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (!window.confirm(`Are you sure you want to delete this ${item.type === 'assigned' ? 'assigned' : 'unassigned'} image?`)) {
+                            return;
                           }
+
+                          try {
+                            setLoading(true);
+                            
+                            if (item.type === 'assigned') {
+                              // For assigned images, update the product to remove the image_url from database
+                              const product = item.productData;
+                              if (product && item.productId) {
+                                // Update product via API (without image_url since API doesn't support it)
+                                await updateProduct(item.productId, {
+                                  model_no: product.model_no,
+                                  gender_id: product.gender_id || 0,
+                                  color_code_id: product.color_code_id || 0,
+                                  shape_id: product.shape_id || 0,
+                                  lens_color_id: product.lens_color_id || 0,
+                                  frame_color_id: product.frame_color_id || 0,
+                                  frame_type_id: product.frame_type_id || 0,
+                                  lens_material_id: product.lens_material_id || 0,
+                                  frame_material_id: product.frame_material_id || 0,
+                                  mrp: product.mrp || 0,
+                                  whp: product.whp || 0,
+                                  size_mm: product.size_mm || '',
+                                  brand_id: product.brand_id,
+                                  collection_id: product.collection_id,
+                                  warehouse_qty: product.warehouse_qty || 0,
+                                  tray_qty: product.tray_qty || 0,
+                                  total_qty: product.total_qty || 0,
+                                  status: product.status || 'draft'
+                                });
+                                
+                                showSuccess('Product updated successfully');
+                                await fetchProducts();
+                              }
+                            } else {
+                              // For unassigned images, remove from state and mark URL as invalid
+                              const imageUrl = item.image_url;
+                              setInvalidImageUrls(prev => new Set([...prev, imageUrl]));
+                              setOrphanedImages(prev => prev.filter(img => {
+                                const imgUrl = img.url || img.image_url;
+                                return imgUrl !== imageUrl && img.originalData !== item.originalData;
+                              }));
+                              showSuccess('Unassigned image removed successfully');
+                            }
+                          } catch (error) {
+                            console.error('Error deleting image:', error);
+                            showError(`Failed to delete image: ${error.message}`);
+                          } finally {
+                            setLoading(false);
+                          }
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = '#d32f2f';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = '#f44336';
                         }}
                         disabled={loading}
                         aria-label="Delete image"
@@ -1122,7 +1655,19 @@ const DashboardProducts = () => {
                       >
                         ✕
                       </button>
-                      <div style={{ width: '100%', aspectRatio: '4/3', background: '#f5f5f5', position: 'relative' }}>
+                      
+                      {/* Image Container */}
+                      <div style={{ 
+                        width: '100%', 
+                        aspectRatio: '4/3', 
+                        background: '#f5f5f5', 
+                        position: 'relative',
+                        minHeight: '250px',
+                        overflow: 'hidden',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
                         {item.image_url ? (
                           <img
                             src={item.image_url}
@@ -1130,18 +1675,60 @@ const DashboardProducts = () => {
                             style={{ 
                               width: '100%', 
                               height: '100%', 
-                              objectFit: 'cover',
-                              display: 'block'
+                              objectFit: 'contain', // Changed from 'cover' to 'contain' to show full image
+                              display: 'block',
+                              maxWidth: '100%',
+                              maxHeight: '100%'
                             }}
                             onError={(e) => {
-                              console.error('Image failed to load:', item.image_url);
-                              e.target.style.display = 'none';
-                              const errorDiv = e.target.nextElementSibling;
+                              const img = e.target;
+                              const normalizedUrl = item.image_url;
+                              const originalUrl = item.originalImageUrl;
+                              
+                              console.error('Image failed to load:', normalizedUrl);
+                              
+                              // If we have an original URL that's different, try it as fallback
+                              if (originalUrl && originalUrl !== normalizedUrl && !img.dataset.fallbackTried) {
+                                console.log('Trying original URL as fallback:', originalUrl);
+                                img.dataset.fallbackTried = 'true';
+                                // Construct full URL from original if needed
+                                let fallbackUrl = originalUrl;
+                                if (!originalUrl.startsWith('http://') && !originalUrl.startsWith('https://') && !originalUrl.startsWith('blob:')) {
+                                  const getImageBase = () => {
+                                    if (typeof window === 'undefined') return '';
+                                    const imgEnv = process.env.NEXT_PUBLIC_IMAGE_BASE_URL || '';
+                                    if (imgEnv) return imgEnv.replace(/\/$/, '');
+                                    const apiEnv = process.env.NEXT_PUBLIC_API_URL || '';
+                                    if (apiEnv) return apiEnv.replace(/\/api\/?$/, '').replace(/\/$/, '');
+                                    return 'https://stallion.nishree.com';
+                                  };
+                                  const base = getImageBase();
+                                  fallbackUrl = originalUrl.startsWith('/') ? `${base}${originalUrl}` : `${base}/uploads/products/${originalUrl}`;
+                                }
+                                img.src = fallbackUrl;
+                                return; // Don't mark as invalid yet, wait for fallback to fail
+                              }
+                              
+                              // Both normalized and original URLs failed, mark as invalid
+                              setInvalidImageUrls(prev => new Set([...prev, normalizedUrl]));
+                              if (originalUrl && originalUrl !== normalizedUrl) {
+                                setInvalidImageUrls(prev => new Set([...prev, originalUrl]));
+                              }
+                              
+                              img.style.display = 'none';
+                              const errorDiv = img.nextElementSibling;
                               if (errorDiv) {
                                 errorDiv.style.display = 'flex';
                                 errorDiv.textContent = item.isTemporary 
                                   ? 'Image uploading...' 
                                   : 'Image not found';
+                              }
+                              // Remove from orphaned images if it's unassigned and failed to load
+                              if (item.type === 'unassigned') {
+                                setOrphanedImages(prev => prev.filter(img => {
+                                  const imgUrl = img.url || img.image_url;
+                                  return imgUrl !== normalizedUrl && imgUrl !== originalUrl;
+                                }));
                               }
                             }}
                             onLoad={() => {
@@ -1170,6 +1757,7 @@ const DashboardProducts = () => {
                           {item.isTemporary ? 'Loading...' : 'No Image'}
                         </div>
                       </div>
+                      
                     </div>
                   ))}
                 </div>
@@ -1704,6 +2292,7 @@ const DashboardProducts = () => {
           setOpenImageSelectModal(false);
           setImageTargetProduct(null);
           setError(null);
+          setSelectedImageIds(new Set());
         }}
         title={`Attach Image to Product: ${imageTargetProduct?.model_no || imageTargetProduct?.data?.model_no || ''}`}
         footer={(
@@ -1714,11 +2303,21 @@ const DashboardProducts = () => {
                 setOpenImageSelectModal(false);
                 setImageTargetProduct(null);
                 setError(null);
+                setSelectedImageIds(new Set());
               }}
               disabled={loading}
             >
               Cancel
             </button>
+            {selectedImageIds.size > 0 && (
+              <button 
+                className="ui-btn ui-btn--primary" 
+                onClick={handleAttachMultipleImages}
+                disabled={loading || uploadingImage}
+              >
+                {loading ? 'Attaching...' : `Attach Selected (${selectedImageIds.size})`}
+              </button>
+            )}
             <button 
               className="ui-btn ui-btn--primary" 
               onClick={() => {
@@ -1742,8 +2341,21 @@ const DashboardProducts = () => {
           ) : (
             <>
               <p style={{ marginBottom: '16px', color: '#666', fontSize: '14px' }}>
-                Select an image from the gallery below to attach to this product, or upload a new image.
+                Select one or more images from the gallery below to attach to this product. Click on images to select/deselect them, then click "Attach Selected" to assign them all at once. You can also upload a new image.
               </p>
+              {selectedImageIds.size > 0 && (
+                <div style={{
+                  marginBottom: '16px',
+                  padding: '12px',
+                  background: '#eff6ff',
+                  border: '1px solid #3b82f6',
+                  borderRadius: '8px',
+                  color: '#1e40af',
+                  fontSize: '14px'
+                }}>
+                  <strong>{selectedImageIds.size}</strong> image{selectedImageIds.size > 1 ? 's' : ''} selected. Click "Attach Selected" to assign them to this product.
+                </div>
+              )}
               <div
                 style={{
                   display: 'grid',
@@ -1754,28 +2366,65 @@ const DashboardProducts = () => {
                   padding: '8px'
                 }}
               >
-                {orphanedMediaImages.map(item => (
+                {orphanedMediaImages.map(item => {
+                  const isSelected = selectedImageIds.has(item.id);
+                  return (
                   <div
                     key={item.id}
                     style={{
-                      border: '2px solid #e5e7eb',
+                      border: isSelected ? '3px solid #3b82f6' : '2px solid #e5e7eb',
                       borderRadius: '8px',
                       overflow: 'hidden',
-                      background: '#fff',
+                      background: isSelected ? '#eff6ff' : '#fff',
                       cursor: 'pointer',
                       transition: 'all 0.2s',
                       position: 'relative'
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = '#3b82f6';
-                      e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+                      if (!isSelected) {
+                        e.currentTarget.style.borderColor = '#3b82f6';
+                        e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+                      }
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = '#e5e7eb';
-                      e.currentTarget.style.boxShadow = 'none';
+                      if (!isSelected) {
+                        e.currentTarget.style.borderColor = '#e5e7eb';
+                        e.currentTarget.style.boxShadow = 'none';
+                      }
                     }}
-                    onClick={() => handleAttachExistingImage(item)}
+                    onClick={(e) => {
+                      // Toggle selection on click
+                      setSelectedImageIds(prev => {
+                        const newSet = new Set(prev);
+                        if (newSet.has(item.id)) {
+                          newSet.delete(item.id);
+                        } else {
+                          newSet.add(item.id);
+                        }
+                        return newSet;
+                      });
+                    }}
                   >
+                    {/* Checkbox for selection */}
+                    <div style={{
+                      position: 'absolute',
+                      top: '8px',
+                      left: '8px',
+                      zIndex: 3,
+                      background: isSelected ? '#3b82f6' : 'rgba(255, 255, 255, 0.9)',
+                      border: '2px solid #3b82f6',
+                      borderRadius: '4px',
+                      width: '24px',
+                      height: '24px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer'
+                    }}>
+                      {isSelected && (
+                        <span style={{ color: '#fff', fontSize: '14px', fontWeight: 'bold' }}>✓</span>
+                      )}
+                    </div>
                     <div style={{ width: '100%', aspectRatio: '4/3', background: '#f5f5f5', position: 'relative' }}>
                       {item.image_url ? (
                         <img
@@ -1795,6 +2444,11 @@ const DashboardProducts = () => {
                             if (errorDiv) {
                               errorDiv.style.display = 'flex';
                             }
+                            // Remove from orphaned images if it fails to load
+                            setOrphanedImages(prev => prev.filter(img => {
+                              const imgUrl = img.url || img.image_url;
+                              return imgUrl !== item.image_url;
+                            }));
                           }}
                           onLoad={() => {
                             // Image loaded successfully, ensure it's not marked as invalid
@@ -1837,7 +2491,7 @@ const DashboardProducts = () => {
                       position: 'absolute',
                       top: '4px',
                       right: '4px',
-                      background: 'rgba(59, 130, 246, 0.9)',
+                      background: isSelected ? 'rgba(59, 130, 246, 0.9)' : 'rgba(0, 0, 0, 0.6)',
                       color: '#fff',
                       padding: '4px 8px',
                       borderRadius: '4px',
@@ -1845,10 +2499,11 @@ const DashboardProducts = () => {
                       fontWeight: 600,
                       pointerEvents: 'none'
                     }}>
-                      Click to Attach
+                      {isSelected ? 'Selected' : 'Click to Select'}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </>
           )}

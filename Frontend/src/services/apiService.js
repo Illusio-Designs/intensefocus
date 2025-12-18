@@ -1956,7 +1956,7 @@ export const deleteSalesman = async (salesmanId) => {
  */
 export const getColorCodes = async () => {
   try {
-    const response = await apiRequest('/color_codes/', {
+    const response = await apiRequest('/color_codes', {
       method: 'GET',
       includeAuth: true,
     });
@@ -1991,7 +1991,7 @@ export const getColorCodes = async () => {
  */
 export const createColorCode = async (colorCodeData) => {
   const { color_code } = colorCodeData;
-  return apiRequest('/color_codes/', {
+  return apiRequest('/color_codes', {
     method: 'POST',
     body: { color_code },
     includeAuth: true,
@@ -2034,7 +2034,7 @@ export const deleteColorCode = async (colorCodeId) => {
  */
 export const getFrameColors = async () => {
   try {
-    const response = await apiRequest('/frame_colors/', {
+    const response = await apiRequest('/frame_colors', {
       method: 'GET',
       includeAuth: true,
     });
@@ -2069,7 +2069,7 @@ export const getFrameColors = async () => {
  */
 export const createFrameColor = async (frameColorData) => {
   const { frame_color } = frameColorData;
-  return apiRequest('/frame_colors/', {
+  return apiRequest('/frame_colors', {
     method: 'POST',
     body: { frame_color },
     includeAuth: true,
@@ -2112,7 +2112,7 @@ export const deleteFrameColor = async (frameColorId) => {
  */
 export const getFrameMaterials = async () => {
   try {
-    const response = await apiRequest('/frame_materials/', {
+    const response = await apiRequest('/frame_materials', {
       method: 'GET',
       includeAuth: true,
     });
@@ -2147,7 +2147,7 @@ export const getFrameMaterials = async () => {
  */
 export const createFrameMaterial = async (frameMaterialData) => {
   const { frame_material } = frameMaterialData;
-  return apiRequest('/frame_materials/', {
+    return apiRequest('/frame_materials', {
     method: 'POST',
     body: { frame_material },
     includeAuth: true,
@@ -2190,7 +2190,7 @@ export const deleteFrameMaterial = async (frameMaterialId) => {
  */
 export const getFrameTypes = async () => {
   try {
-    const response = await apiRequest('/frame_types/', {
+    const response = await apiRequest('/frame_types', {
       method: 'GET',
       includeAuth: true,
     });
@@ -2225,7 +2225,7 @@ export const getFrameTypes = async () => {
  */
 export const createFrameType = async (frameTypeData) => {
   const { frame_type } = frameTypeData;
-  return apiRequest('/frame_types/', {
+    return apiRequest('/frame_types', {
     method: 'POST',
     body: { frame_type },
     includeAuth: true,
@@ -2268,7 +2268,7 @@ export const deleteFrameType = async (frameTypeId) => {
  */
 export const getGenders = async () => {
   try {
-    const response = await apiRequest('/genders/', {
+    const response = await apiRequest('/genders', {
       method: 'GET',
       includeAuth: true,
     });
@@ -2303,7 +2303,7 @@ export const getGenders = async () => {
  */
 export const createGender = async (genderData) => {
   const { gender_name } = genderData;
-  return apiRequest('/genders/', {
+  return apiRequest('/genders', {
     method: 'POST',
     body: { gender_name },
     includeAuth: true,
@@ -2346,7 +2346,7 @@ export const deleteGender = async (genderId) => {
  */
 export const getLensColors = async () => {
   try {
-    const response = await apiRequest('/lens_colors/', {
+    const response = await apiRequest('/lens_colors', {
       method: 'GET',
       includeAuth: true,
     });
@@ -2381,7 +2381,7 @@ export const getLensColors = async () => {
  */
 export const createLensColor = async (lensColorData) => {
   const { lens_color } = lensColorData;
-  return apiRequest('/lens_colors/', {
+  return apiRequest('/lens_colors', {
     method: 'POST',
     body: { lens_color },
     includeAuth: true,
@@ -2424,7 +2424,7 @@ export const deleteLensColor = async (lensColorId) => {
  */
 export const getLensMaterials = async () => {
   try {
-    const response = await apiRequest('/lens_materials/', {
+    const response = await apiRequest('/lens_materials', {
       method: 'GET',
       includeAuth: true,
     });
@@ -2459,7 +2459,7 @@ export const getLensMaterials = async () => {
  */
 export const createLensMaterial = async (lensMaterialData) => {
   const { lens_material } = lensMaterialData;
-  return apiRequest('/lens_materials/', {
+  return apiRequest('/lens_materials', {
     method: 'POST',
     body: { lens_material },
     includeAuth: true,
@@ -2502,7 +2502,7 @@ export const deleteLensMaterial = async (lensMaterialId) => {
  */
 export const getShapes = async () => {
   try {
-    const response = await apiRequest('/shapes/', {
+    const response = await apiRequest('/shapes', {
       method: 'GET',
       includeAuth: true,
     });
@@ -2537,7 +2537,7 @@ export const getShapes = async () => {
  */
 export const createShape = async (shapeData) => {
   const { shape_name } = shapeData;
-  return apiRequest('/shapes/', {
+  return apiRequest('/shapes', {
     method: 'POST',
     body: { shape_name },
     includeAuth: true,
@@ -2580,7 +2580,7 @@ export const deleteShape = async (shapeId) => {
  */
 export const getBrands = async () => {
   try {
-    const response = await apiRequest('/brands/', {
+    const response = await apiRequest('/brands', {
       method: 'GET',
       includeAuth: true,
     });
@@ -2615,7 +2615,7 @@ export const getBrands = async () => {
  */
 export const createBrand = async (brandData) => {
   const { brand_name } = brandData;
-  return apiRequest('/brands/', {
+  return apiRequest('/brands', {
     method: 'POST',
     body: { brand_name },
     includeAuth: true,
@@ -2658,7 +2658,7 @@ export const deleteBrand = async (brandId) => {
  */
 export const getCollections = async () => {
   try {
-    const response = await apiRequest('/collections/', {
+    const response = await apiRequest('/collections', {
       method: 'GET',
       includeAuth: true,
     });
@@ -2694,7 +2694,7 @@ export const getCollections = async () => {
  */
 export const createCollection = async (collectionData) => {
   const { collection_name, brand_id } = collectionData;
-  return apiRequest('/collections/', {
+  return apiRequest('/collections', {
     method: 'POST',
     body: { collection_name, brand_id },
     includeAuth: true,
@@ -2738,7 +2738,7 @@ export const deleteCollection = async (collectionId) => {
  */
 export const getProducts = async () => {
   try {
-    const response = await apiRequest('/products/', {
+    const response = await apiRequest('/products', {
       method: 'GET',
       includeAuth: true,
     });
@@ -2874,30 +2874,38 @@ export const updateProduct = async (productId, productData) => {
     tray_qty,
     total_qty,
     status,
+    image_urls, // Array of image paths
   } = productData;
+  
+  const body = {
+    model_no,
+    gender_id,
+    color_code_id,
+    shape_id,
+    lens_color_id,
+    frame_color_id,
+    frame_type_id,
+    lens_material_id,
+    frame_material_id,
+    mrp,
+    whp,
+    size_mm,
+    brand_id,
+    collection_id,
+    warehouse_qty,
+    tray_qty,
+    total_qty,
+    status,
+  };
+  
+  // Include image_urls if provided (array of image paths)
+  if (image_urls !== undefined) {
+    body.image_urls = image_urls;
+  }
   
   return apiRequest(`/products/${productId}`, {
     method: 'PUT',
-    body: {
-      model_no,
-      gender_id,
-      color_code_id,
-      shape_id,
-      lens_color_id,
-      frame_color_id,
-      frame_type_id,
-      lens_material_id,
-      frame_material_id,
-      mrp,
-      whp,
-      size_mm,
-      brand_id,
-      collection_id,
-      warehouse_qty,
-      tray_qty,
-      total_qty,
-      status,
-    },
+    body,
     includeAuth: true,
   });
 };
@@ -2923,25 +2931,29 @@ export const deleteProduct = async (productId) => {
  */
 export const uploadProductImage = async (productImages, productId) => {
   const baseUrl = getBaseURL();
-  const fullUrl = `${baseUrl}/products/image-upload`;
   
-  const formData = new FormData();
-
-  // Attach product reference when provided so backend can link the file
-  if (productId) {
-    formData.append('product_id', productId);
-  }
+  // Get base URL without /api for alternative attempts
+  // Postman might be using baseUrl without /api prefix
+  const baseUrlWithoutApi = baseUrl.replace('/api', '');
   
-  // Handle both single file and multiple files
-  if (Array.isArray(productImages)) {
-    // Multiple files - append each one
-    productImages.forEach((file) => {
-      formData.append('product_image', file);
-    });
-  } else {
-    // Single file
-    formData.append('product_image', productImages);
-  }
+  // Try alternative endpoint patterns if the primary one fails
+  // Match Postman: {{baseUrl}}/products/image-upload
+  // Try without /api first since error shows /products/image-upload (without /api)
+  const endpoints = [
+    `${baseUrlWithoutApi}/products/image-upload`, // /products/image-upload (without /api) - try first
+    `${baseUrl}/products/image-upload`,           // /api/products/image-upload
+    `${baseUrlWithoutApi}/products/upload-image`,
+    `${baseUrl}/products/upload-image`,
+    productId ? `${baseUrlWithoutApi}/products/${productId}/image` : null,
+    productId ? `${baseUrl}/products/${productId}/image` : null,
+    productId ? `${baseUrlWithoutApi}/products/${productId}/upload` : null,
+    productId ? `${baseUrl}/products/${productId}/upload` : null,
+  ].filter(Boolean);
+  
+  // Log for debugging
+  console.log('[Image Upload] Attempting endpoints:', endpoints);
+  console.log('[Image Upload] Base URL with /api:', baseUrl);
+  console.log('[Image Upload] Base URL without /api:', baseUrlWithoutApi);
   
   const token = getAuthToken();
   const headers = {};
@@ -2949,15 +2961,97 @@ export const uploadProductImage = async (productImages, productId) => {
     headers['Authorization'] = `Bearer ${token}`;
   }
   
-  // For FormData, don't set Content-Type header (browser will set it with boundary)
-  const response = await fetch(fullUrl, {
-    method: 'POST',
-    headers,
-    credentials: 'include',
-    body: formData,
-  });
+  // Helper function to create FormData (needed for each retry since FormData can only be read once)
+  const createFormData = () => {
+    const formData = new FormData();
+    // Attach product reference when provided so backend can link the file
+    if (productId) {
+      formData.append('product_id', productId);
+    }
+    
+    // Handle both single file and multiple files
+    if (Array.isArray(productImages)) {
+      // Multiple files - append each one
+      productImages.forEach((file) => {
+        formData.append('product_image', file);
+      });
+    } else {
+      // Single file
+      formData.append('product_image', productImages);
+    }
+    return formData;
+  };
   
-  return await handleResponse(response);
+  let lastError = null;
+  let lastResponse = null;
+  
+  // Try each endpoint until one works
+  for (const fullUrl of endpoints) {
+    try {
+      // Create fresh FormData for each attempt (FormData can only be read once)
+      const formData = createFormData();
+      
+      // Log the attempt
+      console.log('[Image Upload] Attempting:', fullUrl);
+      console.log('[Image Upload] FormData keys:', Array.from(formData.keys()));
+      if (productId) {
+        console.log('[Image Upload] Product ID:', productId);
+      }
+      
+      const response = await fetch(fullUrl, {
+        method: 'POST',
+        headers,
+        credentials: 'include',
+        body: formData,
+      });
+      
+      console.log('[Image Upload] Response status:', response.status, response.statusText);
+      console.log('[Image Upload] Response URL:', response.url);
+      
+      lastResponse = response;
+      
+      // If it's a 404, try next endpoint
+      if (response.status === 404) {
+        lastError = new Error(`Endpoint ${fullUrl} not found (404)`);
+        continue;
+      }
+      
+      // Check if response is HTML error page (indicates route doesn't exist)
+      // Clone response first so we can read it without consuming the body
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('text/html') && !response.ok) {
+        const clonedResponse = response.clone();
+        const text = await clonedResponse.text();
+        if (text.includes('Cannot POST') || text.includes('Cannot GET') || text.includes('Cannot PUT') || text.includes('Cannot DELETE')) {
+          // This endpoint doesn't exist, try next one
+          lastError = new Error(`Endpoint ${fullUrl} not found`);
+          continue;
+        }
+      }
+      
+      // If we get here, the endpoint exists (even if it returned an error)
+      // Use handleResponse which will throw appropriate errors for other status codes
+      return await handleResponse(response);
+    } catch (error) {
+      lastError = error;
+      // If it's a 404 or "not found" error, try next endpoint
+      if (error.statusCode === 404 || 
+          error.message?.toLowerCase().includes('not found') || 
+          error.message?.toLowerCase().includes('cannot')) {
+        continue;
+      }
+      // For other errors (validation, auth, etc.), throw immediately
+      throw error;
+    }
+  }
+  
+  // If all endpoints failed with 404, throw a helpful error
+  throw new Error(
+    `Image upload endpoint not found. Tried: ${endpoints.join(', ')}. ` +
+    `The backend route for image upload may not be configured. ` +
+    `Please contact the administrator to set up the image upload endpoint. ` +
+    `Original error: ${lastError?.message || 'All endpoints returned 404'}`
+  );
 };
 
 /**
@@ -2987,6 +3081,72 @@ export const bulkUploadProducts = async (file) => {
   });
   
   return await handleResponse(response);
+};
+
+/**
+ * Get all uploaded images/files
+ * @returns {Promise<Array>} Array of uploaded file objects
+ */
+export const getAllUploads = async () => {
+  try {
+    // Try multiple possible endpoints
+    const endpoints = [
+      '/uploads',
+      '/uploads/products',
+      '/products/uploads',
+      '/media',
+      '/files',
+    ];
+    
+    let lastError = null;
+    
+    for (const endpoint of endpoints) {
+      try {
+        const response = await apiRequest(endpoint, {
+          method: 'GET',
+          includeAuth: true,
+        });
+        
+        // Handle different response formats
+        if (Array.isArray(response)) {
+          return response;
+        }
+        if (response && Array.isArray(response.data)) {
+          return response.data;
+        }
+        if (response && response.files && Array.isArray(response.files)) {
+          return response.files;
+        }
+        if (response && response.uploads && Array.isArray(response.uploads)) {
+          return response.uploads;
+        }
+        
+        // If we got a response but it's not in expected format, return empty array
+        return [];
+      } catch (error) {
+        lastError = error;
+        // If it's a 404, try next endpoint
+        if (error.statusCode === 404 || 
+            error.message?.toLowerCase().includes('not found')) {
+          continue;
+        }
+        // For other errors, throw immediately
+        throw error;
+      }
+    }
+    
+    // If all endpoints failed with 404, return empty array (no uploads endpoint exists)
+    console.warn('Uploads endpoint not found. Tried:', endpoints);
+    return [];
+  } catch (error) {
+    // If it's a 404 or "not found" error, return empty array
+    const errorMessage = (error.message || '').toLowerCase();
+    if (error.statusCode === 404 || 
+        errorMessage.includes('not found')) {
+      return [];
+    }
+    throw error;
+  }
 };
 
 // ==================== TRAYS ENDPOINTS ====================
