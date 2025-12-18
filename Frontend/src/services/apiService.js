@@ -3091,11 +3091,7 @@ export const getAllUploads = async () => {
   try {
     // Try multiple possible endpoints
     const endpoints = [
-      '/uploads',
-      '/uploads/products',
-      '/products/uploads',
-      '/media',
-      '/files',
+      '/products/images/all'
     ];
     
     let lastError = null;
@@ -3113,6 +3109,9 @@ export const getAllUploads = async () => {
         }
         if (response && Array.isArray(response.data)) {
           return response.data;
+        }
+        if (response && Array.isArray(response.images)) {
+          return response.images;
         }
         if (response && response.files && Array.isArray(response.files)) {
           return response.files;

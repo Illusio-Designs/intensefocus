@@ -24,14 +24,12 @@ const DashboardTray = () => {
   const columns = useMemo(() => ([
     { key: 'tray_name', label: 'TRAY NAME' },
     { key: 'tray_status', label: 'STATUS' },
-    { key: 'items', label: 'ITEMS' },
-    { key: 'assigned_to', label: 'ASSIGNED TO' },
     {
       key: 'action',
-      label: 'ACTION',
+      label: 'ACTIONS',
       render: (_v, row) => (
         <RowActions
-          onView={() => handleView(row)}
+          onView={null}
           onEdit={() => openEdit(row)}
           onDownload={null}
           onDelete={() => handleDelete(row)}
@@ -50,8 +48,6 @@ const DashboardTray = () => {
         id: t.id || t.tray_id,
         tray_name: t.tray_name || t.name || 'Tray',
         tray_status: (t.tray_status || t.status || 'OPEN').toUpperCase(),
-        items: t.items || t.products_count || t.qty || '-',
-        assigned_to: t.assigned_to || t.salesman_name || '—',
       }));
       setTrays(normalized);
     } catch (err) {
@@ -170,7 +166,6 @@ const DashboardTray = () => {
               onDateChange={setDateRange}
               itemName="Tray"
             />
-            {loading && <div style={{ padding: 12 }}>Loading trays...</div>}
             {error && <div style={{ padding: 12, color: 'red' }}>{error}</div>}
           </div>
         </div>

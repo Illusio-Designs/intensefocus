@@ -114,127 +114,118 @@ const DashboardProducts = () => {
     }
   }, [orphanedImages]);
 
-  // Fetch all images from uploads/products folder
+  // Fetch all images from API endpoint
   const fetchAllUploads = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const uploadsUrl = 'https://stallion.nishree.com/uploads/products';
-      const baseUrl = 'https://stallion.nishree.com';
-      const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'];
+      // Use the API service function which will try /products/images/all endpoint
+      const data = await getAllUploads();
       
-      // Try to fetch directory listing
-      try {
-        const response = await fetch(uploadsUrl, {
-          method: 'GET',
-          mode: 'cors',
-          headers: {
-            'Accept': 'application/json, text/html, */*',
-          },
-        });
-
-        if (!response.ok) {
-          if (response.status === 404) {
-            setAllUploads([]);
-            return;
+      // Helper function to construct full URL in format: https://stallion.nishree.com/uploads/products/filename.webp
+      const constructFullUrl = (imagePath) => {
+        if (!imagePath) return null;
+        
+        // If already a full URL, return as is (but ensure it's the correct format)
+        if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+          // If it's already a full URL with correct format, return as is
+          if (imagePath.includes('/uploads/products/')) {
+            return imagePath;
           }
-          throw new Error(`Failed to fetch: ${response.status}`);
+          // If full URL but wrong path, extract filename and reconstruct
+          const filename = imagePath.split('/').pop()?.split('?')[0];
+          return filename ? `https://stallion.nishree.com/uploads/products/${filename}` : imagePath;
+        }
+        
+        // If it's a relative path starting with /uploads/products/, prepend base URL
+        if (imagePath.startsWith('/uploads/products/')) {
+          return `https://stallion.nishree.com${imagePath}`;
+        }
+        
+        // If it's just a filename (no slashes), construct full path
+        if (!imagePath.includes('/')) {
+          return `https://stallion.nishree.com/uploads/products/${imagePath}`;
+          }
+        
+        // If it's a relative path without leading slash, assume it's a filename
+        if (!imagePath.startsWith('/')) {
+          return `https://stallion.nishree.com/uploads/products/${imagePath}`;
         }
 
-        const contentType = response.headers.get('content-type') || '';
-        const isJson = contentType.includes('application/json');
-        
-        let imageFiles = [];
-        
-        if (isJson) {
-          // If JSON response
-          const data = await response.json();
-          const files = Array.isArray(data) ? data : (data.files || data.items || []);
+        // For other relative paths, try to extract filename and construct URL
+        const filename = imagePath.split('/').pop()?.split('?')[0];
+        return filename ? `https://stallion.nishree.com/uploads/products/${filename}` : null;
+      };
+      
+      // Handle different response formats from the API
+      let imageFiles = [];
+      
+      if (Array.isArray(data)) {
+        imageFiles = data.map((item, idx) => {
+          // The API returns: { filename, path, url, size, uploadedAt, modifiedAt }
+          // Prefer 'url' field as it contains the relative path like "/uploads/products/filename.webp"
+          // Fallback to 'path' or 'filename' if 'url' is not available
+          let imageUrl = item.url || item.path || item.image_url || item.imageUrl || 
+                        item.file || item.filename || item.image || item.src;
           
-          imageFiles = files
-            .filter(file => {
-              const filename = file.filename || file.name || file.file || file.path || '';
-              const lowerFilename = filename.toLowerCase();
-              return imageExtensions.some(ext => lowerFilename.endsWith(ext));
-            })
-            .map(file => {
-              let imageUrl = file.path || file.url || file.image_url || file.file || file.filename;
-              const filename = file.filename || file.name || file.file || imageUrl.split('/').pop();
-              
-              if (!imageUrl.startsWith('http')) {
-                imageUrl = imageUrl.startsWith('/') 
-                  ? `${baseUrl}${imageUrl}` 
-                  : `${uploadsUrl}/${imageUrl}`;
-              }
-              
-              return {
-                id: `upload-${Date.now()}-${Math.random()}`,
-                filename: filename,
-                path: imageUrl,
-                url: imageUrl,
-                image_url: imageUrl,
-              };
-            });
-        } else {
-          // Parse HTML directory listing
-          const html = await response.text();
-          const parser = new DOMParser();
-          const doc = parser.parseFromString(html, 'text/html');
-          const links = doc.querySelectorAll('a[href]');
+          // Extract filename - prefer the filename field from API response
+          let filename = item.filename || item.name || item.file;
           
-          links.forEach(link => {
-            let url = link.href || link.getAttribute('href');
-            if (!url) return;
-            
-            // Skip parent directory and non-image files
-            if (url.includes('..') || url === '/' || url === uploadsUrl) return;
-            
-            url = url.split('?')[0].split('#')[0];
-            const lowerUrl = url.toLowerCase();
-            
-            // Only include image files
-            if (imageExtensions.some(ext => lowerUrl.endsWith(ext))) {
-              // Construct full URL if relative
-              if (!url.startsWith('http')) {
-                url = url.startsWith('/') 
-                  ? `${baseUrl}${url}` 
-                  : `${uploadsUrl}/${url}`;
-              }
-              
-              // Only include if from products folder
-              if (url.includes('/uploads/products/')) {
-                const filename = url.split('/').pop();
-                imageFiles.push({
-                  id: `upload-${Date.now()}-${Math.random()}`,
-                  filename: filename,
-                  path: url,
-                  url: url,
-                  image_url: url,
-                });
-              }
-            }
-          });
+          // If we have imageUrl, use it; otherwise try to construct from filename
+          if (!imageUrl && filename) {
+            imageUrl = filename;
+          }
+          
+          // If filename is a full path, extract just the filename
+          if (filename && filename.includes('/')) {
+            filename = filename.split('/').pop()?.split('?')[0];
+          }
+          
+          // Extract filename from URL if not provided
+          if (!filename && imageUrl) {
+            // Extract just the filename from the path/URL
+            const urlParts = imageUrl.split('/');
+            filename = urlParts[urlParts.length - 1]?.split('?')[0];
+          }
+          
+          // Construct full URL in the required format: https://stallion.nishree.com/uploads/products/filename.webp
+          // The constructFullUrl function will handle relative paths like "/uploads/products/filename.webp"
+          const fullUrl = constructFullUrl(imageUrl);
+          
+          if (!fullUrl) {
+            console.warn('Could not construct URL for item:', item);
+            return null;
+          }
+          
+          return {
+            id: item.id || `upload-${idx}-${Date.now()}`,
+            filename: filename || fullUrl.split('/').pop()?.split('?')[0] || 'unknown',
+            path: fullUrl,
+            url: fullUrl,
+            image_url: fullUrl,
+            size: item.size, // Include size if available
+            uploadedAt: item.uploadedAt, // Include uploadedAt if available
+            modifiedAt: item.modifiedAt, // Include modifiedAt if available
+          };
+        }).filter(item => item !== null); // Remove any items that couldn't be processed
         }
         
-        // Remove duplicates
+      // Remove duplicates based on URL
         const uniqueImages = [];
         const seenUrls = new Set();
         imageFiles.forEach(img => {
-          if (!seenUrls.has(img.url)) {
-            seenUrls.add(img.url);
+        const url = img.url || img.image_url;
+        if (url && !seenUrls.has(url)) {
+          seenUrls.add(url);
             uniqueImages.push(img);
           }
         });
         
         setAllUploads(uniqueImages);
-      } catch (fetchError) {
-        // CORS error or fetch failed
-        console.warn('Could not fetch directory listing (CORS may be blocking):', fetchError.message);
-        setAllUploads([]);
-      }
     } catch (error) {
       console.error('Error fetching uploads:', error);
+      setError(`Failed to load images: ${error.message}`);
       setAllUploads([]);
     } finally {
       setLoading(false);
@@ -474,10 +465,12 @@ const DashboardProducts = () => {
     }
   };
 
-  const handleAttachImage = (row) => {
+  const handleAttachImage = async (row) => {
     // Save the product we want to attach an image to, then open the modal
     setImageTargetProduct(row);
     setError(null);
+    // Fetch all uploads from API when opening the modal
+    await fetchAllUploads();
     setOpenImageSelectModal(true);
   };
 
@@ -487,7 +480,8 @@ const DashboardProducts = () => {
       return;
     }
 
-    const productId = imageTargetProduct.id || imageTargetProduct.product_id || imageTargetProduct.data?.product_id || imageTargetProduct.data?.id;
+    const product = imageTargetProduct.data || imageTargetProduct;
+    const productId = product.product_id || product.id || imageTargetProduct.id || imageTargetProduct.product_id;
     if (!productId) {
       setError('Product ID not found');
       return;
@@ -497,103 +491,77 @@ const DashboardProducts = () => {
       setLoading(true);
       setError(null);
 
-      // Extract the image filename from the URL
+      // Get the image URL - use relative path format like "/uploads/products/filename.webp"
       const imageUrl = imageItem.image_url;
-      let filename = null;
+      let imagePath = null;
       
-      // Try to extract filename from URL
+      // Extract relative path for the backend
       if (imageUrl.includes('/uploads/products/')) {
-        filename = imageUrl.split('/uploads/products/')[1]?.split('?')[0];
-      } else if (imageUrl.includes('/')) {
-        filename = imageUrl.split('/').pop()?.split('?')[0];
+        // Extract path after /uploads/products/
+        imagePath = imageUrl.split('/uploads/products/')[1]?.split('?')[0];
+        // Construct relative path
+        imagePath = `/uploads/products/${imagePath}`;
+      } else if (imageUrl.startsWith('/uploads/products/')) {
+        imagePath = imageUrl.split('?')[0]; // Remove query params if any
+      } else if (imageUrl.startsWith('https://') || imageUrl.startsWith('http://')) {
+        // If it's a full URL, extract the path part
+        const urlObj = new URL(imageUrl);
+        imagePath = urlObj.pathname;
+      } else {
+        // Just filename, construct path
+        imagePath = `/uploads/products/${imageUrl.split('?')[0]}`;
       }
 
-      if (!filename && imageItem.fileName) {
-        filename = imageItem.fileName;
-      }
-
-      if (!filename) {
-        setError('Could not determine image filename. Please upload the image directly to the product.');
+      if (!imagePath) {
+        setError('Could not determine image path');
         return;
       }
 
-      // Create a File object from the image URL
-      // Handle blob URLs
-      if (imageUrl.startsWith('blob:')) {
-        setError('Cannot attach blob URL. Please upload the image directly.');
+      // Get current image_urls from product, or initialize as empty array
+      const currentImageUrls = Array.isArray(product.image_urls) 
+        ? [...product.image_urls] 
+        : (product.image_url ? [product.image_url] : []);
+
+      // Check if image is already attached
+      if (currentImageUrls.some(url => url === imagePath || url.includes(imagePath.split('/').pop()))) {
+        showError('Image is already attached to this product');
         return;
       }
       
-      // Get the live API base URL
-      const getLiveApiBaseUrl = () => {
-        if (typeof window === 'undefined') return '';
-        const envUrl = process.env.NEXT_PUBLIC_API_URL || 'https://stallion.nishree.com/api';
-        let baseUrl = envUrl.endsWith('/') ? envUrl.slice(0, -1) : envUrl;
-        // Remove /api if present, images are served from root
-        if (baseUrl.endsWith('/api')) {
-          baseUrl = baseUrl.slice(0, -4);
-        }
-        return baseUrl;
+      // Add the new image URL to the array
+      const updatedImageUrls = [...currentImageUrls, imagePath];
+      
+      // Prepare update data with all product fields
+      const updateData = {
+        model_no: product.model_no || '',
+        gender_id: parseInt(product.gender_id) || 0,
+        color_code_id: parseInt(product.color_code_id) || 0,
+        shape_id: parseInt(product.shape_id) || 0,
+        lens_color_id: parseInt(product.lens_color_id) || 0,
+        frame_color_id: parseInt(product.frame_color_id) || 0,
+        frame_type_id: parseInt(product.frame_type_id) || 0,
+        lens_material_id: parseInt(product.lens_material_id) || 0,
+        frame_material_id: parseInt(product.frame_material_id) || 0,
+        mrp: parseFloat(product.mrp) || 0,
+        whp: parseFloat(product.whp) || 0,
+        size_mm: product.size_mm || '',
+        brand_id: product.brand_id || '',
+        collection_id: product.collection_id || '',
+        warehouse_qty: parseInt(product.warehouse_qty) || 0,
+        tray_qty: parseInt(product.tray_qty) || 0,
+        total_qty: parseInt(product.total_qty) || 0,
+        status: product.status || 'draft',
+        image_urls: updatedImageUrls, // Update image_urls array
       };
-      
-      // Construct the full image URL if it's relative
-      let fullImageUrl = imageUrl;
-      if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
-        const baseUrl = getLiveApiBaseUrl();
-        if (imageUrl.startsWith('/uploads')) {
-          fullImageUrl = `${baseUrl}${imageUrl}`;
-        } else if (imageUrl.startsWith('/')) {
-          fullImageUrl = `${baseUrl}${imageUrl}`;
-        } else {
-          fullImageUrl = `${baseUrl}/uploads/products/${imageUrl}`;
-        }
-      }
-      
-      // Try to assign existing image by downloading and re-uploading
-      // The backend doesn't support existing_filename parameter, so we need to download and re-upload
-      try {
-        // Download the image and convert to blob (avoids CORS)
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          
-          await new Promise((resolve, reject) => {
-            img.onload = () => resolve();
-            img.onerror = () => reject(new Error('Failed to load image'));
-            img.src = fullImageUrl;
-          });
-          
-          // Convert image to blob using canvas (this avoids CORS issues)
-          const canvas = document.createElement('canvas');
-          canvas.width = img.naturalWidth;
-          canvas.height = img.naturalHeight;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0);
-          
-          const blob = await new Promise((resolve, reject) => {
-            canvas.toBlob((blob) => {
-              if (!blob) {
-                reject(new Error('Failed to convert image to blob'));
-              } else {
-                resolve(blob);
-              }
-            }, 'image/jpeg');
-          });
-          
-          const file = new File([blob], filename, { type: 'image/jpeg' });
-          await uploadProductImage(file, productId);
-      } catch (error) {
-        console.error('Error attaching image:', error);
-        throw new Error(
-          `Unable to attach image: ${error.message}. ` +
-          `Please try uploading the image directly using the "Upload New Image" button.`
-        );
-      }
-      
-      // Don't remove from orphaned images - just refresh products so it shows as "Assigned"
-      // The image will now appear in products list and Media Gallery will show it as "Assigned"
-      await fetchProducts();
 
-      showSuccess(`Image attached to product ${imageTargetProduct.model_no || imageTargetProduct.data?.model_no || 'successfully'}!`);
+      // Update product using PUT API
+      await updateProduct(productId, updateData);
+      
+      // Refresh products to get updated values
+      await fetchProducts();
+      await fetchAllUploads(); // Refresh the images list in the modal
+
+      showSuccess(`Image attached to product ${product.model_no || 'successfully'}!`);
       setOpenImageSelectModal(false);
       setImageTargetProduct(null);
       setSelectedImageIds(new Set()); // Clear selection
@@ -614,14 +582,15 @@ const DashboardProducts = () => {
       return;
     }
 
-    const productId = imageTargetProduct.id || imageTargetProduct.product_id || imageTargetProduct.data?.product_id || imageTargetProduct.data?.id;
+    const product = imageTargetProduct.data || imageTargetProduct;
+    const productId = product.product_id || product.id || imageTargetProduct.id || imageTargetProduct.product_id;
     if (!productId) {
       setError('Product ID not found');
       return;
     }
 
-    // Get selected images
-    const imagesToAttach = orphanedMediaImages.filter(img => selectedImageIds.has(img.id));
+    // Get selected images from availableImagesForModal (images from API)
+    const imagesToAttach = availableImagesForModal.filter(img => selectedImageIds.has(img.id));
     
     if (imagesToAttach.length === 0) {
       setError('No valid images selected');
@@ -632,110 +601,93 @@ const DashboardProducts = () => {
       setLoading(true);
       setError(null);
       
-      let successCount = 0;
-      let errorCount = 0;
-      const errors = [];
+      // Extract image paths for all selected images
+      const newImagePaths = [];
 
-      // Process each image
       for (const imageItem of imagesToAttach) {
-        try {
           const imageUrl = imageItem.image_url;
-          let filename = null;
+        let imagePath = null;
           
+        // Extract relative path for the backend
           if (imageUrl.includes('/uploads/products/')) {
-            filename = imageUrl.split('/uploads/products/')[1]?.split('?')[0];
-          } else if (imageUrl.includes('/')) {
-            filename = imageUrl.split('/').pop()?.split('?')[0];
-          }
+          const filename = imageUrl.split('/uploads/products/')[1]?.split('?')[0];
+          imagePath = `/uploads/products/${filename}`;
+        } else if (imageUrl.startsWith('/uploads/products/')) {
+          imagePath = imageUrl.split('?')[0];
+        } else if (imageUrl.startsWith('https://') || imageUrl.startsWith('http://')) {
+          const urlObj = new URL(imageUrl);
+          imagePath = urlObj.pathname;
+        } else {
+          imagePath = `/uploads/products/${imageUrl.split('?')[0]}`;
+        }
 
-          if (!filename && imageItem.fileName) {
-            filename = imageItem.fileName;
-          }
-
-          if (!filename || imageUrl.startsWith('blob:')) {
-            errorCount++;
-            errors.push(`Skipped ${imageItem.model_no || 'image'}: Invalid format`);
-            continue;
-          }
-
-          const getLiveApiBaseUrl = () => {
-            if (typeof window === 'undefined') return '';
-            const envUrl = process.env.NEXT_PUBLIC_API_URL || 'https://stallion.nishree.com/api';
-            let baseUrl = envUrl.endsWith('/') ? envUrl.slice(0, -1) : envUrl;
-            if (baseUrl.endsWith('/api')) {
-              baseUrl = baseUrl.slice(0, -4);
-            }
-            return baseUrl;
-          };
-          
-          let fullImageUrl = imageUrl;
-          if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
-            const baseUrl = getLiveApiBaseUrl();
-            if (imageUrl.startsWith('/uploads')) {
-              fullImageUrl = `${baseUrl}${imageUrl}`;
-            } else if (imageUrl.startsWith('/')) {
-              fullImageUrl = `${baseUrl}${imageUrl}`;
-            } else {
-              fullImageUrl = `${baseUrl}/uploads/products/${imageUrl}`;
-            }
-          }
-          
-          // Try to assign existing image by downloading and re-uploading
-          // The backend doesn't support existing_filename parameter, so we need to download and re-upload
-          try {
-            // Download the image and convert to blob (avoids CORS)
-              const img = new Image();
-              img.crossOrigin = 'anonymous';
-              
-              await new Promise((resolve, reject) => {
-                img.onload = () => resolve();
-                img.onerror = () => reject(new Error('Failed to load image'));
-                img.src = fullImageUrl;
-              });
-              
-              const canvas = document.createElement('canvas');
-              canvas.width = img.naturalWidth;
-              canvas.height = img.naturalHeight;
-              const ctx = canvas.getContext('2d');
-              ctx.drawImage(img, 0, 0);
-              
-              await new Promise((resolve, reject) => {
-                canvas.toBlob(async (blob) => {
-                  if (!blob) {
-                    reject(new Error('Failed to convert image to blob'));
-                    return;
-                  }
-                  
-                  try {
-                    const file = new File([blob], filename, { type: 'image/jpeg' });
-                    await uploadProductImage(file, productId);
-                    resolve();
-                  } catch (err) {
-                    reject(err);
-                  }
-                }, 'image/jpeg');
-              });
-            
-            successCount++;
-          } catch (fetchError) {
-            throw fetchError;
-          }
-        } catch (error) {
-          errorCount++;
-          errors.push(`${imageItem.model_no || 'Image'}: ${error.message}`);
+        if (imagePath) {
+          newImagePaths.push(imagePath);
         }
       }
 
-      // Don't remove from orphaned images - just refresh products
-      // The images will now appear in products list and Media Gallery will show them as "Assigned"
-      await fetchProducts();
-
-      if (errorCount > 0) {
-        showError(`${successCount} attached, ${errorCount} failed. ${errors.join('; ')}`);
-      } else {
-        showSuccess(`${successCount} image(s) attached successfully!`);
+      if (newImagePaths.length === 0) {
+        setError('Could not determine image paths for selected images');
+        return;
       }
+
+      // Get current image_urls from product, or initialize as empty array
+      const currentImageUrls = Array.isArray(product.image_urls) 
+        ? [...product.image_urls] 
+        : (product.image_url ? [product.image_url] : []);
+
+      // Filter out duplicates - only add images that aren't already attached
+      const uniqueNewPaths = newImagePaths.filter(newPath => {
+        const filename = newPath.split('/').pop();
+        return !currentImageUrls.some(existingUrl => 
+          existingUrl === newPath || existingUrl.includes(filename)
+        );
+      });
+
+      if (uniqueNewPaths.length === 0) {
+        showError('All selected images are already attached to this product');
+                    return;
+                  }
+                  
+      // Combine current and new image URLs
+      const updatedImageUrls = [...currentImageUrls, ...uniqueNewPaths];
+
+      // Prepare update data with all product fields
+      const updateData = {
+        model_no: product.model_no || '',
+        gender_id: parseInt(product.gender_id) || 0,
+        color_code_id: parseInt(product.color_code_id) || 0,
+        shape_id: parseInt(product.shape_id) || 0,
+        lens_color_id: parseInt(product.lens_color_id) || 0,
+        frame_color_id: parseInt(product.frame_color_id) || 0,
+        frame_type_id: parseInt(product.frame_type_id) || 0,
+        lens_material_id: parseInt(product.lens_material_id) || 0,
+        frame_material_id: parseInt(product.frame_material_id) || 0,
+        mrp: parseFloat(product.mrp) || 0,
+        whp: parseFloat(product.whp) || 0,
+        size_mm: product.size_mm || '',
+        brand_id: product.brand_id || '',
+        collection_id: product.collection_id || '',
+        warehouse_qty: parseInt(product.warehouse_qty) || 0,
+        tray_qty: parseInt(product.tray_qty) || 0,
+        total_qty: parseInt(product.total_qty) || 0,
+        status: product.status || 'draft',
+        image_urls: updatedImageUrls, // Update image_urls array with all images
+      };
+
+      // Update product using PUT API
+      await updateProduct(productId, updateData);
       
+      // Refresh products to get updated values
+      await fetchProducts();
+      await fetchAllUploads(); // Refresh the images list in the modal
+
+      const skippedCount = newImagePaths.length - uniqueNewPaths.length;
+      const successMessage = skippedCount > 0
+        ? `${uniqueNewPaths.length} image(s) attached successfully! ${skippedCount} were already attached.`
+        : `${uniqueNewPaths.length} image(s) attached successfully!`;
+      
+      showSuccess(successMessage);
       setOpenImageSelectModal(false);
       setImageTargetProduct(null);
       setSelectedImageIds(new Set());
@@ -860,8 +812,61 @@ const DashboardProducts = () => {
   };
 
   // Display all images from uploads/products folder for Media Gallery
-  // Only shows images from the folder, no product database calls
+  // Shows images with their assigned/unassigned status based on products
   const allMediaImages = useMemo(() => {
+    // Get all product image URLs and filenames to check assignment status
+    const productImageUrls = new Set();
+    const productImageFilenames = new Set();
+    const productImagePaths = new Set(); // Store paths in various formats for comparison
+    
+    products.forEach(product => {
+      // Handle image_urls array (API returns array)
+      let imageUrls = [];
+      if (Array.isArray(product.image_urls)) {
+        imageUrls = product.image_urls;
+      } else if (product.image_urls) {
+        imageUrls = [product.image_urls];
+      } else if (product.image_url) {
+        imageUrls = [product.image_url];
+      }
+      
+      imageUrls.forEach(imageUrl => {
+        if (imageUrl) {
+          // Add the URL as-is
+          productImageUrls.add(imageUrl);
+          
+          // Normalize and add
+          const normalizedUrl = normalizeImageUrl(imageUrl);
+          if (normalizedUrl) {
+            productImageUrls.add(normalizedUrl);
+          }
+          
+          // Extract filename
+          const urlParts = imageUrl.split('/');
+          const filename = urlParts[urlParts.length - 1]?.split('?')[0];
+          if (filename) {
+            productImageFilenames.add(filename);
+          }
+          
+          // Add various path formats for comparison
+          // Full path, relative path, and filename
+          if (imageUrl.includes('/uploads/products/')) {
+            const path = imageUrl.split('/uploads/products/')[1]?.split('?')[0];
+            if (path) {
+              productImagePaths.add(`/uploads/products/${path}`);
+              productImagePaths.add(path);
+            }
+          } else if (imageUrl.startsWith('/uploads/products/')) {
+            productImagePaths.add(imageUrl.split('?')[0]);
+            const path = imageUrl.replace('/uploads/products/', '').split('?')[0];
+            if (path) {
+              productImagePaths.add(path);
+            }
+          }
+        }
+      });
+    });
+    
     // Only include images from allUploads (from uploads/products folder)
     const mediaImages = [];
     const seenUrls = new Set();
@@ -904,6 +909,34 @@ const DashboardProducts = () => {
           fileName = urlParts[urlParts.length - 1]?.split('?')[0];
         }
         
+        // Check if this image is assigned to any product
+        let isAssigned = false;
+        
+        // Check by full URL
+        if (productImageUrls.has(normalizedUrl) || productImageUrls.has(imageUrl)) {
+          isAssigned = true;
+        }
+        
+        // Check by filename
+        if (!isAssigned && fileName && productImageFilenames.has(fileName)) {
+          isAssigned = true;
+        }
+        
+        // Check by path formats
+        if (!isAssigned) {
+          const pathAfterProducts = normalizedUrl.includes('/uploads/products/')
+            ? normalizedUrl.split('/uploads/products/')[1]?.split('?')[0]
+            : null;
+          
+          if (pathAfterProducts) {
+            if (productImagePaths.has(`/uploads/products/${pathAfterProducts}`) ||
+                productImagePaths.has(pathAfterProducts) ||
+                productImagePaths.has(normalizedUrl.split('?')[0])) {
+              isAssigned = true;
+            }
+          }
+        }
+        
         mediaImages.push({
           id: `media-${idx}-${upload.id || Date.now()}`,
           image_url: normalizedUrl,
@@ -911,7 +944,7 @@ const DashboardProducts = () => {
           model_no: upload.model_no || 'Unassigned',
           brand_name: upload.brand_name || 'N/A',
           collection_name: upload.collection_name || 'N/A',
-          type: 'unassigned',
+          type: isAssigned ? 'assigned' : 'unassigned',
           isTemporary: false,
           fileName: fileName,
           originalData: upload,
@@ -921,9 +954,95 @@ const DashboardProducts = () => {
     }
     
     return mediaImages;
-  }, [allUploads]);
+  }, [allUploads, products]);
 
-  // Get only orphaned/unassigned images for the modal
+  // Get images from API for the modal - show all images from /products/images/all endpoint
+  // Filter to only show images that are NOT assigned to any product
+  const availableImagesForModal = useMemo(() => {
+    // Get all product image URLs and filenames to exclude assigned images
+    const productImageUrls = new Set();
+    const productImageFilenames = new Set();
+    
+    products.forEach(product => {
+      // Handle image_urls array (API returns array)
+      // Ensure imageUrls is always an array
+      let imageUrls = [];
+      if (Array.isArray(product.image_urls)) {
+        imageUrls = product.image_urls;
+      } else if (product.image_urls) {
+        // If it's a string or other truthy value, convert to array
+        imageUrls = [product.image_urls];
+      } else if (product.image_url) {
+        imageUrls = [product.image_url];
+      }
+      imageUrls.forEach(imageUrl => {
+        if (imageUrl) {
+          productImageUrls.add(imageUrl);
+          // Normalize URL for comparison
+          const normalizedUrl = normalizeImageUrl(imageUrl);
+          if (normalizedUrl) {
+            productImageUrls.add(normalizedUrl);
+          }
+          const urlParts = imageUrl.split('/');
+          const filename = urlParts[urlParts.length - 1]?.split('?')[0];
+          if (filename) {
+            productImageFilenames.add(filename);
+          }
+        }
+      });
+    });
+    
+    // Filter allMediaImages to show only unassigned images
+    return allMediaImages
+      .filter((img) => {
+        const imageUrl = img.image_url;
+        if (!imageUrl) return false;
+        
+        // Exclude blob URLs (temporary)
+        if (imageUrl.startsWith('blob:')) return false;
+        
+        // Exclude images that failed to load
+        if (invalidImageUrls.has(imageUrl)) {
+          return false;
+        }
+        
+        // Exclude if this image is assigned to any product
+        if (productImageUrls.has(imageUrl)) {
+          return false; // This image is assigned
+        }
+        
+        // Check by filename
+        const urlParts = imageUrl.split('/');
+        const filename = urlParts[urlParts.length - 1]?.split('?')[0];
+        if (filename && productImageFilenames.has(filename)) {
+          return false; // This image is assigned
+        }
+        
+        // Check by fileName property
+        if (img.fileName && productImageFilenames.has(img.fileName)) {
+          return false; // This image is assigned
+        }
+        
+        return true; // Image is available for assignment
+      })
+      .map((img, idx) => {
+        return {
+          id: img.id || `modal-${idx}-${Date.now()}`,
+          image_url: img.image_url,
+          model_no: img.model_no || 'Unassigned',
+          brand_name: img.brand_name || 'N/A',
+          collection_name: img.collection_name || 'N/A',
+          type: 'unassigned',
+          isTemporary: false,
+          fileName: img.fileName || (img.image_url.includes('/uploads/products/') 
+            ? img.image_url.split('/uploads/products/')[1]?.split('?')[0] 
+            : null),
+          originalData: img // Keep reference
+        };
+      });
+  }, [allMediaImages, invalidImageUrls, products]);
+
+  // Get only orphaned/unassigned images for the modal (legacy - kept for backward compatibility)
   // Filter to only show images that are in uploads/products directory, are valid, and NOT assigned to any product
   const orphanedMediaImages = useMemo(() => {
     // Get all product image URLs and filenames to exclude assigned images
@@ -987,8 +1106,8 @@ const DashboardProducts = () => {
         
         // Check if the image is in uploads/products directory
         // Accept if URL contains /uploads/products/ or has a valid filename
-        const hasUploadsProducts = normalizedUrl.includes('/uploads/products/') || 
-                                   imageUrl.includes('/uploads/products/') ||
+        const hasUploadsProducts = normalizedUrl.includes('/uploads') || 
+                                   imageUrl.includes('/uploads') ||
                                    (img.fileName && img.fileName.length > 0);
         
         return hasUploadsProducts;
@@ -2331,7 +2450,7 @@ const DashboardProducts = () => {
         )}
       >
         <div style={{ padding: '16px' }}>
-          {orphanedMediaImages.length === 0 ? (
+          {availableImagesForModal.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
               <p>No unassigned images available.</p>
               <p style={{ marginTop: '8px', fontSize: '14px' }}>
@@ -2366,7 +2485,7 @@ const DashboardProducts = () => {
                   padding: '8px'
                 }}
               >
-                {orphanedMediaImages.map(item => {
+                {availableImagesForModal.map(item => {
                   const isSelected = selectedImageIds.has(item.id);
                   return (
                   <div
@@ -2444,11 +2563,6 @@ const DashboardProducts = () => {
                             if (errorDiv) {
                               errorDiv.style.display = 'flex';
                             }
-                            // Remove from orphaned images if it fails to load
-                            setOrphanedImages(prev => prev.filter(img => {
-                              const imgUrl = img.url || img.image_url;
-                              return imgUrl !== item.image_url;
-                            }));
                           }}
                           onLoad={() => {
                             // Image loaded successfully, ensure it's not marked as invalid
