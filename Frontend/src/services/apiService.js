@@ -2931,29 +2931,7 @@ export const deleteProduct = async (productId) => {
  */
 export const uploadProductImage = async (productImages, productId) => {
   const baseUrl = getBaseURL();
-  
-  // Get base URL without /api for alternative attempts
-  // Postman might be using baseUrl without /api prefix
-  const baseUrlWithoutApi = baseUrl.replace('/api', '');
-  
-  // Try alternative endpoint patterns if the primary one fails
-  // Match Postman: {{baseUrl}}/products/image-upload
-  // Try without /api first since error shows /products/image-upload (without /api)
-  const endpoints = [
-    `${baseUrlWithoutApi}/products/image-upload`, // /products/image-upload (without /api) - try first
-    `${baseUrl}/products/image-upload`,           // /api/products/image-upload
-    `${baseUrlWithoutApi}/products/upload-image`,
-    `${baseUrl}/products/upload-image`,
-    productId ? `${baseUrlWithoutApi}/products/${productId}/image` : null,
-    productId ? `${baseUrl}/products/${productId}/image` : null,
-    productId ? `${baseUrlWithoutApi}/products/${productId}/upload` : null,
-    productId ? `${baseUrl}/products/${productId}/upload` : null,
-  ].filter(Boolean);
-  
-  // Log for debugging
-  console.log('[Image Upload] Attempting endpoints:', endpoints);
-  console.log('[Image Upload] Base URL with /api:', baseUrl);
-  console.log('[Image Upload] Base URL without /api:', baseUrlWithoutApi);
+  const fullUrl = `${baseUrl}/products/image-upload`;
   
   const token = getAuthToken();
   const headers = {};
@@ -2961,97 +2939,34 @@ export const uploadProductImage = async (productImages, productId) => {
     headers['Authorization'] = `Bearer ${token}`;
   }
   
-  // Helper function to create FormData (needed for each retry since FormData can only be read once)
-  const createFormData = () => {
-    const formData = new FormData();
-    // Attach product reference when provided so backend can link the file
-    if (productId) {
-      formData.append('product_id', productId);
-    }
-    
-    // Handle both single file and multiple files
-    if (Array.isArray(productImages)) {
-      // Multiple files - append each one
-      productImages.forEach((file) => {
-        formData.append('product_image', file);
-      });
-    } else {
-      // Single file
-      formData.append('product_image', productImages);
-    }
-    return formData;
-  };
-  
-  let lastError = null;
-  let lastResponse = null;
-  
-  // Try each endpoint until one works
-  for (const fullUrl of endpoints) {
-    try {
-      // Create fresh FormData for each attempt (FormData can only be read once)
-      const formData = createFormData();
-      
-      // Log the attempt
-      console.log('[Image Upload] Attempting:', fullUrl);
-      console.log('[Image Upload] FormData keys:', Array.from(formData.keys()));
-      if (productId) {
-        console.log('[Image Upload] Product ID:', productId);
-      }
-      
-      const response = await fetch(fullUrl, {
-        method: 'POST',
-        headers,
-        credentials: 'include',
-        body: formData,
-      });
-      
-      console.log('[Image Upload] Response status:', response.status, response.statusText);
-      console.log('[Image Upload] Response URL:', response.url);
-      
-      lastResponse = response;
-      
-      // If it's a 404, try next endpoint
-      if (response.status === 404) {
-        lastError = new Error(`Endpoint ${fullUrl} not found (404)`);
-        continue;
-      }
-      
-      // Check if response is HTML error page (indicates route doesn't exist)
-      // Clone response first so we can read it without consuming the body
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('text/html') && !response.ok) {
-        const clonedResponse = response.clone();
-        const text = await clonedResponse.text();
-        if (text.includes('Cannot POST') || text.includes('Cannot GET') || text.includes('Cannot PUT') || text.includes('Cannot DELETE')) {
-          // This endpoint doesn't exist, try next one
-          lastError = new Error(`Endpoint ${fullUrl} not found`);
-          continue;
-        }
-      }
-      
-      // If we get here, the endpoint exists (even if it returned an error)
-      // Use handleResponse which will throw appropriate errors for other status codes
-      return await handleResponse(response);
-    } catch (error) {
-      lastError = error;
-      // If it's a 404 or "not found" error, try next endpoint
-      if (error.statusCode === 404 || 
-          error.message?.toLowerCase().includes('not found') || 
-          error.message?.toLowerCase().includes('cannot')) {
-        continue;
-      }
-      // For other errors (validation, auth, etc.), throw immediately
-      throw error;
-    }
+  // Create FormData
+  const formData = new FormData();
+  // Attach product reference when provided so backend can link the file
+  if (productId) {
+    formData.append('product_id', productId);
   }
   
-  // If all endpoints failed with 404, throw a helpful error
-  throw new Error(
-    `Image upload endpoint not found. Tried: ${endpoints.join(', ')}. ` +
-    `The backend route for image upload may not be configured. ` +
-    `Please contact the administrator to set up the image upload endpoint. ` +
-    `Original error: ${lastError?.message || 'All endpoints returned 404'}`
-  );
+  // Handle both single file and multiple files
+  if (Array.isArray(productImages)) {
+    // Multiple files - append each one
+    productImages.forEach((file) => {
+      formData.append('product_image', file);
+    });
+  } else {
+    // Single file
+    formData.append('product_image', productImages);
+  }
+  
+  // Make the request
+  const response = await fetch(fullUrl, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    body: formData,
+  });
+  
+  // Use handleResponse which will throw appropriate errors for status codes
+  return await handleResponse(response);
 };
 
 /**
