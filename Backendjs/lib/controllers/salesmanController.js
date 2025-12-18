@@ -1,5 +1,8 @@
 const Salesman = require('../models/Salesman');
 const AuditLog = require('../models/AuditLog');
+const Tray = require('../models/Tray');
+const { TrayStatus } = require('../constants/enums');
+const SalesmanTray = require('../models/SalesmanTray');
 
 class SalesmanController {
     async getSalesmen(req, res) {
@@ -35,6 +38,18 @@ class SalesmanController {
                 updated_at: new Date(),
                 is_active: true,
                 user_id: user_id,
+            });
+            const tray = await Tray.create({
+                tray_name: full_name + "'s Tray",
+                tray_status: TrayStatus.ASSIGNED,
+                created_at: new Date(),
+                updated_at: new Date(),
+            });
+            await SalesmanTray.create({
+                salesman_id: salesman.salesman_id,
+                tray_id: tray.tray_id,
+                created_at: new Date(),
+                updated_at: new Date(),
             });
             await AuditLog.create({
                 user_id: user.user_id,

@@ -5,7 +5,7 @@ const { authenticateToken } = require('../middleware/auth');
 
 router.get('/:id', authenticateToken, trayProductsController.getProductsInTray);
 router.post('/', authenticateToken, trayProductsController.addProductToTray);
-router.put('/:id', authenticateToken, trayProductsController.updateProductInTray);
-router.delete('/:id', authenticateToken, trayProductsController.deleteProductFromTray);
+router.put('/', authenticateToken, trayProductsController.updateProductInTray);
+router.delete('/', authenticateToken, trayProductsController.deleteProductFromTray);
 
 module.exports = router;

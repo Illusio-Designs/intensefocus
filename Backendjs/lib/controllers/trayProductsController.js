@@ -22,19 +22,20 @@ class TrayProductsController {
 
     async addProductToTray(req, res) {
         try {
-            const { tray_id, product_id, qty, status } = req.body;
-            if (!tray_id || !product_id || !qty) {
+            const { tray_id, product_id, status } = req.body;
+            if (!tray_id || !product_id || !status) {
                 return res.status(400).json({ error: 'All fields are required' });
             }
             const user = req.user;
             const alredyInTray = await TrayProducts.findOne({ where: { tray_id, product_id } });
             if (alredyInTray) {
-                alredyInTray.qty = alredyInTray.qty + qty;
+                alredyInTray.status = status;
+                alredyInTray.updated_at = new Date();
                 const updatedTrayProduct = await alredyInTray.save();
                 await AuditLog.create({
                     user_id: user.user_id,
                     action: 'create',
-                    description: 'Tray product quantity updated',
+                    description: 'Tray product status updated',
                     table_name: 'tray_products',
                     record_id: alredyInTray.id,
                     old_values: alredyInTray,
@@ -47,7 +48,7 @@ class TrayProductsController {
             const trayProduct = await TrayProducts.create({
                 tray_id,
                 product_id,
-                qty,
+                qty: 1,
                 status,
                 created_at: new Date(),
                 updated_at: new Date(),
@@ -72,20 +73,18 @@ class TrayProductsController {
 
     async updateProductInTray(req, res) {
         try {
-            const { id } = req.params;
-            if (!id) {
-                return res.status(400).json({ error: 'Tray product ID is required' });
+            const { tray_id, product_id, status } = req.body;
+            if (!tray_id || !product_id || !status) {
+                return res.status(400).json({ error: 'All fields are required' });
             }
-            const { tray_id, product_id, qty, status } = req.body;
             const user = req.user;
-            const trayProduct = await TrayProducts.findOne({ where: { id } });
+            const trayProduct = await TrayProducts.findOne({ where: { tray_id, product_id } });
             if (!trayProduct) {
                 return res.status(404).json({ error: 'Tray product not found' });
             }
             await trayProduct.update({
                 tray_id: tray_id || trayProduct.tray_id,
                 product_id: product_id || trayProduct.product_id,
-                qty: qty || trayProduct.qty,
                 status: status || trayProduct.status,
                 updated_at: new Date(),
             });
@@ -94,12 +93,12 @@ class TrayProductsController {
                 action: 'update',
                 description: 'Tray product updated',
                 table_name: 'tray_products',
-                record_id: id,
+                record_id: trayProduct.id,
                 old_values: trayProduct,
                 new_values: {
                     tray_id,
                     product_id,
-                    qty,
+                    status,
                     updated_at: new Date(),
                 },
                 ip_address: req.ip,
@@ -113,22 +112,22 @@ class TrayProductsController {
 
     async deleteProductFromTray(req, res) {
         try {
-            const { id } = req.params;
-            if (!id) {
+            const { tray_id, product_id } = req.body;
+            if (!tray_id || !product_id) {
                 return res.status(400).json({ error: 'Tray product ID is required' });
             }
             const user = req.user;
-            const trayProduct = await TrayProducts.findOne({ where: { id } });
+            const trayProduct = await TrayProducts.findOne({ where: { tray_id, product_id } });
             if (!trayProduct) {
                 return res.status(404).json({ error: 'Tray product not found' });
             }
-            await TrayProducts.destroy({ where: { id } });
+            await TrayProducts.destroy({ where: { tray_id, product_id } });
             await AuditLog.create({
                 user_id: user.user_id,
                 action: 'delete',
                 description: 'Tray product deleted',
                 table_name: 'tray_products',
-                record_id: id,
+                record_id: trayProduct.id,
                 old_values: trayProduct,
                 new_values: null,
                 ip_address: req.ip,

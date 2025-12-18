@@ -74,7 +74,7 @@ class SalesmanTrayController {
                 return res.status(400).json({ error: 'Salesman tray ID is required' });
             }
             const user = req.user;
-            const salesmanTray = await SalesmanTray.findOne({ where: { id } });
+            const salesmanTray = await SalesmanTray.findOne({ where: { tray_id: id } });
             if (!salesmanTray) {
                 return res.status(404).json({ error: 'Salesman tray not found' });
             }
