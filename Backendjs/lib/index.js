@@ -1,5 +1,4 @@
 const express = require('express');
-const cors = require('cors');
 const path = require('path');
 const dotenv = require('dotenv');
 const sequelize = require('./constants/database');
@@ -9,18 +8,24 @@ dotenv.config();
 
 const app = express();
 
-// CORS Configuration with multiple origins
-const corsOptions = {
-    origin: [
-        process.env.CORS_ORIGIN || 'http://localhost:3000',
-        'https://stallion-seven.vercel.app'
-    ],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
-    allowedHeaders: '*'
-};
+// CORS Configuration - Allow all origins and headers
+app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+    }
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD');
+    res.setHeader('Access-Control-Allow-Headers', req.headers['access-control-request-headers'] || '*');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Range, X-Content-Range');
 
-app.use(cors(corsOptions));
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+        res.sendStatus(200);
+        return;
+    }
+    next();
+});
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

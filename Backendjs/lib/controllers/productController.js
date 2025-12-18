@@ -236,6 +236,56 @@ class ProductController {
         }
     }
 
+    async getAllUploadedImages(req, res) {
+        try {
+            const uploadsPath = path.join(__dirname, '..', '..', 'uploads', PRODUCT_IMAGE_UPLOAD_DIR);
+
+            // Check if directory exists
+            if (!fs.existsSync(uploadsPath)) {
+                return res.status(404).json({
+                    error: 'Upload directory not found',
+                    images: []
+                });
+            }
+
+            // Read all files from the directory
+            const files = fs.readdirSync(uploadsPath);
+
+            // Filter only image files and get their details
+            const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+            const images = files
+                .filter(file => {
+                    const ext = path.extname(file).toLowerCase();
+                    return imageExtensions.includes(ext);
+                })
+                .map(file => {
+                    const filePath = path.join(uploadsPath, file);
+                    const stats = fs.statSync(filePath);
+                    return {
+                        filename: file,
+                        path: filePath,
+                        url: `/uploads/${PRODUCT_IMAGE_UPLOAD_DIR}/${file}`,
+                        size: stats.size,
+                        uploadedAt: stats.birthtime,
+                        modifiedAt: stats.mtime
+                    };
+                })
+                // Sort by upload date (newest first)
+                .sort((a, b) => b.uploadedAt - a.uploadedAt);
+
+            res.status(200).json({
+                success: true,
+                count: images.length,
+                images: images
+            });
+        } catch (error) {
+            res.status(500).json({
+                error: error.message,
+                success: false
+            });
+        }
+    }
+
     async hasData(data) {
         if (!data || data === undefined || data === null || data === '') {
             return false;
