@@ -183,52 +183,53 @@ class ProductController {
                 return res.status(400).json({ error: 'Image not found' });
             }
 
-            if (product_id) {
-                // Find the product
-                const product = await Product.findOne({ where: { product_id: product_id } });
-                if (!product) {
-                    return res.status(404).json({ error: 'Product not found' });
-                }
-
-                // Get existing image_urls or initialize empty array
-                let image_urls = product.image_urls || [];
-                const oldImageUrls = [...image_urls];
-
-                // Add all uploaded image paths to the array
-                for (const fileInfo of fileInfos) {
-                    image_urls.push(fileInfo.path);
-                }
-
-                // Update product with new image_urls
-                await Product.update(
-                    { image_urls: image_urls, updated_at: new Date() },
-                    { where: { product_id: product_id } }
-                );
-
-                // Create audit log
-                await AuditLog.create({
-                    user_id: req.user.user_id,
-                    action: 'update',
-                    description: 'Product image saved',
-                    table_name: 'products',
-                    record_id: product.product_id,
-                    old_values: { image_urls: oldImageUrls },
-                    new_values: { image_urls: image_urls },
-                    ip_address: req.ip,
-                    created_at: new Date()
-                });
-
-                // Fetch updated product
-                const updatedProduct = await Product.findOne({ where: { product_id: product_id } });
+            if (!product_id) {
                 return res.status(200).json({
-                    message: 'Product image saved successfully',
+                    message: 'Product image uploaded successfully',
                     data: fileInfos,
-                    product: updatedProduct
                 });
             }
-            res.status(200).json({
+
+            // Find the product
+            const product = await Product.findOne({ where: { product_id: product_id } });
+            if (!product) {
+                return res.status(404).json({ error: 'Product not found' });
+            }
+
+            // Get existing image_urls or initialize empty array
+            let image_urls = product.image_urls || [];
+            const oldImageUrls = [...image_urls];
+
+            // Add all uploaded image paths to the array
+            for (const fileInfo of fileInfos) {
+                image_urls.push(fileInfo.path);
+            }
+
+            // Update product with new image_urls
+            await Product.update(
+                { image_urls: image_urls, updated_at: new Date() },
+                { where: { product_id: product_id } }
+            );
+
+            // Create audit log
+            await AuditLog.create({
+                user_id: req.user.user_id,
+                action: 'update',
+                description: 'Product image saved',
+                table_name: 'products',
+                record_id: product.product_id,
+                old_values: { image_urls: oldImageUrls },
+                new_values: { image_urls: image_urls },
+                ip_address: req.ip,
+                created_at: new Date()
+            });
+
+            // Fetch updated product
+            const updatedProduct = await Product.findOne({ where: { product_id: product_id } });
+            return res.status(200).json({
                 message: 'Product image saved successfully',
                 data: fileInfos,
+                product: updatedProduct
             });
         } catch (error) {
             res.status(500).json({ error: error.message });
@@ -243,204 +244,6 @@ class ProductController {
     }
 
     async bulkProductUpload(data, user, req) {
-        try {
-            if (!Array.isArray(data)) {
-                return { success: false, message: 'Data must be an array' };
-            }
-
-            const createdProducts = [];
-            const updatedProducts = [];
-            const errors = [];
-            let successCount = 0;
-            let errorCount = 0;
-
-            for (let i = 0; i < data.length; i++) {
-                const item = data[i];
-                try {
-                    const { model_no, gender, color_code, shape, lens_color, frame_color,
-                        frame_type, lens_material, frame_material, mrp, whp, size_mm,
-                        warehouse_qty, brand, collection } = item;
-
-                    let { status } = item;
-
-                    if (!this.hasData(model_no) || !this.hasData(gender) || !this.hasData(color_code)
-                        || !this.hasData(shape) || !this.hasData(lens_color) || !this.hasData(frame_color)
-                        || !this.hasData(frame_type) || !this.hasData(lens_material) || !this.hasData(frame_material)
-                        || !this.hasData(mrp) || !this.hasData(whp) || !this.hasData(size_mm)
-                        || !this.hasData(warehouse_qty) || !this.hasData(brand) || !this.hasData(collection)) {
-                        errors.push({ row: i + 1, model_no: model_no || 'N/A', error: 'All fields are required' });
-                        errorCount++;
-                        continue;
-                    }
-
-                    if (!this.hasData(status)) {
-                        status = 'draft';
-                    }
-
-                    let brandModel = await Brand.findOne({ where: { brand_name: brand } });
-                    if (!brandModel) {
-                        brandModel = await Brand.create({ brand_name: brand });
-                    }
-
-                    let collectionModel = await Collection.findOne({ where: { collection_name: collection } });
-                    if (!collectionModel) {
-                        collectionModel = await Collection.create({ collection_name: collection, brand_id: brandModel.brand_id });
-                    }
-                    let colorCodeModel = await ColorCode.findOne({ where: { color_code: color_code } });
-                    if (!colorCodeModel) {
-                        colorCodeModel = await ColorCode.create({ color_code: color_code });
-                    }
-                    let shapeModel = await Shape.findOne({ where: { shape_name: shape } });
-                    if (!shapeModel) {
-                        shapeModel = await Shape.create({ shape_name: shape });
-                    }
-
-                    let lensColorModel = await LensColor.findOne({ where: { lens_color: lens_color } });
-                    if (!lensColorModel) {
-                        lensColorModel = await LensColor.create({ lens_color: lens_color });
-                    }
-
-                    let frameColorModel = await FrameColor.findOne({ where: { frame_color: frame_color } });
-                    if (!frameColorModel) {
-                        frameColorModel = await FrameColor.create({ frame_color: frame_color });
-                    }
-
-                    let frameTypeModel = await FrameType.findOne({ where: { frame_type: frame_type } });
-                    if (!frameTypeModel) {
-                        frameTypeModel = await FrameType.create({ frame_type: frame_type });
-                    }
-
-                    let lensMaterialModel = await LensMaterial.findOne({ where: { lens_material: lens_material } });
-                    if (!lensMaterialModel) {
-                        lensMaterialModel = await LensMaterial.create({ lens_material: lens_material });
-                    }
-
-                    let frameMaterialModel = await FrameMaterial.findOne({ where: { frame_material: frame_material } });
-                    if (!frameMaterialModel) {
-                        frameMaterialModel = await FrameMaterial.create({ frame_material: frame_material });
-                    }
-
-                    let genderModel = await Gender.findOne({ where: { gender_name: gender } });
-                    if (!genderModel) {
-                        genderModel = await Gender.create({ gender_name: gender });
-                    }
-
-                    // Check if product with same model_no already exists
-                    const existingProduct = await Product.findOne({ where: { model_no } });
-                    if (existingProduct) {
-                        Product.update({
-                            status: status,
-                            warehouse_qty: warehouse_qty,
-                            mrp: mrp,
-                            whp: whp,
-                            size_mm: size_mm,
-                            brand_id: brandModel.brand_id,
-                            collection_id: collectionModel.collection_id,
-                            gender_id: genderModel.gender_id,
-                            color_code_id: colorCodeModel.color_code_id,
-                            shape_id: shapeModel.shape_id,
-                            lens_color_id: lensColorModel.lens_color_id,
-                            frame_color_id: frameColorModel.frame_color_id,
-                            frame_type_id: frameTypeModel.frame_type_id,
-                            lens_material_id: lensMaterialModel.lens_material_id,
-                            frame_material_id: frameMaterialModel.frame_material_id,
-                            updated_at: new Date(),
-                        }, { where: { product_id: existingProduct.product_id } });
-                        await AuditLog.create({
-                            user_id: user.user_id,
-                            action: 'update',
-                            description: 'Product updated via bulk upload',
-                            table_name: 'products',
-                            record_id: existingProduct.product_id,
-                            old_values: existingProduct,
-                            new_values: {
-                                status: status,
-                                warehouse_qty: warehouse_qty,
-                                mrp: mrp,
-                                whp: whp,
-                                size_mm: size_mm,
-                                brand_id: brandModel.brand_id,
-                                collection_id: collectionModel.collection_id,
-                                gender_id: genderModel.gender_id,
-                                color_code_id: colorCodeModel.color_code_id,
-                                shape_id: shapeModel.shape_id,
-                                lens_color_id: lensColorModel.lens_color_id,
-                                frame_color_id: frameColorModel.frame_color_id,
-                                frame_type_id: frameTypeModel.frame_type_id,
-                                lens_material_id: lensMaterialModel.lens_material_id,
-                                frame_material_id: frameMaterialModel.frame_material_id,
-                                updated_at: new Date(),
-                            },
-                            ip_address: req.ip || 'N/A',
-                            created_at: new Date()
-                        });
-                        updatedProducts.push(existingProduct);
-                        successCount++;
-                        continue;
-                    }
-
-                    const product = await Product.create({
-                        model_no,
-                        gender_id: genderModel.gender_id,
-                        color_code_id: colorCodeModel.color_code_id,
-                        shape_id: shapeModel.shape_id,
-                        lens_color_id: lensColorModel.lens_color_id,
-                        frame_color_id: frameColorModel.frame_color_id,
-                        frame_type_id: frameTypeModel.frame_type_id,
-                        lens_material_id: lensMaterialModel.lens_material_id,
-                        frame_material_id: frameMaterialModel.frame_material_id,
-                        image_urls: [],
-                        mrp,
-                        whp,
-                        size_mm,
-                        warehouse_qty,
-                        tray_qty: 0,
-                        total_qty: warehouse_qty,
-                        status,
-                        brand_id: brandModel.brand_id,
-                        collection_id: collectionModel.collection_id,
-                        created_at: new Date(),
-                        updated_at: new Date(),
-                    });
-
-                    createdProducts.push(product);
-
-                    // Create audit log if user is provided
-                    if (user && req) {
-                        await AuditLog.create({
-                            user_id: user.user_id,
-                            action: 'create',
-                            description: 'Product created via bulk upload',
-                            table_name: 'products',
-                            record_id: product.product_id,
-                            old_values: null,
-                            new_values: product,
-                            ip_address: req.ip || 'N/A',
-                            created_at: new Date()
-                        });
-                    }
-
-                    successCount++;
-                } catch (error) {
-                    errors.push({ row: i + 1, model_no: item.model_no || 'N/A', error: error.message });
-                    errorCount++;
-                }
-            }
-
-            return {
-                success: successCount > 0,
-                message: `Bulk upload completed. ${successCount} products created, ${errorCount} errors.`,
-                data: {
-                    created: createdProducts,
-                    errors: errors,
-                    successCount,
-                    errorCount,
-                    total: data.length
-                }
-            };
-        } catch (error) {
-            return { success: false, message: error.message };
-        }
     }
 }
 
