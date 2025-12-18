@@ -183,51 +183,52 @@ class ProductController {
                 return res.status(400).json({ error: 'Image not found' });
             }
 
-            if (!product_id) {
-                return res.status(400).json({ error: 'Product ID is required' });
+            if (product_id) {
+                // Find the product
+                const product = await Product.findOne({ where: { product_id: product_id } });
+                if (!product) {
+                    return res.status(404).json({ error: 'Product not found' });
+                }
+
+                // Get existing image_urls or initialize empty array
+                let image_urls = product.image_urls || [];
+                const oldImageUrls = [...image_urls];
+
+                // Add all uploaded image paths to the array
+                for (const fileInfo of fileInfos) {
+                    image_urls.push(fileInfo.path);
+                }
+
+                // Update product with new image_urls
+                await Product.update(
+                    { image_urls: image_urls, updated_at: new Date() },
+                    { where: { product_id: product_id } }
+                );
+
+                // Create audit log
+                await AuditLog.create({
+                    user_id: req.user.user_id,
+                    action: 'update',
+                    description: 'Product image saved',
+                    table_name: 'products',
+                    record_id: product.product_id,
+                    old_values: { image_urls: oldImageUrls },
+                    new_values: { image_urls: image_urls },
+                    ip_address: req.ip,
+                    created_at: new Date()
+                });
+
+                // Fetch updated product
+                const updatedProduct = await Product.findOne({ where: { product_id: product_id } });
+                return res.status(200).json({
+                    message: 'Product image saved successfully',
+                    data: fileInfos,
+                    product: updatedProduct
+                });
             }
-
-            // Find the product
-            const product = await Product.findOne({ where: { product_id: product_id } });
-            if (!product) {
-                return res.status(404).json({ error: 'Product not found' });
-            }
-
-            // Get existing image_urls or initialize empty array
-            let image_urls = product.image_urls || [];
-            const oldImageUrls = [...image_urls];
-
-            // Add all uploaded image paths to the array
-            for (const fileInfo of fileInfos) {
-                image_urls.push(fileInfo.path);
-            }
-
-            // Update product with new image_urls
-            await Product.update(
-                { image_urls: image_urls, updated_at: new Date() },
-                { where: { product_id: product_id } }
-            );
-
-            // Create audit log
-            await AuditLog.create({
-                user_id: req.user.user_id,
-                action: 'update',
-                description: 'Product image saved',
-                table_name: 'products',
-                record_id: product.product_id,
-                old_values: { image_urls: oldImageUrls },
-                new_values: { image_urls: image_urls },
-                ip_address: req.ip,
-                created_at: new Date()
-            });
-
-            // Fetch updated product
-            const updatedProduct = await Product.findOne({ where: { product_id: product_id } });
-
             res.status(200).json({
                 message: 'Product image saved successfully',
                 data: fileInfos,
-                product: updatedProduct
             });
         } catch (error) {
             res.status(500).json({ error: error.message });
