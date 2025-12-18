@@ -706,6 +706,21 @@ const DashboardProducts = () => {
       const brand = brands.find(b => (b.brand_id || b.id) === product.brand_id);
       const collection = collections.find(c => (c.collection_id || c.id) === product.collection_id);
       
+      // Check if product has valid images - empty arrays [] should be treated as no images
+      let hasImageUrls = false;
+      if (Array.isArray(product?.image_urls)) {
+        // If array is empty [], hasImageUrls remains false
+        if (product.image_urls.length > 0) {
+          hasImageUrls = product.image_urls.some(url => 
+            url && typeof url === 'string' && url.trim().length > 0
+          );
+        }
+      }
+      const hasImageUrl = !!product?.image_url && typeof product.image_url === 'string' && product.image_url.trim().length > 0;
+      const hasImageUrlsString = !!product?.image_urls && !Array.isArray(product.image_urls) && 
+        typeof product.image_urls === 'string' && product.image_urls.trim().length > 0;
+      const hasUploadedMedia = hasImageUrls || hasImageUrl || hasImageUrlsString;
+      
       return {
         id: product.product_id || product.id,
         model_no: product.model_no || '',
@@ -715,8 +730,9 @@ const DashboardProducts = () => {
         stock: product.total_qty || product.qty || 0,
         mrp: `₹${parseFloat(product.mrp || 0).toLocaleString('en-IN')}`,
         whp: `₹${parseFloat(product.whp || 0).toLocaleString('en-IN')}`,
+        warehouse_qty: product.warehouse_qty || 0,
         status: product.status || 'draft',
-        hasUploadedMedia: !!(Array.isArray(product.image_urls) && product.image_urls.length > 0) || !!product.image_url || !!product.image_urls,
+        hasUploadedMedia: hasUploadedMedia,
         data: product,
       };
     });
@@ -1137,24 +1153,76 @@ const DashboardProducts = () => {
       const product = r.data;
       
       // Check if product has valid images - support both image_urls array and legacy image_url string
-      // Filter out empty strings, null, undefined, and whitespace-only values
-      const hasImageUrls = Array.isArray(product?.image_urls) && product.image_urls.length > 0 && 
-        product.image_urls.some(url => url && typeof url === 'string' && url.trim().length > 0);
+      // Products with empty array [] or no images should appear in unuploaded gallery
+      
+      // Check image_urls array: must be array with length > 0 AND have at least one valid URL
+      let hasImageUrls = false;
+      if (Array.isArray(product?.image_urls)) {
+        // Explicitly check: if array is empty [], hasImageUrls remains false (product goes to unuploaded)
+        // If array has items, check if at least one is a valid non-empty string
+        if (product.image_urls.length > 0) {
+          hasImageUrls = product.image_urls.some(url => 
+            url && typeof url === 'string' && url.trim().length > 0
+          );
+        }
+        // If array is empty [] or null/undefined, hasImageUrls stays false
+      } else if (product?.image_urls === null || product?.image_urls === undefined) {
+        // Explicitly handle null/undefined - no images, so hasImageUrls stays false
+        hasImageUrls = false;
+      }
+      
+      // Check legacy image_url string
       const hasImageUrl = !!product?.image_url && typeof product.image_url === 'string' && product.image_url.trim().length > 0;
+      
+      // Check if image_urls is a string (non-array format)
       const hasImageUrlsString = !!product?.image_urls && !Array.isArray(product.image_urls) && 
         typeof product.image_urls === 'string' && product.image_urls.trim().length > 0;
       
       // Return products that have NO valid images
-      return !(hasImageUrls || hasImageUrl || hasImageUrlsString);
+      // This includes: empty arrays [], null, undefined, arrays with only empty/null values
+      const hasAnyValidImage = hasImageUrls || hasImageUrl || hasImageUrlsString;
+      return !hasAnyValidImage;
+    }),
+    [rows]
+  );
+
+  // Filter rows to only show products WITH images (for Products tab)
+  const rowsWithImages = useMemo(
+    () => rows.filter(r => {
+      const product = r.data;
+      
+      // Check if product has valid images - support both image_urls array and legacy image_url string
+      // If image_urls is an empty array [], the product should NOT appear in Products tab
+      
+      // Check image_urls array: must be array with length > 0 AND have at least one valid URL
+      let hasImageUrls = false;
+      if (Array.isArray(product?.image_urls)) {
+        // If array is empty [], hasImageUrls remains false
+        if (product.image_urls.length > 0) {
+          hasImageUrls = product.image_urls.some(url => 
+            url && typeof url === 'string' && url.trim().length > 0
+          );
+        }
+      }
+      
+      // Check legacy image_url string
+      const hasImageUrl = !!product?.image_url && typeof product.image_url === 'string' && product.image_url.trim().length > 0;
+      
+      // Check if image_urls is a string (non-array format)
+      const hasImageUrlsString = !!product?.image_urls && !Array.isArray(product.image_urls) && 
+        typeof product.image_urls === 'string' && product.image_urls.trim().length > 0;
+      
+      // Return products that HAVE valid images
+      return hasImageUrls || hasImageUrl || hasImageUrlsString;
     }),
     [rows]
   );
 
   const filteredRowsByTab = useMemo(() => {
-    if (activeTab === 'Products') return rows;
+    if (activeTab === 'Products') return rowsWithImages;
     if (activeTab === 'Unuploaded Media Gallery') return unuploadedRows;
     return rows;
-  }, [rows, unuploadedRows, activeTab]);
+  }, [rows, rowsWithImages, unuploadedRows, activeTab]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -1246,6 +1314,7 @@ const DashboardProducts = () => {
     { key: 'collection', label: 'COLLECTION' },
     { key: 'mrp', label: 'MRP' },
     { key: 'whp', label: 'WHP' },
+    { key: 'warehouse_qty', label: 'WAREHOUSE QTY' },
     { key: 'status', label: 'STATUS' },
     { key: 'action', label: 'ACTION', render: (_v, row) => (
       <RowActions 

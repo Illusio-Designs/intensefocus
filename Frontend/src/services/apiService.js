@@ -3199,46 +3199,57 @@ export const getProductsInTray = async (trayId) => {
  * @param {Object} trayProductData - Tray product data
  * @param {string} trayProductData.tray_id - Tray ID (UUID)
  * @param {string} trayProductData.product_id - Product ID (UUID)
- * @param {number} trayProductData.qty - Quantity
+ * @param {number} [trayProductData.qty] - Quantity (optional, defaults to 1)
  * @param {string} trayProductData.status - Status (e.g., "alloted")
  * @returns {Promise<Object>} Created tray product record
  */
 export const addProductToTray = async (trayProductData) => {
   const { tray_id, product_id, qty, status } = trayProductData;
+  const body = { tray_id, product_id, status };
+  if (qty !== undefined) {
+    body.qty = qty;
+  }
   return apiRequest('/tray_products/', {
     method: 'POST',
-    body: { tray_id, product_id, qty, status },
+    body,
     includeAuth: true,
   });
 };
 
 /**
  * Update product in tray
- * @param {string} trayProductId - Tray product record ID (UUID)
  * @param {Object} trayProductData - Updated tray product data
  * @param {string} trayProductData.tray_id - Tray ID (UUID)
  * @param {string} trayProductData.product_id - Product ID (UUID)
- * @param {number} trayProductData.qty - Quantity
+ * @param {number} [trayProductData.qty] - Quantity (optional)
  * @param {string} trayProductData.status - Status
  * @returns {Promise<Object>} Response with message
  */
-export const updateProductInTray = async (trayProductId, trayProductData) => {
+export const updateProductInTray = async (trayProductData) => {
   const { tray_id, product_id, qty, status } = trayProductData;
-  return apiRequest(`/tray_products/${trayProductId}`, {
+  const body = { tray_id, product_id, status };
+  if (qty !== undefined) {
+    body.qty = qty;
+  }
+  return apiRequest('/tray_products', {
     method: 'PUT',
-    body: { tray_id, product_id, qty, status },
+    body,
     includeAuth: true,
   });
 };
 
 /**
  * Delete product from tray
- * @param {string} trayProductId - Tray product record ID (UUID)
+ * @param {Object} trayProductData - Tray product data
+ * @param {string} trayProductData.tray_id - Tray ID (UUID)
+ * @param {string} trayProductData.product_id - Product ID (UUID)
  * @returns {Promise<Object>} Response with message
  */
-export const deleteProductFromTray = async (trayProductId) => {
-  return apiRequest(`/tray_products/${trayProductId}`, {
+export const deleteProductFromTray = async (trayProductData) => {
+  const { tray_id, product_id } = trayProductData;
+  return apiRequest('/tray_products/', {
     method: 'DELETE',
+    body: { tray_id, product_id },
     includeAuth: true,
   });
 };
