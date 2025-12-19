@@ -45,6 +45,13 @@ class TrayProductsController {
                 });
                 return res.status(200).json(updatedTrayProduct);
             }
+            const product = await Product.findOne({ where: { product_id } });
+            if (!product) {
+                return res.status(404).json({ error: 'Product not found' });
+            }
+            if (product.warehouse_qty < 1) {
+                return res.status(400).json({ error: 'Product out of stock' });
+            }
             const trayProduct = await TrayProducts.create({
                 tray_id,
                 product_id,
@@ -54,6 +61,11 @@ class TrayProductsController {
                 updated_at: new Date(),
                 assigned_at: new Date(),
             });
+            await Product.update({
+                warehouse_qty: product.warehouse_qty - 1,
+                tray_qty: product.tray_qty + 1,
+                updated_at: new Date(),
+            }, { where: { product_id } });
             await AuditLog.create({
                 user_id: user.user_id,
                 action: 'create',
@@ -117,11 +129,20 @@ class TrayProductsController {
                 return res.status(400).json({ error: 'Tray product ID is required' });
             }
             const user = req.user;
+            const product = await Product.findOne({ where: { product_id } });
+            if (!product) {
+                return res.status(404).json({ error: 'Product not found' });
+            }
             const trayProduct = await TrayProducts.findOne({ where: { tray_id, product_id } });
             if (!trayProduct) {
                 return res.status(404).json({ error: 'Tray product not found' });
             }
             await TrayProducts.destroy({ where: { tray_id, product_id } });
+            await Product.update({
+                warehouse_qty: product.warehouse_qty + 1,
+                tray_qty: product.tray_qty - 1,
+                updated_at: new Date(),
+            }, { where: { product_id } });
             await AuditLog.create({
                 user_id: user.user_id,
                 action: 'delete',
