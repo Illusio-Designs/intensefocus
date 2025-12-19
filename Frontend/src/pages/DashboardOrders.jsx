@@ -1,10 +1,21 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import TableWithControls from '../components/ui/TableWithControls';
 import StatusBadge from '../components/ui/StatusBadge';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 import RowActions from '../components/ui/RowActions';
-import { getOrders, updateOrderStatus, deleteOrder } from '../services/apiService';
+import { 
+  getOrders, 
+  createOrder, 
+  updateOrderStatus, 
+  deleteOrder,
+  getParties,
+  getDistributors,
+  getSalesmen,
+  getEvents,
+  getProducts,
+  getCountries
+} from '../services/apiService';
 import { showSuccess, showError } from '../services/notificationService';
 import '../styles/pages/dashboard-orders.css';
 
@@ -38,14 +49,36 @@ const mapUITabToApiStatus = (tab) => {
 
 const DashboardOrders = () => {
   const [editRow, setEditRow] = useState(null);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('All');
   const [dateRange, setDateRange] = useState('Feb 24, 2023 - Mar 15, 2023');
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  
+  // Dropdown data
+  const [countries, setCountries] = useState([]);
+  const [selectedCountry, setSelectedCountry] = useState(null);
+  const [parties, setParties] = useState([]);
+  const [distributors, setDistributors] = useState([]);
+  const [salesmen, setSalesmen] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [products, setProducts] = useState([]);
+  
+  // Create order form data
+  const [createFormData, setCreateFormData] = useState({
+    order_date: new Date().toISOString().split('T')[0],
+    order_type: '',
+    party_id: '',
+    distributor_id: '',
+    salesman_id: '',
+    event_id: '',
+    order_items: [{ product_id: '', quantity: 1, price: 0 }],
+    order_notes: ''
+  });
 
   // Fetch orders from API
-  const fetchOrders = async () => {
+  const fetchOrders = async (suppressError = false) => {
     try {
       setLoading(true);
       setError(null);
@@ -53,9 +86,26 @@ const DashboardOrders = () => {
       setOrders(Array.isArray(response) ? response : []);
     } catch (err) {
       const message = err?.response?.data?.message || err?.message || 'Failed to fetch orders';
-      setError(message);
-      showError(message);
-      setOrders([]);
+      const errorMessage = (message || '').toLowerCase();
+      
+      // Don't show error for "not found" cases - it's a valid empty state
+      const isNotFoundError = errorMessage.includes('orders not found') ||
+                             errorMessage.includes('no orders found') ||
+                             errorMessage.includes('order not found') ||
+                             err.statusCode === 404;
+      
+      if (isNotFoundError) {
+        // Just set empty array, don't show error
+        setOrders([]);
+        setError(null);
+      } else {
+        // Only show error if not suppressed and not a "not found" error
+        setError(message);
+        if (!suppressError) {
+          showError(message);
+        }
+        setOrders([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -64,7 +114,142 @@ const DashboardOrders = () => {
   // Fetch orders on mount
   useEffect(() => {
     fetchOrders();
+    fetchInitialData();
   }, []);
+
+  // Fetch initial data for dropdowns
+  const fetchInitialData = async () => {
+    try {
+      const [countriesData, productsData] = await Promise.all([
+        getCountries(),
+        getProducts()
+      ]);
+      setCountries(countriesData || []);
+      setProducts(productsData || []);
+    } catch (err) {
+      console.error('Failed to fetch initial data:', err);
+    }
+  };
+
+  // Fetch events only when event_order is selected
+  const fetchEvents = useCallback(async () => {
+    try {
+      const eventsData = await getEvents();
+      setEvents(eventsData || []);
+    } catch (err) {
+      console.error('Failed to fetch events:', err);
+      setEvents([]);
+    }
+  }, []);
+
+  // Fetch events when event_order is selected
+  useEffect(() => {
+    if (createFormData.order_type === 'event_order' && events.length === 0) {
+      fetchEvents();
+    }
+  }, [createFormData.order_type, events.length, fetchEvents]);
+
+  // Fetch parties when country is selected
+  const fetchPartiesForCountry = useCallback(async (countryId) => {
+    if (!countryId) {
+      setParties([]);
+      return;
+    }
+    
+    try {
+      const cleanCountryId = String(countryId).trim();
+      if (!cleanCountryId || cleanCountryId === 'undefined' || cleanCountryId === 'null') {
+        console.error('[fetchPartiesForCountry] Invalid country ID:', countryId);
+        setParties([]);
+        return;
+      }
+      
+      console.log('[fetchPartiesForCountry] Fetching parties for country:', cleanCountryId);
+      const partiesData = await getParties(cleanCountryId);
+      console.log('[fetchPartiesForCountry] Received', partiesData?.length || 0, 'parties');
+      setParties(partiesData || []);
+    } catch (err) {
+      console.error('Failed to fetch parties:', err);
+      setParties([]);
+    }
+  }, []);
+
+  // Fetch distributors when country is selected
+  const fetchDistributorsForCountry = useCallback(async (countryId) => {
+    if (!countryId) {
+      setDistributors([]);
+      return;
+    }
+    
+    try {
+      const cleanCountryId = String(countryId).trim();
+      if (!cleanCountryId || cleanCountryId === 'undefined' || cleanCountryId === 'null') {
+        console.error('[fetchDistributorsForCountry] Invalid country ID:', countryId);
+        setDistributors([]);
+        return;
+      }
+      
+      console.log('[fetchDistributorsForCountry] Fetching distributors for country:', cleanCountryId);
+      const distributorsData = await getDistributors(cleanCountryId);
+      console.log('[fetchDistributorsForCountry] Received', distributorsData?.length || 0, 'distributors');
+      setDistributors(distributorsData || []);
+    } catch (err) {
+      console.error('Failed to fetch distributors:', err);
+      setDistributors([]);
+    }
+  }, []);
+
+  // Fetch salesmen when country is selected
+  const fetchSalesmenForCountry = useCallback(async (countryId) => {
+    if (!countryId) {
+      setSalesmen([]);
+      return;
+    }
+    
+    try {
+      const cleanCountryId = String(countryId).trim();
+      if (!cleanCountryId || cleanCountryId === 'undefined' || cleanCountryId === 'null') {
+        console.error('[fetchSalesmenForCountry] Invalid country ID:', countryId);
+        setSalesmen([]);
+        return;
+      }
+      
+      console.log('[fetchSalesmenForCountry] Fetching salesmen for country:', cleanCountryId);
+      const salesmenData = await getSalesmen(cleanCountryId);
+      console.log('[fetchSalesmenForCountry] Received', salesmenData?.length || 0, 'salesmen');
+      setSalesmen(salesmenData || []);
+    } catch (err) {
+      console.error('Failed to fetch salesmen:', err);
+      setSalesmen([]);
+    }
+  }, []);
+
+  // Fetch parties when country is selected
+  useEffect(() => {
+    if (selectedCountry) {
+      fetchPartiesForCountry(selectedCountry);
+    } else {
+      setParties([]);
+    }
+  }, [selectedCountry, fetchPartiesForCountry]);
+
+  // Fetch distributors when country is selected
+  useEffect(() => {
+    if (selectedCountry) {
+      fetchDistributorsForCountry(selectedCountry);
+    } else {
+      setDistributors([]);
+    }
+  }, [selectedCountry, fetchDistributorsForCountry]);
+
+  // Fetch salesmen when country is selected
+  useEffect(() => {
+    if (selectedCountry) {
+      fetchSalesmenForCountry(selectedCountry);
+    } else {
+      setSalesmen([]);
+    }
+  }, [selectedCountry, fetchSalesmenForCountry]);
 
   // Transform orders data to table rows
   const rows = useMemo(() => {
@@ -75,7 +260,18 @@ const DashboardOrders = () => {
       const orderId = order.order_id || order.id;
       const partyName = order.party?.party_name || order.party_name || 'N/A';
       const orderStatus = mapApiStatusToUI(order.order_status);
-      const orderItems = order.order_items || [];
+      
+      // Ensure orderItems is always an array
+      let orderItems = order.order_items;
+      if (!Array.isArray(orderItems)) {
+        // If it's not an array, try to convert it or default to empty array
+        if (orderItems && typeof orderItems === 'object') {
+          // If it's an object, try to get values or wrap in array
+          orderItems = Object.values(orderItems);
+        } else {
+          orderItems = [];
+        }
+      }
 
       if (orderItems.length === 0) {
         // If no items, create a single row for the order
@@ -211,6 +407,146 @@ const DashboardOrders = () => {
     }
   };
 
+  // Handle create order
+  const handleCreateOrder = async () => {
+    try {
+      // Validation
+      if (!createFormData.order_date) {
+        showError('Order date is required');
+        return;
+      }
+      if (!createFormData.order_type) {
+        showError('Order type is required');
+        return;
+      }
+      if (createFormData.order_items.length === 0 || 
+          createFormData.order_items.some(item => !item.product_id || !item.quantity || !item.price)) {
+        showError('Please add at least one valid order item');
+        return;
+      }
+
+      // Validate conditional fields based on order type
+      const orderType = createFormData.order_type;
+      if (['event_order', 'party_order', 'visit_order', 'whatsapp_order'].includes(orderType) && !createFormData.party_id) {
+        showError('Party is required for this order type');
+        return;
+      }
+      if (['event_order', 'party_order', 'distributor_order', 'visit_order', 'whatsapp_order'].includes(orderType) && !createFormData.distributor_id) {
+        showError('Distributor is required for this order type');
+        return;
+      }
+      if (['event_order', 'visit_order', 'whatsapp_order'].includes(orderType) && !createFormData.salesman_id) {
+        showError('Salesman is required for this order type');
+        return;
+      }
+      if (orderType === 'event_order' && !createFormData.event_id) {
+        showError('Event is required for event orders');
+        return;
+      }
+
+      setLoading(true);
+      
+      // Prepare order data
+      const orderData = {
+        order_date: new Date(createFormData.order_date).toISOString(),
+        order_type: createFormData.order_type,
+        order_items: createFormData.order_items.map(item => ({
+          product_id: item.product_id,
+          quantity: Number(item.quantity),
+          price: Number(item.price)
+        }))
+      };
+
+      if (createFormData.party_id) orderData.party_id = createFormData.party_id;
+      if (createFormData.distributor_id) orderData.distributor_id = createFormData.distributor_id;
+      if (createFormData.salesman_id) orderData.salesman_id = createFormData.salesman_id;
+      if (createFormData.event_id) orderData.event_id = createFormData.event_id;
+      if (createFormData.order_notes) orderData.order_notes = createFormData.order_notes;
+
+      await createOrder(orderData);
+      showSuccess('Order created successfully');
+      setCreateModalOpen(false);
+      resetCreateForm();
+      // Suppress error notification when refreshing after create (in case of temporary "not found")
+      await fetchOrders(true);
+    } catch (err) {
+      const message = err?.response?.data?.message || err?.message || 'Failed to create order';
+      showError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Reset create form
+  const resetCreateForm = () => {
+    setCreateFormData({
+      order_date: new Date().toISOString().split('T')[0],
+      order_type: '',
+      party_id: '',
+      distributor_id: '',
+      salesman_id: '',
+      event_id: '',
+      order_items: [{ product_id: '', quantity: 1, price: 0 }],
+      order_notes: ''
+    });
+    setSelectedCountry(null);
+  };
+
+  // Add order item
+  const addOrderItem = () => {
+    setCreateFormData(prev => ({
+      ...prev,
+      order_items: [...prev.order_items, { product_id: '', quantity: 1, price: 0 }]
+    }));
+  };
+
+  // Remove order item
+  const removeOrderItem = (index) => {
+    setCreateFormData(prev => ({
+      ...prev,
+      order_items: prev.order_items.filter((_, i) => i !== index)
+    }));
+  };
+
+  // Update order item
+  const updateOrderItem = (index, field, value) => {
+    setCreateFormData(prev => ({
+      ...prev,
+      order_items: prev.order_items.map((item, i) => 
+        i === index ? { ...item, [field]: value } : item
+      )
+    }));
+  };
+
+  // Get product price when product is selected
+  const handleProductSelect = (itemIndex, productId) => {
+    const product = products.find(p => (p.product_id || p.id) === productId);
+    if (product) {
+      const price = product.price || product.selling_price || 0;
+      updateOrderItem(itemIndex, 'product_id', productId);
+      updateOrderItem(itemIndex, 'price', price);
+    } else {
+      updateOrderItem(itemIndex, 'product_id', productId);
+    }
+  };
+
+  // Check if field is required based on order type
+  const isFieldRequired = (field) => {
+    const orderType = createFormData.order_type;
+    switch (field) {
+      case 'party_id':
+        return ['event_order', 'party_order', 'visit_order', 'whatsapp_order'].includes(orderType);
+      case 'distributor_id':
+        return ['event_order', 'party_order', 'distributor_order', 'visit_order', 'whatsapp_order'].includes(orderType);
+      case 'salesman_id':
+        return ['event_order', 'visit_order', 'whatsapp_order'].includes(orderType);
+      case 'event_id':
+        return orderType === 'event_order';
+      default:
+        return false;
+    }
+  };
+
   const columns = useMemo(() => ([
     { key: 'orderId', label: 'ORDER ID' },
     { key: 'client', label: 'CLIENT NAME' },
@@ -292,6 +628,8 @@ const DashboardOrders = () => {
               title="Order Overview"
               columns={columns}
               rows={filteredRowsByTab}
+              onAddNew={() => setCreateModalOpen(true)}
+              addNewText="Create Order"
               onImport={() => console.log('import orders')}
               importText="Import All Orders Data"
               dateRange={dateRange}
@@ -303,6 +641,7 @@ const DashboardOrders = () => {
         </div>
       </div>
 
+      {/* Edit Order Status Modal */}
       <Modal open={!!editRow} onClose={() => setEditRow(null)} title="Edit Order Status" footer={(
         <>
           <Button variant="secondary" onClick={() => setEditRow(null)} disabled={loading}>Cancel</Button>
@@ -352,6 +691,315 @@ const DashboardOrders = () => {
               <option value="COMPLETED">COMPLETED</option>
               <option value="CANCEL">CANCEL</option>
             </select>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Create Order Modal */}
+      <Modal 
+        open={createModalOpen} 
+        onClose={() => {
+          setCreateModalOpen(false);
+          resetCreateForm();
+        }} 
+        title="Create New Order"
+        footer={(
+          <>
+            <Button 
+              variant="secondary" 
+              onClick={() => {
+                setCreateModalOpen(false);
+                resetCreateForm();
+              }} 
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateOrder} 
+              disabled={loading}
+            >
+              {loading ? 'Creating...' : 'Create Order'}
+            </Button>
+          </>
+        )}
+      >
+        <div className="ui-form" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+          {/* Order Date */}
+          <div className="form-group">
+            <label className="ui-label">Order Date <span style={{ color: 'red' }}>*</span></label>
+            <input 
+              type="date"
+              className="ui-input" 
+              value={createFormData.order_date}
+              onChange={(e) => setCreateFormData(prev => ({ ...prev, order_date: e.target.value }))}
+              required
+            />
+          </div>
+
+          {/* Order Type */}
+          <div className="form-group">
+            <label className="ui-label">Order Type <span style={{ color: 'red' }}>*</span></label>
+            <select 
+              className="ui-select"
+              value={createFormData.order_type}
+              onChange={(e) => {
+                setCreateFormData(prev => ({ 
+                  ...prev, 
+                  order_type: e.target.value,
+                  party_id: '',
+                  distributor_id: '',
+                  salesman_id: '',
+                  event_id: ''
+                }));
+              }}
+              required
+            >
+              <option value="">Select Order Type</option>
+              <option value="event_order">Event Order</option>
+              <option value="party_order">Party Order</option>
+              <option value="distributor_order">Distributor Order</option>
+              <option value="visit_order">Visit Order</option>
+              <option value="whatsapp_order">WhatsApp Order</option>
+            </select>
+          </div>
+
+          {/* Country Selection (for fetching parties, distributors, salesmen) */}
+          <div className="form-group">
+            <label className="ui-label">Country</label>
+            <select 
+              className="ui-select"
+              value={selectedCountry || ''}
+              onChange={(e) => setSelectedCountry(e.target.value || null)}
+            >
+              <option value="">Select Country</option>
+              {countries.map(country => (
+                <option key={country.id || country.country_id} value={country.id || country.country_id}>
+                  {country.country_name || country.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Party ID - Conditional */}
+          {(isFieldRequired('party_id') || createFormData.party_id) && (
+            <div className="form-group">
+              <label className="ui-label">
+                Party {isFieldRequired('party_id') && <span style={{ color: 'red' }}>*</span>}
+              </label>
+              <select 
+                className="ui-select"
+                value={createFormData.party_id}
+                onChange={(e) => setCreateFormData(prev => ({ ...prev, party_id: e.target.value }))}
+                required={isFieldRequired('party_id')}
+                disabled={!selectedCountry}
+              >
+                <option value="">Select Party</option>
+                {!selectedCountry ? (
+                  <option value="" disabled>Please select a country first</option>
+                ) : parties.length === 0 ? (
+                  <option value="" disabled>No parties found for this country</option>
+                ) : (
+                  parties.map(party => (
+                    <option key={party.id || party.party_id} value={party.id || party.party_id}>
+                      {party.party_name}
+                    </option>
+                  ))
+                )}
+              </select>
+              {!selectedCountry && (
+                <small style={{ color: '#666', fontSize: '12px' }}>Please select a country first</small>
+              )}
+              {selectedCountry && parties.length === 0 && (
+                <small style={{ color: '#666', fontSize: '12px' }}>No parties available for this country</small>
+              )}
+            </div>
+          )}
+
+          {/* Distributor ID - Conditional */}
+          {(isFieldRequired('distributor_id') || createFormData.distributor_id) && (
+            <div className="form-group">
+              <label className="ui-label">
+                Distributor {isFieldRequired('distributor_id') && <span style={{ color: 'red' }}>*</span>}
+              </label>
+              <select 
+                className="ui-select"
+                value={createFormData.distributor_id}
+                onChange={(e) => setCreateFormData(prev => ({ ...prev, distributor_id: e.target.value }))}
+                required={isFieldRequired('distributor_id')}
+                disabled={!selectedCountry}
+              >
+                <option value="">Select Distributor</option>
+                {!selectedCountry ? (
+                  <option value="" disabled>Please select a country first</option>
+                ) : distributors.length === 0 ? (
+                  <option value="" disabled>No distributors found for this country</option>
+                ) : (
+                  distributors.map(distributor => (
+                    <option key={distributor.id || distributor.distributor_id} value={distributor.id || distributor.distributor_id}>
+                      {distributor.distributor_name || distributor.name}
+                    </option>
+                  ))
+                )}
+              </select>
+              {!selectedCountry && (
+                <small style={{ color: '#666', fontSize: '12px' }}>Please select a country first</small>
+              )}
+              {selectedCountry && distributors.length === 0 && (
+                <small style={{ color: '#666', fontSize: '12px' }}>No distributors available for this country</small>
+              )}
+            </div>
+          )}
+
+          {/* Salesman ID - Conditional */}
+          {(isFieldRequired('salesman_id') || createFormData.salesman_id) && (
+            <div className="form-group">
+              <label className="ui-label">
+                Salesman {isFieldRequired('salesman_id') && <span style={{ color: 'red' }}>*</span>}
+              </label>
+              <select 
+                className="ui-select"
+                value={createFormData.salesman_id}
+                onChange={(e) => setCreateFormData(prev => ({ ...prev, salesman_id: e.target.value }))}
+                required={isFieldRequired('salesman_id')}
+                disabled={!selectedCountry}
+              >
+                <option value="">Select Salesman</option>
+                {!selectedCountry ? (
+                  <option value="" disabled>Please select a country first</option>
+                ) : salesmen.length === 0 ? (
+                  <option value="" disabled>No salesmen found for this country</option>
+                ) : (
+                  salesmen.map(salesman => (
+                    <option key={salesman.id || salesman.salesman_id} value={salesman.id || salesman.salesman_id}>
+                      {salesman.salesman_name || salesman.name}
+                    </option>
+                  ))
+                )}
+              </select>
+              {!selectedCountry && (
+                <small style={{ color: '#666', fontSize: '12px' }}>Please select a country first</small>
+              )}
+              {selectedCountry && salesmen.length === 0 && (
+                <small style={{ color: '#666', fontSize: '12px' }}>No salesmen available for this country</small>
+              )}
+            </div>
+          )}
+
+          {/* Event ID - Conditional - Only for event_order */}
+          {createFormData.order_type === 'event_order' && (
+            <div className="form-group">
+              <label className="ui-label">
+                Event <span style={{ color: 'red' }}>*</span>
+              </label>
+              <select 
+                className="ui-select"
+                value={createFormData.event_id}
+                onChange={(e) => setCreateFormData(prev => ({ ...prev, event_id: e.target.value }))}
+                required
+              >
+                <option value="">Select Event</option>
+                {events.length === 0 ? (
+                  <option value="" disabled>Loading events...</option>
+                ) : (
+                  events.map(event => (
+                    <option key={event.id || event.event_id} value={event.id || event.event_id}>
+                      {event.event_name} {event.event_date ? `(${new Date(event.event_date).toLocaleDateString()})` : ''}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+          )}
+
+          {/* Order Items */}
+          <div className="form-group">
+            <label className="ui-label">
+              Order Items <span style={{ color: 'red' }}>*</span>
+            </label>
+            <div style={{ border: '1px solid #E0E0E0', borderRadius: '8px', padding: '16px' }}>
+              {createFormData.order_items.map((item, index) => (
+                <div key={index} style={{ 
+                  marginBottom: index < createFormData.order_items.length - 1 ? '16px' : 0,
+                  paddingBottom: index < createFormData.order_items.length - 1 ? '16px' : 0,
+                  borderBottom: index < createFormData.order_items.length - 1 ? '1px solid #E0E0E0' : 'none'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <strong>Item {index + 1}</strong>
+                    {createFormData.order_items.length > 1 && (
+                      <Button 
+                        variant="secondary" 
+                        onClick={() => removeOrderItem(index)}
+                        style={{ padding: '4px 8px', fontSize: '12px' }}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ fontSize: '12px', color: '#666', marginBottom: '4px', display: 'block' }}>Product</label>
+                      <select 
+                        className="ui-select"
+                        value={item.product_id}
+                        onChange={(e) => handleProductSelect(index, e.target.value)}
+                        required
+                      >
+                        <option value="">Select Product</option>
+                        {products.map(product => (
+                          <option key={product.id || product.product_id} value={product.id || product.product_id}>
+                            {product.model_no || product.product_name || product.name} 
+                            {product.price ? ` - ₹${product.price}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '12px', color: '#666', marginBottom: '4px', display: 'block' }}>Quantity</label>
+                      <input 
+                        type="number"
+                        className="ui-input"
+                        value={item.quantity}
+                        onChange={(e) => updateOrderItem(index, 'quantity', e.target.value)}
+                        min="1"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '12px', color: '#666', marginBottom: '4px', display: 'block' }}>Price</label>
+                      <input 
+                        type="number"
+                        className="ui-input"
+                        value={item.price}
+                        onChange={(e) => updateOrderItem(index, 'price', e.target.value)}
+                        min="0"
+                        step="0.01"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <Button 
+                variant="secondary" 
+                onClick={addOrderItem}
+                style={{ marginTop: '12px', width: '100%' }}
+              >
+                + Add Item
+              </Button>
+            </div>
+          </div>
+
+          {/* Order Notes */}
+          <div className="form-group">
+            <label className="ui-label">Order Notes</label>
+            <textarea 
+              className="ui-input"
+              value={createFormData.order_notes}
+              onChange={(e) => setCreateFormData(prev => ({ ...prev, order_notes: e.target.value }))}
+              rows="3"
+              placeholder="Optional notes about this order"
+            />
           </div>
         </div>
       </Modal>

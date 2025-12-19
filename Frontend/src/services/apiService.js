@@ -3335,10 +3335,31 @@ export const deleteEvent = async (eventId) => {
  * @returns {Promise<Array>} Array of order objects
  */
 export const getOrders = async () => {
-  return apiRequest('/orders/', {
-    method: 'GET',
-    includeAuth: true,
-  });
+  try {
+    return await apiRequest('/orders/', {
+      method: 'GET',
+      includeAuth: true,
+    });
+  } catch (error) {
+    // Handle "Orders not found" as a valid case (empty orders)
+    const errorMessage = (error.message || '').toLowerCase();
+    const errorText = (error.errorData?.error || error.errorData?.message || '').toLowerCase();
+    
+    // Check multiple variations of "not found" messages
+    if (errorMessage.includes('orders not found') ||
+        errorMessage.includes('no orders found') ||
+        errorMessage.includes('order not found') ||
+        errorText.includes('orders not found') ||
+        errorText.includes('no orders found') ||
+        errorText.includes('order not found') ||
+        error.statusCode === 404) {
+      // Return empty array for "not found" cases - this is a valid state
+      console.log('[getOrders] No orders found, returning empty array');
+      return [];
+    }
+    // Re-throw other errors
+    throw error;
+  }
 };
 
 /**

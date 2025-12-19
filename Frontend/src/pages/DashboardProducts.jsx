@@ -31,45 +31,66 @@ import {
 } from '../services/apiService';
 import { showSuccess, showError } from '../services/notificationService';
 
-// Helper function to check if a product has valid image URLs
-// Returns true only if there's at least one valid, non-empty image URL
-// Handles: empty arrays [], arrays with empty strings, the string "[]", null, undefined
-const hasValidImageUrls = (product) => {
-  if (!product) return false;
+// Helper function to parse image_urls from various formats
+// Handles: arrays, JSON strings like "[\"/uploads/products/image.webp\"]", plain strings
+const parseImageUrls = (product) => {
+  if (!product) return [];
+  
+  let imageUrls = [];
   
   // Check image_urls array
   if (Array.isArray(product.image_urls)) {
-    // Empty array means no images
-    if (product.image_urls.length === 0) return false;
-    
-    // Check if array has at least one valid non-empty URL
-    // Filter out: empty strings, whitespace-only strings, and the string "[]"
-    const validUrls = product.image_urls.filter(url => {
+    imageUrls = product.image_urls.filter(url => {
       if (!url || typeof url !== 'string') return false;
       const trimmed = url.trim();
       return trimmed.length > 0 && trimmed !== '[]';
     });
-    
-    return validUrls.length > 0;
-  }
-  
-  // Check if image_urls is a string (non-array format)
-  if (product.image_urls && typeof product.image_urls === 'string') {
+  } 
+  // Check if image_urls is a JSON string (like "[\"/uploads/products/image.webp\"]")
+  else if (product.image_urls && typeof product.image_urls === 'string') {
     const trimmed = product.image_urls.trim();
-    // Reject empty strings, whitespace-only, and the string "[]"
-    if (trimmed.length === 0 || trimmed === '[]') return false;
-    return true;
+    if (trimmed.length > 0 && trimmed !== '[]') {
+      // Try to parse as JSON array
+      if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) {
+            imageUrls = parsed.filter(url => {
+              if (!url || typeof url !== 'string') return false;
+              const trimmed = url.trim();
+              return trimmed.length > 0 && trimmed !== '[]';
+            });
+          } else {
+            // If parsed is not an array, treat as single URL
+            imageUrls = [trimmed];
+          }
+        } catch (e) {
+          // If JSON parsing fails, treat as single URL string
+          imageUrls = [trimmed];
+        }
+      } else {
+        // Not a JSON array, treat as single URL string
+        imageUrls = [trimmed];
+      }
+    }
   }
-  
   // Check legacy image_url string
-  if (product.image_url && typeof product.image_url === 'string') {
+  else if (product.image_url && typeof product.image_url === 'string') {
     const trimmed = product.image_url.trim();
-    // Reject empty strings, whitespace-only, and the string "[]"
-    if (trimmed.length === 0 || trimmed === '[]') return false;
-    return true;
+    if (trimmed.length > 0 && trimmed !== '[]') {
+      imageUrls = [trimmed];
+    }
   }
   
-  return false;
+  return imageUrls;
+};
+
+// Helper function to check if a product has valid image URLs
+// Returns true only if there's at least one valid, non-empty image URL
+// Handles: empty arrays [], arrays with empty strings, the string "[]", null, undefined
+const hasValidImageUrls = (product) => {
+  const imageUrls = parseImageUrls(product);
+  return imageUrls.length > 0;
 };
 
 const DashboardProducts = () => {
@@ -899,26 +920,8 @@ const DashboardProducts = () => {
     const productImagePaths = new Set(); // Store paths in various formats for comparison
     
     products.forEach(product => {
-      // Handle image_urls array (API returns array)
-      // Filter out invalid values: empty strings, whitespace-only, and the string "[]"
-      let imageUrls = [];
-      if (Array.isArray(product.image_urls)) {
-        imageUrls = product.image_urls.filter(url => {
-          if (!url || typeof url !== 'string') return false;
-          const trimmed = url.trim();
-          return trimmed.length > 0 && trimmed !== '[]';
-        });
-      } else if (product.image_urls && typeof product.image_urls === 'string') {
-        const trimmed = product.image_urls.trim();
-        if (trimmed.length > 0 && trimmed !== '[]') {
-          imageUrls = [product.image_urls];
-        }
-      } else if (product.image_url && typeof product.image_url === 'string') {
-        const trimmed = product.image_url.trim();
-        if (trimmed.length > 0 && trimmed !== '[]') {
-          imageUrls = [product.image_url];
-        }
-      }
+      // Use helper function to parse image_urls from various formats (array, JSON string, plain string)
+      const imageUrls = parseImageUrls(product);
       
       imageUrls.forEach(imageUrl => {
         if (imageUrl && typeof imageUrl === 'string') {
@@ -1005,9 +1008,32 @@ const DashboardProducts = () => {
         
         // Check if this image is assigned to any product
         let isAssigned = false;
+        let assignedProduct = null;
         
-        // Check by full URL
-        if (productImageUrls.has(normalizedUrl) || productImageUrls.has(imageUrl)) {
+        // Helper function to extract filename from URL
+        const getFilenameFromUrl = (url) => {
+          if (!url) return null;
+          const parts = url.split('/');
+          return parts[parts.length - 1]?.split('?')[0] || null;
+        };
+        
+        // Helper function to extract path after /uploads/products/
+        const getPathAfterProducts = (url) => {
+          if (!url) return null;
+          if (url.includes('/uploads/products/')) {
+            return url.split('/uploads/products/')[1]?.split('?')[0] || null;
+          }
+          return null;
+        };
+        
+        // Check by full URL (normalized and original)
+        const normalizedUrlNoQuery = normalizedUrl.split('?')[0];
+        const imageUrlNoQuery = imageUrl.split('?')[0];
+        
+        if (productImageUrls.has(normalizedUrl) || 
+            productImageUrls.has(imageUrl) ||
+            productImageUrls.has(normalizedUrlNoQuery) ||
+            productImageUrls.has(imageUrlNoQuery)) {
           isAssigned = true;
         }
         
@@ -1018,17 +1044,54 @@ const DashboardProducts = () => {
         
         // Check by path formats
         if (!isAssigned) {
-          const pathAfterProducts = normalizedUrl.includes('/uploads/products/')
-            ? normalizedUrl.split('/uploads/products/')[1]?.split('?')[0]
-            : null;
-          
+          const pathAfterProducts = getPathAfterProducts(normalizedUrl);
           if (pathAfterProducts) {
             if (productImagePaths.has(`/uploads/products/${pathAfterProducts}`) ||
                 productImagePaths.has(pathAfterProducts) ||
-                productImagePaths.has(normalizedUrl.split('?')[0])) {
+                productImagePaths.has(normalizedUrlNoQuery) ||
+                productImagePaths.has(imageUrlNoQuery)) {
               isAssigned = true;
             }
           }
+        }
+        
+        // If assigned, find the product
+        if (isAssigned && !assignedProduct) {
+          assignedProduct = products.find(p => {
+            // Use helper function to parse image_urls
+            const productImageUrls = parseImageUrls(p);
+            
+            return productImageUrls.some(url => {
+              const normalizedProductUrl = normalizeImageUrl(url);
+              const productUrlNoQuery = url.split('?')[0];
+              const normalizedProductUrlNoQuery = normalizedProductUrl ? normalizedProductUrl.split('?')[0] : null;
+              
+              // Check by full URL
+              if (normalizedProductUrl === normalizedUrl || 
+                  url === imageUrl || 
+                  normalizedProductUrl === imageUrl || 
+                  url === normalizedUrl ||
+                  normalizedProductUrlNoQuery === normalizedUrlNoQuery ||
+                  productUrlNoQuery === imageUrlNoQuery) {
+                return true;
+              }
+              
+              // Check by filename
+              const productFileName = getFilenameFromUrl(url) || getFilenameFromUrl(normalizedProductUrl);
+              if (productFileName && productFileName === fileName) {
+                return true;
+              }
+              
+              // Check by path
+              const productPath = getPathAfterProducts(normalizedProductUrl || url);
+              const imagePath = getPathAfterProducts(normalizedUrl);
+              if (productPath && imagePath && productPath === imagePath) {
+                return true;
+              }
+              
+              return false;
+            });
+          });
         }
         
         mediaImages.push({
@@ -1042,7 +1105,10 @@ const DashboardProducts = () => {
           isTemporary: false,
           fileName: fileName,
           originalData: upload,
-          source: 'uploads' // Mark as from uploads folder
+          source: 'uploads', // Mark as from uploads folder
+          assignedProduct: assignedProduct, // Store the assigned product information
+          productId: assignedProduct ? (assignedProduct.id || assignedProduct.product_id) : null,
+          productData: assignedProduct // Keep for backward compatibility
         });
       });
     }
@@ -1542,6 +1608,9 @@ const DashboardProducts = () => {
       
       // Handle orphaned images (uploaded without product_id)
       if (isMediaUpload && !targetProductId) {
+        // Refresh the media gallery to show the newly uploaded image immediately
+        await fetchAllUploads();
+        
         // Extract image paths from response - API returns { data: [{ path, filename, ... }] }
         let imageFiles = [];
         
@@ -1840,12 +1909,12 @@ const DashboardProducts = () => {
                         e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
                       }}
                     >
-                      {/* Status Tag */}
+                      {/* Status Tag - Always show assigned/unassigned status */}
                       <div style={{
                         position: 'absolute',
                         top: '12px',
                         left: '12px',
-                        background: item.type === 'assigned' ? '#4caf50' : '#ff9800',
+                        background: (item.type === 'assigned') ? '#4caf50' : '#ff9800',
                         color: '#fff',
                         padding: '6px 12px',
                         borderRadius: '6px',
@@ -1853,7 +1922,8 @@ const DashboardProducts = () => {
                         fontWeight: 600,
                         zIndex: 2,
                         textTransform: 'uppercase',
-                        letterSpacing: '0.5px'
+                        letterSpacing: '0.5px',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                       }}>
                         {item.type === 'assigned' ? 'Assigned' : 'Unassigned'}
                       </div>
