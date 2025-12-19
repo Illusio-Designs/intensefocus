@@ -82,7 +82,8 @@ const DashboardTray = () => {
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [brands, setBrands] = useState([]);
   const [collections, setCollections] = useState([]);
-  const [selectedProduct, setSelectedProduct] = useState('');
+  const [selectedProducts, setSelectedProducts] = useState([]);
+  const [productDropdownOpen, setProductDropdownOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [editProductStatus, setEditProductStatus] = useState(TrayProductStatus.ALLOTED);
   const [openEditProduct, setOpenEditProduct] = useState(false);
@@ -274,26 +275,32 @@ const DashboardTray = () => {
       setError('Please select a tray');
       return;
     }
-    if (!selectedProduct) {
-      setError('Please select a product');
+    if (!selectedProducts || selectedProducts.length === 0) {
+      setError('Please select at least one product');
       return;
     }
     setSaving(true);
     setError(null);
     try {
-      await addProductToTray({
-        tray_id: selectedTray,
-        product_id: selectedProduct,
-        qty: 1,
-        status: TrayProductStatus.ALLOTED,
-      });
-      showSuccess('Product added to tray successfully');
+      // Add all selected products to the tray
+      const addPromises = selectedProducts.map(productId =>
+        addProductToTray({
+          tray_id: selectedTray,
+          product_id: productId,
+          qty: 1,
+          status: TrayProductStatus.ALLOTED,
+        })
+      );
+      
+      await Promise.all(addPromises);
+      showSuccess(`${selectedProducts.length} product(s) added to tray successfully`);
       const items = await getProductsInTray(selectedTray);
       setTrayProducts(Array.isArray(items) ? items : []);
       await fetchTrays(); // Refresh tray list to update product count
-      setSelectedProduct('');
+      setSelectedProducts([]);
+      setProductDropdownOpen(false);
     } catch (err) {
-      const message = err.message || 'Failed to add product to tray';
+      const message = err.message || 'Failed to add products to tray';
       setError(message);
       showError(message);
     } finally {
@@ -387,7 +394,8 @@ const DashboardTray = () => {
       // Reset state when switching away from assign products tab
       setSelectedTray('');
       setTrayProducts([]);
-      setSelectedProduct('');
+      setSelectedProducts([]);
+      setProductDropdownOpen(false);
       setEditingProduct(null);
       setEditProductStatus(TrayProductStatus.ALLOTED);
     }
@@ -453,7 +461,7 @@ const DashboardTray = () => {
                     <DropdownSelector
                       options={trays.map(t => ({ 
                         value: t.tray_id || t.id, 
-                        label: `${t.tray_name || 'N/A'} (${t.product_count || 0} products)`
+                        label: t.tray_name || 'N/A'
                       }))}
                       value={selectedTray}
                       onChange={handleTrayChange}
@@ -476,38 +484,160 @@ const DashboardTray = () => {
                         fontWeight: 700,
                         color: '#000000'
                       }}>
-                        Add Product to Tray
+                        Add Products to Tray
                       </h3>
                       <div style={{ 
                         display: 'flex', 
-                        gap: '16px', 
-                        alignItems: 'flex-end',
-                        flexWrap: 'wrap'
+                        flexDirection: 'column',
+                        gap: '16px'
                       }}>
-                        <div className="form-group" style={{ flex: '1', minWidth: '300px' }}>
-                          <label className="ui-label" style={{ marginBottom: '8px' }}>Product</label>
-                          <DropdownSelector
-                            options={allProducts.map(p => ({ 
-                              value: p.id || p.product_id, 
-                              label: `${p.model_no || 'N/A'} - ${p.brand_name || ''} ${p.collection_name || ''}`.trim() || 'Product'
-                            }))}
-                            value={selectedProduct}
-                            onChange={setSelectedProduct}
-                            placeholder="Select Product"
-                          />
+                        <div className="form-group" style={{ position: 'relative' }}>
+                          <label className="ui-label" style={{ marginBottom: '8px' }}>Select Products</label>
+                          <div style={{ position: 'relative' }}>
+                            <button
+                              type="button"
+                              onClick={() => setProductDropdownOpen(!productDropdownOpen)}
+                              style={{
+                                width: '100%',
+                                padding: '10px 12px',
+                                border: '1px solid #e5e7eb',
+                                borderRadius: '8px',
+                                backgroundColor: '#fff',
+                                cursor: 'pointer',
+                                textAlign: 'left',
+                                fontSize: '14px',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                color: selectedProducts.length === 0 ? '#999' : '#333'
+                              }}
+                            >
+                              <span>
+                                {selectedProducts.length === 0 
+                                  ? 'Select Products' 
+                                  : `${selectedProducts.length} product(s) selected`}
+                              </span>
+                              <span style={{ fontSize: '12px', color: '#666' }}>
+                                {productDropdownOpen ? '▲' : '▼'}
+                              </span>
+                            </button>
+                            {productDropdownOpen && (
+                              <>
+                                <div
+                                  style={{
+                                    position: 'absolute',
+                                    top: '100%',
+                                    left: 0,
+                                    right: 0,
+                                    marginTop: '4px',
+                                    border: '1px solid #e5e7eb',
+                                    borderRadius: '8px',
+                                    backgroundColor: '#fff',
+                                    maxHeight: '300px',
+                                    overflowY: 'auto',
+                                    zIndex: 1000,
+                                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+                                  }}
+                                >
+                                  {allProducts.length === 0 ? (
+                                    <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
+                                      No products available
+                                    </div>
+                                  ) : (
+                                    <div style={{ padding: '8px' }}>
+                                      {allProducts.map((p) => {
+                                        const productId = p.id || p.product_id;
+                                        const productIdStr = String(productId);
+                                        const isSelected = selectedProducts.includes(productIdStr);
+                                        return (
+                                          <label
+                                            key={productId}
+                                            style={{
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              padding: '10px 12px',
+                                              borderRadius: '6px',
+                                              cursor: 'pointer',
+                                              backgroundColor: isSelected ? '#e3f2fd' : 'transparent',
+                                              transition: 'background-color 0.2s'
+                                            }}
+                                            onMouseEnter={(e) => {
+                                              e.currentTarget.style.backgroundColor = isSelected ? '#bbdefb' : '#f5f5f5';
+                                            }}
+                                            onMouseLeave={(e) => {
+                                              e.currentTarget.style.backgroundColor = isSelected ? '#e3f2fd' : 'transparent';
+                                            }}
+                                          >
+                                            <input
+                                              type="checkbox"
+                                              checked={isSelected}
+                                              onChange={(e) => {
+                                                if (e.target.checked) {
+                                                  setSelectedProducts([...selectedProducts, productIdStr]);
+                                                } else {
+                                                  setSelectedProducts(selectedProducts.filter(id => id !== productIdStr));
+                                                }
+                                              }}
+                                              style={{
+                                                marginRight: '12px',
+                                                width: '18px',
+                                                height: '18px',
+                                                cursor: 'pointer',
+                                                accentColor: '#3b82f6'
+                                              }}
+                                            />
+                                            <span style={{ fontSize: '14px', color: '#333' }}>
+                                              {`${p.model_no || 'N/A'} - ${p.brand_name || ''} ${p.collection_name || ''}`.trim() || 'Product'}
+                                            </span>
+                                          </label>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                                <div
+                                  style={{
+                                    position: 'fixed',
+                                    top: 0,
+                                    left: 0,
+                                    right: 0,
+                                    bottom: 0,
+                                    zIndex: 999
+                                  }}
+                                  onClick={() => setProductDropdownOpen(false)}
+                                />
+                              </>
+                            )}
+                          </div>
                         </div>
-                        <button 
-                          className="ui-btn ui-btn--primary" 
-                          disabled={saving || !selectedProduct} 
-                          onClick={handleAddProduct}
-                          style={{ 
-                            padding: '10px 24px',
-                            height: 'fit-content',
-                            whiteSpace: 'nowrap'
-                          }}
-                        >
-                          Add Product
-                        </button>
+                        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                          {selectedProducts.length > 0 && (
+                            <button 
+                              className="ui-btn ui-btn--secondary" 
+                              onClick={() => {
+                                setSelectedProducts([]);
+                                setProductDropdownOpen(false);
+                              }}
+                              style={{ 
+                                padding: '10px 24px',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              Clear Selection
+                            </button>
+                          )}
+                          <button 
+                            className="ui-btn ui-btn--primary" 
+                            disabled={saving || selectedProducts.length === 0} 
+                            onClick={handleAddProduct}
+                            style={{ 
+                              padding: '10px 24px',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            Add {selectedProducts.length > 0 ? `${selectedProducts.length} ` : ''}Product{selectedProducts.length !== 1 ? 's' : ''}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}
