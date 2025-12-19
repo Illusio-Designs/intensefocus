@@ -1795,6 +1795,7 @@ const DashboardManage = () => {
                   </div>
                 ) : null
               }
+              loading={loading}
             />
           </div>
         </div>

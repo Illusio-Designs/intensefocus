@@ -3,6 +3,7 @@ import React, { useMemo, useState, useRef, useEffect } from "react";
 import Button from "./Button";
 import DropdownSelector from "./DropdownSelector";
 import Pagination from "./Pagination";
+import LoadingSpinner from "./LoadingSpinner";
 import "../../styles/components/ui.css";
 
 export default function TableWithControls({
@@ -25,6 +26,7 @@ export default function TableWithControls({
   showSerialNumber = true, // Show serial number column by default
   showFilter = false, // Show filter icon
   filterContent = null, // React node to render in filter popover
+  loading = false, // Show loading spinner when true
 }) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -279,7 +281,20 @@ export default function TableWithControls({
             </tr>
           </thead>
           <tbody>
-            {pageRows.length === 0 && (
+            {loading ? (
+              <tr>
+                <td
+                  colSpan={
+                    (selectable ? 1 : 0) +
+                    (showSerialNumber && visible.has('__serialNumber') ? 1 : 0) +
+                    columns.filter((c) => visible.has(c.key)).length
+                  }
+                  style={{ padding: 0, border: 'none' }}
+                >
+                  <LoadingSpinner />
+                </td>
+              </tr>
+            ) : pageRows.length === 0 ? (
               <tr>
                 <td
                   colSpan={
@@ -292,8 +307,8 @@ export default function TableWithControls({
                   No data
                 </td>
               </tr>
-            )}
-            {pageRows.map((row, idx) => {
+            ) : (
+              pageRows.map((row, idx) => {
               const serialNumber = (page - 1) * pageSize + idx + 1;
               return (
                 <tr key={idx}>
@@ -326,7 +341,8 @@ export default function TableWithControls({
                     ))}
                 </tr>
               );
-            })}
+            })
+            )}
           </tbody>
         </table>
       </div>

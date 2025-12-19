@@ -6,6 +6,7 @@ import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
 import RowActions from '../components/ui/RowActions';
 import DropdownSelector from '../components/ui/DropdownSelector';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
 import {
   getProducts,
   createProduct,
@@ -26,6 +27,47 @@ import {
   getAllUploads,
 } from '../services/apiService';
 import { showSuccess, showError } from '../services/notificationService';
+
+// Helper function to check if a product has valid image URLs
+// Returns true only if there's at least one valid, non-empty image URL
+// Handles: empty arrays [], arrays with empty strings, the string "[]", null, undefined
+const hasValidImageUrls = (product) => {
+  if (!product) return false;
+  
+  // Check image_urls array
+  if (Array.isArray(product.image_urls)) {
+    // Empty array means no images
+    if (product.image_urls.length === 0) return false;
+    
+    // Check if array has at least one valid non-empty URL
+    // Filter out: empty strings, whitespace-only strings, and the string "[]"
+    const validUrls = product.image_urls.filter(url => {
+      if (!url || typeof url !== 'string') return false;
+      const trimmed = url.trim();
+      return trimmed.length > 0 && trimmed !== '[]';
+    });
+    
+    return validUrls.length > 0;
+  }
+  
+  // Check if image_urls is a string (non-array format)
+  if (product.image_urls && typeof product.image_urls === 'string') {
+    const trimmed = product.image_urls.trim();
+    // Reject empty strings, whitespace-only, and the string "[]"
+    if (trimmed.length === 0 || trimmed === '[]') return false;
+    return true;
+  }
+  
+  // Check legacy image_url string
+  if (product.image_url && typeof product.image_url === 'string') {
+    const trimmed = product.image_url.trim();
+    // Reject empty strings, whitespace-only, and the string "[]"
+    if (trimmed.length === 0 || trimmed === '[]') return false;
+    return true;
+  }
+  
+  return false;
+};
 
 const DashboardProducts = () => {
   const [activeTab, setActiveTab] = useState('Products');
@@ -280,29 +322,45 @@ const DashboardProducts = () => {
       if (data && data.length > 0) {
         data.forEach(product => {
           // Handle image_urls array (API returns array)
-          // Ensure imageUrls is always an array
+          // Ensure imageUrls is always an array and filter out invalid values
           let imageUrls = [];
           if (Array.isArray(product.image_urls)) {
-            imageUrls = product.image_urls;
-          } else if (product.image_urls) {
-            // If it's a string or other truthy value, convert to array
-            imageUrls = [product.image_urls];
-          } else if (product.image_url) {
-            imageUrls = [product.image_url];
+            // Filter out empty strings, whitespace-only strings, and the string "[]"
+            imageUrls = product.image_urls.filter(url => {
+              if (!url || typeof url !== 'string') return false;
+              const trimmed = url.trim();
+              return trimmed.length > 0 && trimmed !== '[]';
+            });
+          } else if (product.image_urls && typeof product.image_urls === 'string') {
+            // If it's a string, check if it's valid (not empty, not "[]")
+            const trimmed = product.image_urls.trim();
+            if (trimmed.length > 0 && trimmed !== '[]') {
+              imageUrls = [product.image_urls];
+            }
+          } else if (product.image_url && typeof product.image_url === 'string') {
+            // Check legacy image_url string
+            const trimmed = product.image_url.trim();
+            if (trimmed.length > 0 && trimmed !== '[]') {
+              imageUrls = [product.image_url];
+            }
           }
           imageUrls.forEach(imageUrl => {
-            if (imageUrl) {
-              productImageUrls.add(imageUrl);
-              // Also store normalized URL for better comparison
-              const normalizedUrl = normalizeImageUrl(imageUrl);
-              if (normalizedUrl) {
-                productNormalizedUrls.add(normalizedUrl);
-              }
-              // Extract filename for comparison
-              const urlParts = imageUrl.split('/');
-              const filename = urlParts[urlParts.length - 1]?.split('?')[0]?.split('#')[0];
-              if (filename) {
-                productImageFilenames.add(filename);
+            if (imageUrl && typeof imageUrl === 'string') {
+              const trimmed = imageUrl.trim();
+              // Double-check it's not empty or "[]"
+              if (trimmed.length > 0 && trimmed !== '[]') {
+                productImageUrls.add(imageUrl);
+                // Also store normalized URL for better comparison
+                const normalizedUrl = normalizeImageUrl(imageUrl);
+                if (normalizedUrl) {
+                  productNormalizedUrls.add(normalizedUrl);
+                }
+                // Extract filename for comparison
+                const urlParts = imageUrl.split('/');
+                const filename = urlParts[urlParts.length - 1]?.split('?')[0]?.split('#')[0];
+                if (filename) {
+                  productImageFilenames.add(filename);
+                }
               }
             }
           });
@@ -518,9 +576,20 @@ const DashboardProducts = () => {
       }
 
       // Get current image_urls from product, or initialize as empty array
-      const currentImageUrls = Array.isArray(product.image_urls) 
-        ? [...product.image_urls] 
-        : (product.image_url ? [product.image_url] : []);
+      // Filter out invalid values: empty strings, whitespace-only, and the string "[]"
+      let currentImageUrls = [];
+      if (Array.isArray(product.image_urls)) {
+        currentImageUrls = product.image_urls.filter(url => {
+          if (!url || typeof url !== 'string') return false;
+          const trimmed = url.trim();
+          return trimmed.length > 0 && trimmed !== '[]';
+        });
+      } else if (product.image_url && typeof product.image_url === 'string') {
+        const trimmed = product.image_url.trim();
+        if (trimmed.length > 0 && trimmed !== '[]') {
+          currentImageUrls = [product.image_url];
+        }
+      }
 
       // Check if image is already attached
       if (currentImageUrls.some(url => url === imagePath || url.includes(imagePath.split('/').pop()))) {
@@ -632,9 +701,20 @@ const DashboardProducts = () => {
       }
 
       // Get current image_urls from product, or initialize as empty array
-      const currentImageUrls = Array.isArray(product.image_urls) 
-        ? [...product.image_urls] 
-        : (product.image_url ? [product.image_url] : []);
+      // Filter out invalid values: empty strings, whitespace-only, and the string "[]"
+      let currentImageUrls = [];
+      if (Array.isArray(product.image_urls)) {
+        currentImageUrls = product.image_urls.filter(url => {
+          if (!url || typeof url !== 'string') return false;
+          const trimmed = url.trim();
+          return trimmed.length > 0 && trimmed !== '[]';
+        });
+      } else if (product.image_url && typeof product.image_url === 'string') {
+        const trimmed = product.image_url.trim();
+        if (trimmed.length > 0 && trimmed !== '[]') {
+          currentImageUrls = [product.image_url];
+        }
+      }
 
       // Filter out duplicates - only add images that aren't already attached
       const uniqueNewPaths = newImagePaths.filter(newPath => {
@@ -706,20 +786,9 @@ const DashboardProducts = () => {
       const brand = brands.find(b => (b.brand_id || b.id) === product.brand_id);
       const collection = collections.find(c => (c.collection_id || c.id) === product.collection_id);
       
-      // Check if product has valid images - empty arrays [] should be treated as no images
-      let hasImageUrls = false;
-      if (Array.isArray(product?.image_urls)) {
-        // If array is empty [], hasImageUrls remains false
-        if (product.image_urls.length > 0) {
-          hasImageUrls = product.image_urls.some(url => 
-            url && typeof url === 'string' && url.trim().length > 0
-          );
-        }
-      }
-      const hasImageUrl = !!product?.image_url && typeof product.image_url === 'string' && product.image_url.trim().length > 0;
-      const hasImageUrlsString = !!product?.image_urls && !Array.isArray(product.image_urls) && 
-        typeof product.image_urls === 'string' && product.image_urls.trim().length > 0;
-      const hasUploadedMedia = hasImageUrls || hasImageUrl || hasImageUrlsString;
+      // Check if product has valid images using helper function
+      // This properly handles empty arrays [], arrays with empty strings, and the string "[]"
+      const hasUploadedMedia = hasValidImageUrls(product);
       
       return {
         id: product.product_id || product.id,
@@ -739,16 +808,7 @@ const DashboardProducts = () => {
   }, [products, brands, collections]);
 
   const uploadedProducts = useMemo(
-    () => products.filter(p => {
-      // Check if product has valid images - support both image_urls array and legacy image_url string
-      // Filter out empty strings, null, undefined, and whitespace-only values
-      const hasImageUrls = Array.isArray(p.image_urls) && p.image_urls.length > 0 && 
-        p.image_urls.some(url => url && typeof url === 'string' && url.trim().length > 0);
-      const hasImageUrl = !!p.image_url && typeof p.image_url === 'string' && p.image_url.trim().length > 0;
-      const hasImageUrlsString = !!p.image_urls && !Array.isArray(p.image_urls) && 
-        typeof p.image_urls === 'string' && p.image_urls.trim().length > 0;
-      return hasImageUrls || hasImageUrl || hasImageUrlsString;
-    }),
+    () => products.filter(p => hasValidImageUrls(p)),
     [products]
   );
 
@@ -837,17 +897,31 @@ const DashboardProducts = () => {
     
     products.forEach(product => {
       // Handle image_urls array (API returns array)
+      // Filter out invalid values: empty strings, whitespace-only, and the string "[]"
       let imageUrls = [];
       if (Array.isArray(product.image_urls)) {
-        imageUrls = product.image_urls;
-      } else if (product.image_urls) {
-        imageUrls = [product.image_urls];
-      } else if (product.image_url) {
-        imageUrls = [product.image_url];
+        imageUrls = product.image_urls.filter(url => {
+          if (!url || typeof url !== 'string') return false;
+          const trimmed = url.trim();
+          return trimmed.length > 0 && trimmed !== '[]';
+        });
+      } else if (product.image_urls && typeof product.image_urls === 'string') {
+        const trimmed = product.image_urls.trim();
+        if (trimmed.length > 0 && trimmed !== '[]') {
+          imageUrls = [product.image_urls];
+        }
+      } else if (product.image_url && typeof product.image_url === 'string') {
+        const trimmed = product.image_url.trim();
+        if (trimmed.length > 0 && trimmed !== '[]') {
+          imageUrls = [product.image_url];
+        }
       }
       
       imageUrls.forEach(imageUrl => {
-        if (imageUrl) {
+        if (imageUrl && typeof imageUrl === 'string') {
+          const trimmed = imageUrl.trim();
+          // Double-check it's not empty or "[]"
+          if (trimmed.length > 0 && trimmed !== '[]') {
           // Add the URL as-is
           productImageUrls.add(imageUrl);
           
@@ -878,6 +952,7 @@ const DashboardProducts = () => {
             if (path) {
               productImagePaths.add(path);
             }
+          }
           }
         }
       });
@@ -981,28 +1056,41 @@ const DashboardProducts = () => {
     
     products.forEach(product => {
       // Handle image_urls array (API returns array)
-      // Ensure imageUrls is always an array
+      // Filter out invalid values: empty strings, whitespace-only, and the string "[]"
       let imageUrls = [];
       if (Array.isArray(product.image_urls)) {
-        imageUrls = product.image_urls;
-      } else if (product.image_urls) {
-        // If it's a string or other truthy value, convert to array
-        imageUrls = [product.image_urls];
-      } else if (product.image_url) {
-        imageUrls = [product.image_url];
+        imageUrls = product.image_urls.filter(url => {
+          if (!url || typeof url !== 'string') return false;
+          const trimmed = url.trim();
+          return trimmed.length > 0 && trimmed !== '[]';
+        });
+      } else if (product.image_urls && typeof product.image_urls === 'string') {
+        const trimmed = product.image_urls.trim();
+        if (trimmed.length > 0 && trimmed !== '[]') {
+          imageUrls = [product.image_urls];
+        }
+      } else if (product.image_url && typeof product.image_url === 'string') {
+        const trimmed = product.image_url.trim();
+        if (trimmed.length > 0 && trimmed !== '[]') {
+          imageUrls = [product.image_url];
+        }
       }
       imageUrls.forEach(imageUrl => {
-        if (imageUrl) {
-          productImageUrls.add(imageUrl);
-          // Normalize URL for comparison
-          const normalizedUrl = normalizeImageUrl(imageUrl);
-          if (normalizedUrl) {
-            productImageUrls.add(normalizedUrl);
-          }
-          const urlParts = imageUrl.split('/');
-          const filename = urlParts[urlParts.length - 1]?.split('?')[0];
-          if (filename) {
-            productImageFilenames.add(filename);
+        if (imageUrl && typeof imageUrl === 'string') {
+          const trimmed = imageUrl.trim();
+          // Double-check it's not empty or "[]"
+          if (trimmed.length > 0 && trimmed !== '[]') {
+            productImageUrls.add(imageUrl);
+            // Normalize URL for comparison
+            const normalizedUrl = normalizeImageUrl(imageUrl);
+            if (normalizedUrl) {
+              productImageUrls.add(normalizedUrl);
+            }
+            const urlParts = imageUrl.split('/');
+            const filename = urlParts[urlParts.length - 1]?.split('?')[0];
+            if (filename) {
+              productImageFilenames.add(filename);
+            }
           }
         }
       });
@@ -1152,36 +1240,10 @@ const DashboardProducts = () => {
     () => rows.filter(r => {
       const product = r.data;
       
-      // Check if product has valid images - support both image_urls array and legacy image_url string
-      // Products with empty array [] or no images should appear in unuploaded gallery
-      
-      // Check image_urls array: must be array with length > 0 AND have at least one valid URL
-      let hasImageUrls = false;
-      if (Array.isArray(product?.image_urls)) {
-        // Explicitly check: if array is empty [], hasImageUrls remains false (product goes to unuploaded)
-        // If array has items, check if at least one is a valid non-empty string
-        if (product.image_urls.length > 0) {
-          hasImageUrls = product.image_urls.some(url => 
-            url && typeof url === 'string' && url.trim().length > 0
-          );
-        }
-        // If array is empty [] or null/undefined, hasImageUrls stays false
-      } else if (product?.image_urls === null || product?.image_urls === undefined) {
-        // Explicitly handle null/undefined - no images, so hasImageUrls stays false
-        hasImageUrls = false;
-      }
-      
-      // Check legacy image_url string
-      const hasImageUrl = !!product?.image_url && typeof product.image_url === 'string' && product.image_url.trim().length > 0;
-      
-      // Check if image_urls is a string (non-array format)
-      const hasImageUrlsString = !!product?.image_urls && !Array.isArray(product.image_urls) && 
-        typeof product.image_urls === 'string' && product.image_urls.trim().length > 0;
-      
+      // Check if product has valid images using helper function
+      // Products with empty array [], arrays with empty strings, or the string "[]" should appear in unuploaded gallery
       // Return products that have NO valid images
-      // This includes: empty arrays [], null, undefined, arrays with only empty/null values
-      const hasAnyValidImage = hasImageUrls || hasImageUrl || hasImageUrlsString;
-      return !hasAnyValidImage;
+      return !hasValidImageUrls(product);
     }),
     [rows]
   );
@@ -1191,29 +1253,10 @@ const DashboardProducts = () => {
     () => rows.filter(r => {
       const product = r.data;
       
-      // Check if product has valid images - support both image_urls array and legacy image_url string
-      // If image_urls is an empty array [], the product should NOT appear in Products tab
-      
-      // Check image_urls array: must be array with length > 0 AND have at least one valid URL
-      let hasImageUrls = false;
-      if (Array.isArray(product?.image_urls)) {
-        // If array is empty [], hasImageUrls remains false
-        if (product.image_urls.length > 0) {
-          hasImageUrls = product.image_urls.some(url => 
-            url && typeof url === 'string' && url.trim().length > 0
-          );
-        }
-      }
-      
-      // Check legacy image_url string
-      const hasImageUrl = !!product?.image_url && typeof product.image_url === 'string' && product.image_url.trim().length > 0;
-      
-      // Check if image_urls is a string (non-array format)
-      const hasImageUrlsString = !!product?.image_urls && !Array.isArray(product.image_urls) && 
-        typeof product.image_urls === 'string' && product.image_urls.trim().length > 0;
-      
-      // Return products that HAVE valid images
-      return hasImageUrls || hasImageUrl || hasImageUrlsString;
+      // Check if product has valid images using helper function
+      // If image_urls is an empty array [], arrays with empty strings, or the string "[]", 
+      // the product should NOT appear in Products tab
+      return hasValidImageUrls(product);
     }),
     [rows]
   );
@@ -1699,20 +1742,23 @@ const DashboardProducts = () => {
           <div className="dash-card full">
             {activeTab === 'Media Gallery' ? (
               <div>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-                    gap: '20px',
-                    padding: '20px'
-                  }}
-                >
-                  {allMediaImages.length === 0 && (
-                    <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#666', padding: '40px' }}>
-                      No uploaded images found.
-                    </div>
-                  )}
-                  {allMediaImages.map(item => (
+                {loading ? (
+                  <LoadingSpinner />
+                ) : (
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
+                      gap: '20px',
+                      padding: '20px'
+                    }}
+                  >
+                    {allMediaImages.length === 0 && (
+                      <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#666', padding: '40px' }}>
+                        No uploaded images found.
+                      </div>
+                    )}
+                    {allMediaImages.map(item => (
                     <div
                       key={item.id}
                       style={{
@@ -1948,19 +1994,21 @@ const DashboardProducts = () => {
                       
                     </div>
                   ))}
-                </div>
+                  </div>
+                )}
               </div>
             ) : (
             <TableWithControls
               title={activeTab === 'Unuploaded Media Gallery' ? 'Unuploaded Media Gallery' : 'Products'}
               columns={columns}
               rows={filteredRowsByTab}
-              onAddNew={handleAdd}
+              onAddNew={activeTab === 'Unuploaded Media Gallery' ? null : handleAdd}
               addNewText="Add New Product"
-              onImport={() => setOpenBulkUpload(true)}
+              onImport={activeTab === 'Unuploaded Media Gallery' ? null : () => setOpenBulkUpload(true)}
               importText="Bulk Upload Products"
               secondaryActions={[]}
               searchPlaceholder="Search products"
+              loading={loading}
             />
             )}
           </div>

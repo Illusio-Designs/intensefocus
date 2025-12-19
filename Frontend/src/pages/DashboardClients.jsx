@@ -981,6 +981,7 @@ const DashboardClients = () => {
                   </select>
                 </div>
               }
+              loading={loading}
             />
           </div>
         </div>

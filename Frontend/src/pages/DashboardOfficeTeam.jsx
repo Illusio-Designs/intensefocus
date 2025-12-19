@@ -368,6 +368,7 @@ const DashboardOfficeTeam = () => {
               onAddNew={() => setOpenAdd(true)}
               addNewText="Add New User"
               searchPlaceholder="Search users"
+              loading={loading}
             />
           </div>
         </div>

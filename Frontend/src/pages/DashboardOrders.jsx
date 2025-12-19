@@ -288,20 +288,17 @@ const DashboardOrders = () => {
         {/* Order Overview Table */}
         <div className="dash-row">
           <div className="dash-card full">
-            {loading && filteredRowsByTab.length === 0 ? (
-              <div style={{ padding: '40px', textAlign: 'center' }}>Loading orders...</div>
-            ) : (
-              <TableWithControls
-                title="Order Overview"
-                columns={columns}
-                rows={filteredRowsByTab}
-                onImport={() => console.log('import orders')}
-                importText="Import All Orders Data"
-                dateRange={dateRange}
-                onDateChange={setDateRange}
-                itemName="Order"
-              />
-            )}
+            <TableWithControls
+              title="Order Overview"
+              columns={columns}
+              rows={filteredRowsByTab}
+              onImport={() => console.log('import orders')}
+              importText="Import All Orders Data"
+              dateRange={dateRange}
+              onDateChange={setDateRange}
+              itemName="Order"
+              loading={loading}
+            />
           </div>
         </div>
       </div>

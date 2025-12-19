@@ -719,6 +719,7 @@ const DashboardSuppliers = () => {
                   </select>
                 </div>
               }
+              loading={loading}
             />
           </div>
         </div>

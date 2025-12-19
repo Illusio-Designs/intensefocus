@@ -725,6 +725,7 @@ const DashboardDistributor = () => {
                   </select>
                 </div>
               }
+              loading={loading}
             />
           </div>
         </div>
