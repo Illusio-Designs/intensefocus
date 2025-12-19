@@ -1248,24 +1248,11 @@ const DashboardProducts = () => {
     [rows]
   );
 
-  // Filter rows to only show products WITH images (for Products tab)
-  const rowsWithImages = useMemo(
-    () => rows.filter(r => {
-      const product = r.data;
-      
-      // Check if product has valid images using helper function
-      // If image_urls is an empty array [], arrays with empty strings, or the string "[]", 
-      // the product should NOT appear in Products tab
-      return hasValidImageUrls(product);
-    }),
-    [rows]
-  );
-
   const filteredRowsByTab = useMemo(() => {
-    if (activeTab === 'Products') return rowsWithImages;
-    if (activeTab === 'Unuploaded Media Gallery') return unuploadedRows;
+    if (activeTab === 'Products') return rows; // Show ALL products (with or without images)
+    if (activeTab === 'Unuploaded Media Gallery') return unuploadedRows; // Show ONLY products WITHOUT images
     return rows;
-  }, [rows, rowsWithImages, unuploadedRows, activeTab]);
+  }, [rows, unuploadedRows, activeTab]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
