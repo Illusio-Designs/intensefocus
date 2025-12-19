@@ -43,6 +43,8 @@ const DashboardClients = () => {
     pincode: '',
     gstin: '',
     pan: '',
+    credit_days: '',
+    preferred_courier: '',
   });
 
   useEffect(() => {
@@ -384,6 +386,8 @@ const DashboardClients = () => {
       pincode: '',
       gstin: '',
       pan: '',
+      credit_days: '',
+      preferred_courier: '',
     });
   };
 
@@ -442,6 +446,8 @@ const DashboardClients = () => {
         pincode: row.pincode || '',
         gstin: row.gstin || '',
         pan: row.pan || '',
+        credit_days: row.credit_days || '',
+        preferred_courier: row.preferred_courier || '',
       });
       
       // Store the complete row object with ensured ID
@@ -565,6 +571,8 @@ const DashboardClients = () => {
         pincode: String(formData.pincode || ''),
         gstin: String(formData.gstin || ''),
         pan: String(formData.pan || ''),
+        credit_days: formData.credit_days ? Number(formData.credit_days) : null,
+        preferred_courier: String(formData.preferred_courier || ''),
       };
       
       console.log('[Update] Form data state/city/zone:', {
@@ -579,7 +587,7 @@ const DashboardClients = () => {
       });
       
       // Final validation: ensure no undefined values and all fields are present
-      const allFields = ['party_name', 'trade_name', 'contact_person', 'email', 'phone', 'address', 'country_id', 'state_id', 'city_id', 'zone_id', 'pincode', 'gstin', 'pan'];
+      const allFields = ['party_name', 'trade_name', 'contact_person', 'email', 'phone', 'address', 'country_id', 'state_id', 'city_id', 'zone_id', 'pincode', 'gstin', 'pan', 'credit_days', 'preferred_courier'];
       allFields.forEach(key => {
         if (dataToSend[key] === undefined) {
           console.warn(`[DashboardClients] Undefined value detected for ${key}, setting to default`);
@@ -628,6 +636,8 @@ const DashboardClients = () => {
               pincode: dataToSend.pincode,
               gstin: dataToSend.gstin,
               pan: dataToSend.pan,
+              credit_days: dataToSend.credit_days,
+              preferred_courier: dataToSend.preferred_courier,
               id: id 
             };
           }
@@ -1176,6 +1186,26 @@ const DashboardClients = () => {
               onChange={(e) => handleInputChange('pan', e.target.value)}
             />
           </div>
+          <div className="form-group">
+            <label className="ui-label">Credit Days</label>
+            <input 
+              className="ui-input" 
+              type="number"
+              placeholder="Credit Days"
+              value={formData.credit_days}
+              onChange={(e) => handleInputChange('credit_days', e.target.value)}
+              min="0"
+            />
+          </div>
+          <div className="form-group">
+            <label className="ui-label">Preferred Courier</label>
+            <input 
+              className="ui-input" 
+              placeholder="Preferred Courier"
+              value={formData.preferred_courier}
+              onChange={(e) => handleInputChange('preferred_courier', e.target.value)}
+            />
+          </div>
         </form>
       </Modal>
       <Modal
@@ -1366,6 +1396,26 @@ const DashboardClients = () => {
               placeholder="PAN"
               value={formData.pan}
               onChange={(e) => handleInputChange('pan', e.target.value)}
+            />
+          </div>
+          <div className="form-group">
+            <label className="ui-label">Credit Days</label>
+            <input 
+              className="ui-input" 
+              type="number"
+              placeholder="Credit Days"
+              value={formData.credit_days}
+              onChange={(e) => handleInputChange('credit_days', e.target.value)}
+              min="0"
+            />
+          </div>
+          <div className="form-group">
+            <label className="ui-label">Preferred Courier</label>
+            <input 
+              className="ui-input" 
+              placeholder="Preferred Courier"
+              value={formData.preferred_courier}
+              onChange={(e) => handleInputChange('preferred_courier', e.target.value)}
             />
           </div>
         </form>

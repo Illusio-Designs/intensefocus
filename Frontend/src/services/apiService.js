@@ -1310,6 +1310,8 @@ export const createParty = async (partyData) => {
     pincode,
     gstin,
     pan,
+    credit_days,
+    preferred_courier,
   } = partyData;
   
   // Helper functions to get validated UUIDs
@@ -1347,6 +1349,8 @@ export const createParty = async (partyData) => {
     pincode: String(pincode || ''),
     gstin: String(gstin || ''),
     pan: String(pan || ''),
+    credit_days: credit_days ? Number(credit_days) : null,
+    preferred_courier: String(preferred_courier || ''),
   };
   
   // Validate that all required fields are present (no undefined)
@@ -1391,6 +1395,8 @@ export const createParty = async (partyData) => {
  * @param {string} partyData.pincode - Pincode
  * @param {string} partyData.gstin - GSTIN (optional)
  * @param {string} partyData.pan - PAN (optional)
+ * @param {number} partyData.credit_days - Credit Days (optional)
+ * @param {string} partyData.preferred_courier - Preferred Courier (optional)
  * @returns {Promise<Object>} Response with message
  */
 export const updateParty = async (partyId, partyData) => {
@@ -1420,6 +1426,8 @@ export const updateParty = async (partyId, partyData) => {
     pincode,
     gstin,
     pan,
+    credit_days,
+    preferred_courier,
   } = partyData;
   
   // Helper functions to get validated UUIDs
@@ -1457,6 +1465,8 @@ export const updateParty = async (partyId, partyData) => {
     pincode: String(pincode || ''),
     gstin: String(gstin || ''),
     pan: String(pan || ''),
+    credit_days: credit_days ? Number(credit_days) : null,
+    preferred_courier: String(preferred_courier || ''),
   };
   
   // Validate that all required fields are present (no undefined)
@@ -1475,7 +1485,7 @@ export const updateParty = async (partyId, partyData) => {
   
   // Final validation: ensure absolutely no undefined values
   const finalRequestBody = {};
-  const allFields = ['party_name', 'trade_name', 'contact_person', 'email', 'phone', 'address', 'country_id', 'state_id', 'city_id', 'zone_id', 'pincode', 'gstin', 'pan'];
+  const allFields = ['party_name', 'trade_name', 'contact_person', 'email', 'phone', 'address', 'country_id', 'state_id', 'city_id', 'zone_id', 'pincode', 'gstin', 'pan', 'credit_days', 'preferred_courier'];
   allFields.forEach(field => {
     const value = requestBody[field];
     if (value === undefined) {
