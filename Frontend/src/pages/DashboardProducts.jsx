@@ -25,6 +25,9 @@ import {
   uploadProductImage,
   bulkUploadProducts,
   getAllUploads,
+  getTrays,
+  getProductsInTray,
+  deleteProductFromTray,
 } from '../services/apiService';
 import { showSuccess, showError } from '../services/notificationService';
 
@@ -1315,13 +1318,72 @@ const DashboardProducts = () => {
   };
 
   const handleDelete = async (row) => {
-    if (!window.confirm(`Are you sure you want to delete product ${row.model_no}?`)) {
+    const productId = row.id || row.product_id;
+    if (!productId) {
+      showError('Product ID is missing');
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to delete product ${row.model_no}? This will also remove it from all trays.`)) {
       return;
     }
 
     try {
       setLoading(true);
-      await deleteProduct(row.id);
+      setError(null);
+
+      // First, remove the product from all trays to avoid foreign key constraint error
+      try {
+        const allTrays = await getTrays();
+        const removalPromises = [];
+
+        for (const tray of allTrays || []) {
+          const trayId = tray.tray_id || tray.id;
+          if (!trayId) continue;
+
+          try {
+            // Get products in this tray
+            const trayProducts = await getProductsInTray(trayId);
+            
+            // Check if this product exists in the tray
+            const productInTray = Array.isArray(trayProducts) 
+              ? trayProducts.find(tp => {
+                  const tpProductId = tp.product_id || tp.product?.product_id || tp.product?.id;
+                  return tpProductId && String(tpProductId).toLowerCase() === String(productId).toLowerCase();
+                })
+              : null;
+
+            // If product exists in tray, remove it
+            if (productInTray) {
+              removalPromises.push(
+                deleteProductFromTray({
+                  tray_id: trayId,
+                  product_id: productId,
+                }).catch(err => {
+                  console.warn(`Failed to remove product from tray ${trayId}:`, err);
+                  // Continue with other trays even if one fails
+                })
+              );
+            }
+          } catch (err) {
+            console.warn(`Error checking tray ${trayId}:`, err);
+            // Continue with other trays
+          }
+        }
+
+        // Wait for all removals to complete
+        if (removalPromises.length > 0) {
+          await Promise.all(removalPromises);
+          console.log(`Removed product from ${removalPromises.length} tray(s)`);
+        }
+      } catch (trayError) {
+        console.warn('Error removing product from trays:', trayError);
+        // Continue with product deletion even if tray removal fails
+        // The backend might handle cascade deletion
+      }
+
+      // Now delete the product
+      await deleteProduct(productId);
       await fetchProducts();
       setError(null);
       showSuccess('Product deleted successfully');
@@ -1329,9 +1391,18 @@ const DashboardProducts = () => {
       if (!error.message?.toLowerCase().includes('token expired') && 
           !error.message?.toLowerCase().includes('unauthorized')) {
         console.error('Error deleting product:', error);
-        const message = `Failed to delete product: ${error.message}`;
-        setError(message);
-        showError(message);
+        
+        // Check if it's a foreign key constraint error
+        const errorMessage = error.message || JSON.stringify(error);
+        if (errorMessage.includes('foreign key constraint') || errorMessage.includes('tray_product')) {
+          const message = 'Cannot delete product: It is still assigned to one or more trays. Please remove it from all trays first.';
+          setError(message);
+          showError(message);
+        } else {
+          const message = `Failed to delete product: ${error.message}`;
+          setError(message);
+          showError(message);
+        }
       }
     } finally {
       setLoading(false);
