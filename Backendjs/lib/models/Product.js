@@ -175,7 +175,36 @@ const Product = sequelize.define('Product', {
     timestamps: true,
     createdAt: 'created_at',
     updatedAt: 'updated_at',
-    underscored: true
+    underscored: true,
+    indexes: [
+        {
+            fields: ['collection_id'],
+        },
+        {
+            fields: ['brand_id'],
+        },
+        {
+            fields: ['color_code_id'],
+        },
+        {
+            fields: ['shape_id'],
+        },
+        {
+            fields: ['lens_color_id'],
+        },
+        {
+            fields: ['frame_color_id'],
+        },
+        {
+            fields: ['frame_type_id'],
+        },
+        {
+            fields: ['lens_material_id'],
+        },
+        {
+            fields: ['frame_material_id'],
+        },
+    ]
 });
 
 module.exports = Product;

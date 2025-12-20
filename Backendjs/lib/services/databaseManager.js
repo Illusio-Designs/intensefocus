@@ -386,9 +386,10 @@ class DatabaseManager {
                         const tableExists = await this.checkTableExists(tableName);
 
                         if (!tableExists) {
-                            console.log(`📦 Creating table from model: ${tableName}`);
-                            await model.sync({ alter: false });
+                            console.log(`📦 Creating table from model: ${tableName}1`);
+                            await model.sync({ alter: true });
                         } else {
+                            await model.sync({ alter: true });
                             console.log(`✅ Table exists: ${tableName}`);
                         }
                     } catch (error) {
@@ -406,9 +407,10 @@ class DatabaseManager {
                     const tableExists = await this.checkTableExists(tableName);
 
                     if (!tableExists) {
-                        console.log(`📦 Creating table from model: ${tableName}`);
-                        await model.sync({ alter: false });
+                        console.log(`📦 Creating table from model: ${tableName}2`);
+                        await model.sync({ alter: true });
                     } else {
+                        await model.sync({ alter: true });
                         console.log(`✅ Table exists: ${tableName}`);
                     }
                 } catch (error) {

@@ -15,7 +15,7 @@ class PartyController {
     async createParty(req, res) {
         try {
             const user = req.user;
-            const { party_name, trade_name, contact_person, email, phone, address, country_id, state_id, city_id, zone_id, pincode, gstin, pan, } = req.body;
+            const { party_name, trade_name, contact_person, email, phone, address, country_id, state_id, city_id, zone_id, pincode, gstin, pan, credit_days, prefered_courier } = req.body;
             const party = await Party.create({
                 party_name,
                 trade_name,
@@ -33,7 +33,9 @@ class PartyController {
                 created_by: user.user_id,
                 created_at: new Date(),
                 updated_at: new Date(),
-                is_active: true
+                is_active: true,
+                credit_days,
+                prefered_courier
             });
             await AuditLog.create({
                 user_id: user.user_id,
@@ -58,7 +60,8 @@ class PartyController {
                 return res.status(400).json({ error: 'Party ID is required' });
             }
             const user = req.user;
-            const { party_name, trade_name, contact_person, email, phone, address, country_id, state_id, city_id, zone_id, pincode, gstin, pan, } = req.body;
+            const { party_name, trade_name, contact_person, email,
+                phone, address, country_id, state_id, city_id, zone_id, pincode, gstin, pan, credit_days, prefered_courier } = req.body;
             const party = await Party.update({
                 party_name: party_name || party.party_name,
                 trade_name: trade_name || party.trade_name,
@@ -73,6 +76,8 @@ class PartyController {
                 pincode: pincode || party.pincode,
                 gstin: gstin || party.gstin,
                 pan: pan || party.pan,
+                credit_days: credit_days || party.credit_days,
+                prefered_courier: prefered_courier || party.prefered_courier,
                 updated_at: new Date(),
                 updated_by: user.user_id
             }, { where: { party_id: id } });

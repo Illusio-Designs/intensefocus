@@ -6,6 +6,7 @@ const { productFileUpload, productImageUpload } = require('../constants/multer')
 const parseProductFile = require('../middleware/product_parser');
 
 router.get('/', authenticateToken, productController.getProducts);
+router.post('/featured', productController.getFeaturedProducts);
 router.get('/images/all', authenticateToken, productController.getAllUploadedImages);
 router.post('/', authenticateToken, productController.createProduct);
 router.put('/:id', authenticateToken, productController.updateProduct);

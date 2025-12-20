@@ -126,6 +126,15 @@ const Party = sequelize.define('Party', {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: true
+    },
+    credit_days: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        defaultValue: 0
+    },
+    prefered_courier: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
     }
 }, {
     tableName: 'parties',
