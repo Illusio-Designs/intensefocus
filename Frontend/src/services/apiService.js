@@ -223,19 +223,42 @@ const apiRequest = async (endpoint, options = {}) => {
   // Ensure endpoint starts with /
   let normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   
-  // For GET requests with body, convert body to query parameters
-  // (Browsers don't support body in GET requests)
+  // For GET requests with body, check if we should send body or convert to query params
+  // Some APIs (like products filter) require body in GET requests
   let fullUrl = `${baseUrl}${normalizedEndpoint}`;
+  let sendBodyInGet = false;
+  
   if (method === 'GET' && body) {
-    const queryParams = new URLSearchParams();
-    Object.keys(body).forEach(key => {
-      if (body[key] !== null && body[key] !== undefined) {
-        queryParams.append(key, body[key]);
+    // Check if this is the products endpoint that requires body
+    const isProductsEndpoint = normalizedEndpoint.includes('/products');
+    
+    // Check if body contains nested objects (like price: { min, max })
+    // If so, we need to send it as body, not query params
+    const hasNestedObjects = Object.values(body).some(value => 
+      typeof value === 'object' && value !== null && !Array.isArray(value)
+    );
+    
+    // Products endpoint always needs body (even if empty) for proper parsing
+    if (isProductsEndpoint || hasNestedObjects) {
+      // Send body with GET request (backend expects this)
+      sendBodyInGet = true;
+    } else {
+      // Convert simple body to query parameters
+      const queryParams = new URLSearchParams();
+      Object.keys(body).forEach(key => {
+        if (body[key] !== null && body[key] !== undefined) {
+          if (Array.isArray(body[key])) {
+            // Handle arrays in query params
+            body[key].forEach(item => queryParams.append(key, item));
+          } else {
+            queryParams.append(key, body[key]);
+          }
+        }
+      });
+      const queryString = queryParams.toString();
+      if (queryString) {
+        fullUrl += fullUrl.includes('?') ? `&${queryString}` : `?${queryString}`;
       }
-    });
-    const queryString = queryParams.toString();
-    if (queryString) {
-      fullUrl += `?${queryString}`;
     }
   }
   
@@ -251,8 +274,8 @@ const apiRequest = async (endpoint, options = {}) => {
     credentials: 'include', // Include cookies for CORS
   };
 
-  // Add body for non-GET requests
-  if (body && method !== 'GET') {
+  // Add body for POST/PUT/PATCH requests, or GET requests with nested objects
+  if (body && (method !== 'GET' || sendBodyInGet)) {
     // Clean the body - remove any undefined values and ensure proper JSON
     const cleanBody = JSON.parse(JSON.stringify(body)); // This removes undefined and ensures valid JSON
     config.body = JSON.stringify(cleanBody);
@@ -2745,13 +2768,72 @@ export const deleteCollection = async (collectionId) => {
 /**
  * Get all products
  * @param {number} [page=1] - Page number (default: 1)
- * @param {number} [limit=1000] - Items per page (default: 1000 to get all products)
+ * @param {number} [limit=21] - Items per page (default: 21)
+ * @param {Object} [filters={}] - Filter options
+ * @param {number|Array<number>} [filters.gender_id] - Gender ID(s)
+ * @param {number|Array<number>} [filters.color_code_id] - Color code ID(s)
+ * @param {number|Array<number>} [filters.shape_id] - Shape ID(s)
+ * @param {number|Array<number>} [filters.lens_color_id] - Lens color ID(s)
+ * @param {number|Array<number>} [filters.frame_color_id] - Frame color ID(s)
+ * @param {number|Array<number>} [filters.frame_type_id] - Frame type ID(s)
+ * @param {number|Array<number>} [filters.lens_material_id] - Lens material ID(s)
+ * @param {number|Array<number>} [filters.frame_material_id] - Frame material ID(s)
+ * @param {string|Array<string>} [filters.brand_id] - Brand ID(s)
+ * @param {Object} [filters.price] - Price range filter
+ * @param {number} [filters.price.min] - Minimum price
+ * @param {number} [filters.price.max] - Maximum price
  * @returns {Promise<Array>} Array of product objects
  */
-export const getProducts = async (page = 1, limit = 1000) => {
+export const getProducts = async (page = 1, limit = 21, filters = {}) => {
   try {
-    const response = await apiRequest(`/products?page=${page}&limit=${limit}`, {
+    // Build query string for page and limit
+    const queryParams = new URLSearchParams();
+    queryParams.append('page', page.toString());
+    queryParams.append('limit', limit.toString());
+    
+    // Build filter body
+    const filterBody = {};
+    
+    // Handle single values or arrays for filter IDs
+    if (filters.gender_id !== undefined) {
+      filterBody.gender_id = Array.isArray(filters.gender_id) ? filters.gender_id : filters.gender_id;
+    }
+    if (filters.color_code_id !== undefined) {
+      filterBody.color_code_id = Array.isArray(filters.color_code_id) ? filters.color_code_id : filters.color_code_id;
+    }
+    if (filters.shape_id !== undefined) {
+      filterBody.shape_id = Array.isArray(filters.shape_id) ? filters.shape_id : filters.shape_id;
+    }
+    if (filters.lens_color_id !== undefined) {
+      filterBody.lens_color_id = Array.isArray(filters.lens_color_id) ? filters.lens_color_id : filters.lens_color_id;
+    }
+    if (filters.frame_color_id !== undefined) {
+      filterBody.frame_color_id = Array.isArray(filters.frame_color_id) ? filters.frame_color_id : filters.frame_color_id;
+    }
+    if (filters.frame_type_id !== undefined) {
+      filterBody.frame_type_id = Array.isArray(filters.frame_type_id) ? filters.frame_type_id : filters.frame_type_id;
+    }
+    if (filters.lens_material_id !== undefined) {
+      filterBody.lens_material_id = Array.isArray(filters.lens_material_id) ? filters.lens_material_id : filters.lens_material_id;
+    }
+    if (filters.frame_material_id !== undefined) {
+      filterBody.frame_material_id = Array.isArray(filters.frame_material_id) ? filters.frame_material_id : filters.frame_material_id;
+    }
+    if (filters.brand_id !== undefined) {
+      filterBody.brand_id = Array.isArray(filters.brand_id) ? filters.brand_id : filters.brand_id;
+    }
+    if (filters.price !== undefined && filters.price !== null) {
+      filterBody.price = filters.price;
+    }
+    
+    // Always send a body object (even if empty) so backend can destructure it
+    // The backend expects req.body to exist, even if it's an empty object
+    const requestBody = Object.keys(filterBody).length > 0 ? filterBody : {};
+    
+    // Make request with filters in body (API accepts body in GET request)
+    const response = await apiRequest(`/products?${queryParams.toString()}`, {
       method: 'GET',
+      body: requestBody,
       includeAuth: true,
     });
     

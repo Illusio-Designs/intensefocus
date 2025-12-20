@@ -1,13 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import '../styles/pages/Home.css';
 import ProductCard from '../components/ProductCard';
+import { getFeaturedProducts, getCollections } from '../services/apiService';
 
 const Home = ({ onPageChange }) => {
   const [activeFilter, setActiveFilter] = useState('ALL');
   const [expandedFaq, setExpandedFaq] = useState(0);
+  const [featuredProducts, setFeaturedProducts] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [collections, setCollections] = useState([]);
+  const [loadingCollections, setLoadingCollections] = useState(true);
 
-  const handleFilterClick = (filterName) => {
-    setActiveFilter(filterName);
+  const handleFilterClick = (filterId) => {
+    setActiveFilter(filterId);
   };
 
   const handleViewMore = (productId) => {
@@ -21,6 +26,48 @@ const Home = ({ onPageChange }) => {
   const toggleFaq = (index) => {
     setExpandedFaq(expandedFaq === index ? null : index);
   };
+
+  // Fetch collections on component mount
+  useEffect(() => {
+    const fetchCollections = async () => {
+      try {
+        setLoadingCollections(true);
+        const collectionsData = await getCollections();
+        // Handle both array response and object with data property
+        const collectionsArray = Array.isArray(collectionsData) ? collectionsData : (collectionsData?.data || []);
+        setCollections(collectionsArray);
+      } catch (error) {
+        console.error('Error fetching collections:', error);
+        setCollections([]);
+      } finally {
+        setLoadingCollections(false);
+      }
+    };
+
+    fetchCollections();
+  }, []);
+
+  // Fetch featured products when activeFilter changes
+  useEffect(() => {
+    const fetchFeaturedProducts = async () => {
+      try {
+        setLoadingProducts(true);
+        // Use "all" if activeFilter is "ALL", otherwise use the collection_id
+        const collectionId = activeFilter === 'ALL' ? 'all' : activeFilter;
+        const products = await getFeaturedProducts(collectionId);
+        // Handle both array response and object with data property
+        const productsArray = Array.isArray(products) ? products : (products?.data || []);
+        setFeaturedProducts(productsArray);
+      } catch (error) {
+        console.error('Error fetching featured products:', error);
+        setFeaturedProducts([]);
+      } finally {
+        setLoadingProducts(false);
+      }
+    };
+
+    fetchFeaturedProducts();
+  }, [activeFilter]);
 
   const faqs = [
     {
@@ -45,14 +92,13 @@ const Home = ({ onPageChange }) => {
     }
   ];
 
+  // Build filters array with "ALL" option and collections
   const filters = [
-    'ALL',
-    'Deal of the day',
-    'Men',
-    'Women',
-    'Computer glasses',
-    'Safety glasses',
-    'Rimless sunglass'
+    { id: 'ALL', name: 'ALL' },
+    ...collections.map(collection => ({
+      id: collection.collection_id || collection.id,
+      name: collection.collection_name || 'Unnamed Collection'
+    }))
   ];
 
   return (
@@ -104,27 +150,109 @@ const Home = ({ onPageChange }) => {
         </div>
 
         <div className="collection-filters">
-          {filters.map((filter) => (
-            <button
-              key={filter}
-              className={`filter-btn ${activeFilter === filter ? 'active' : ''}`}
-              onClick={() => handleFilterClick(filter)}
-            >
-              {filter}
-            </button>
-          ))}
+          {loadingCollections ? (
+            <div style={{ textAlign: 'center', padding: '1rem' }}>
+              Loading collections...
+            </div>
+          ) : (
+            filters.map((filter) => (
+              <button
+                key={filter.id}
+                className={`filter-btn ${activeFilter === filter.id ? 'active' : ''}`}
+                onClick={() => handleFilterClick(filter.id)}
+              >
+                {filter.name}
+              </button>
+            ))
+          )}
         </div>
 
         <div className="products-grid">
-          {[1, 2, 3, 4, 5, 6].map((item) => (
-            <ProductCard
-              key={item}
-              productId={item}
-              productName="Anti-Fog Safety Goggles"
-              productImage={`/images/products/spac${item}.webp`}
-              onViewMore={handleViewMore}
-            />
-          ))}
+          {loadingProducts ? (
+            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '2rem' }}>
+              Loading products...
+            </div>
+          ) : featuredProducts.length > 0 ? (
+            featuredProducts.map((product) => {
+              // Helper function to construct full URL in format: https://stallion.nishree.com/uploads/products/filename.webp
+              const constructFullUrl = (imagePath) => {
+                if (!imagePath) return null;
+                
+                // If already a full URL, return as is
+                if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+                  return imagePath;
+                }
+                
+                // If it's a relative path starting with /uploads/products/, prepend base URL
+                if (imagePath.startsWith('/uploads/products/')) {
+                  return `https://stallion.nishree.com${imagePath}`;
+                }
+                
+                // If it's just a filename (no slashes), construct full path
+                if (!imagePath.includes('/')) {
+                  return `https://stallion.nishree.com/uploads/products/${imagePath}`;
+                }
+                
+                // If it's a relative path without leading slash, assume it's a filename
+                if (!imagePath.startsWith('/')) {
+                  return `https://stallion.nishree.com/uploads/products/${imagePath}`;
+                }
+                
+                // For other relative paths, try to extract filename and construct URL
+                const filename = imagePath.split('/').pop()?.split('?')[0];
+                return filename ? `https://stallion.nishree.com/uploads/products/${filename}` : null;
+              };
+
+              // Parse image_urls - handle both array and JSON string formats
+              let productImage = `/images/products/spac1.webp`; // default fallback
+              
+              if (product.image_urls) {
+                if (Array.isArray(product.image_urls) && product.image_urls.length > 0) {
+                  // Already an array
+                  productImage = product.image_urls[0];
+                } else if (typeof product.image_urls === 'string') {
+                  // Try to parse JSON string like "[\"/uploads/products/spac2-1766058948930.webp\"]"
+                  try {
+                    const parsed = JSON.parse(product.image_urls);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                      productImage = parsed[0];
+                    }
+                  } catch (e) {
+                    // If parsing fails, check if it's already a valid URL string
+                    if (product.image_urls.trim().length > 0 && product.image_urls !== '[]') {
+                      productImage = product.image_urls;
+                    }
+                  }
+                }
+              } else if (product.image_url) {
+                // Fallback to image_url if image_urls is not available
+                productImage = product.image_url;
+              }
+              
+              // Construct full URL from the parsed image path
+              const fullImageUrl = constructFullUrl(productImage) || productImage;
+              
+              // Use model_no as product name, or a default name
+              const productName = product.model_no || 'Safety Goggles';
+              
+              // Use product_id as the identifier
+              const productId = product.product_id || product.id;
+
+              return (
+                <ProductCard
+                  key={productId}
+                  productId={productId}
+                  productName={productName}
+                  productImage={fullImageUrl}
+                  onViewMore={handleViewMore}
+                />
+              );
+            })
+          ) : (
+            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '2rem' }}>
+              No featured products available
+            </div>
+          )}
         </div>
       </section>
 
