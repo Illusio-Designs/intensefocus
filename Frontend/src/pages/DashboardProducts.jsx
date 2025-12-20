@@ -824,7 +824,6 @@ const DashboardProducts = () => {
         mrp: `₹${parseFloat(product.mrp || 0).toLocaleString('en-IN')}`,
         whp: `₹${parseFloat(product.whp || 0).toLocaleString('en-IN')}`,
         warehouse_qty: product.warehouse_qty || 0,
-        tray_qty: product.tray_qty || 0,
         status: product.status || 'draft',
         hasUploadedMedia: hasUploadedMedia,
         data: product,
@@ -1483,7 +1482,6 @@ const DashboardProducts = () => {
     { key: 'mrp', label: 'MRP' },
     { key: 'whp', label: 'WHP' },
     { key: 'warehouse_qty', label: 'WAREHOUSE QTY' },
-    { key: 'tray_qty', label: 'TRAY QTY' },
     { key: 'status', label: 'STATUS' },
     { key: 'action', label: 'ACTION', render: (_v, row) => (
       <RowActions 

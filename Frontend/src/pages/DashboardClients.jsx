@@ -44,7 +44,7 @@ const DashboardClients = () => {
     gstin: '',
     pan: '',
     credit_days: '',
-    preferred_courier: '',
+    prefered_courier: '',
   });
 
   useEffect(() => {
@@ -387,7 +387,7 @@ const DashboardClients = () => {
       gstin: '',
       pan: '',
       credit_days: '',
-      preferred_courier: '',
+      prefered_courier: '',
     });
   };
 
@@ -447,7 +447,7 @@ const DashboardClients = () => {
         gstin: row.gstin || '',
         pan: row.pan || '',
         credit_days: row.credit_days || '',
-        preferred_courier: row.preferred_courier || '',
+        prefered_courier: row.prefered_courier || row.preferred_courier || '',
       });
       
       // Store the complete row object with ensured ID
@@ -572,7 +572,7 @@ const DashboardClients = () => {
         gstin: String(formData.gstin || ''),
         pan: String(formData.pan || ''),
         credit_days: formData.credit_days ? Number(formData.credit_days) : null,
-        preferred_courier: String(formData.preferred_courier || ''),
+        prefered_courier: formData.prefered_courier && formData.prefered_courier.trim() !== '' ? String(formData.prefered_courier).trim() : null,
       };
       
       console.log('[Update] Form data state/city/zone:', {
@@ -587,7 +587,7 @@ const DashboardClients = () => {
       });
       
       // Final validation: ensure no undefined values and all fields are present
-      const allFields = ['party_name', 'trade_name', 'contact_person', 'email', 'phone', 'address', 'country_id', 'state_id', 'city_id', 'zone_id', 'pincode', 'gstin', 'pan', 'credit_days', 'preferred_courier'];
+      const allFields = ['party_name', 'trade_name', 'contact_person', 'email', 'phone', 'address', 'country_id', 'state_id', 'city_id', 'zone_id', 'pincode', 'gstin', 'pan', 'credit_days', 'prefered_courier'];
       allFields.forEach(key => {
         if (dataToSend[key] === undefined) {
           console.warn(`[DashboardClients] Undefined value detected for ${key}, setting to default`);
@@ -637,7 +637,7 @@ const DashboardClients = () => {
               gstin: dataToSend.gstin,
               pan: dataToSend.pan,
               credit_days: dataToSend.credit_days,
-              preferred_courier: dataToSend.preferred_courier,
+              prefered_courier: dataToSend.prefered_courier,
               id: id 
             };
           }
@@ -1202,8 +1202,8 @@ const DashboardClients = () => {
             <input 
               className="ui-input" 
               placeholder="Preferred Courier"
-              value={formData.preferred_courier}
-              onChange={(e) => handleInputChange('preferred_courier', e.target.value)}
+              value={formData.prefered_courier}
+              onChange={(e) => handleInputChange('prefered_courier', e.target.value)}
             />
           </div>
         </form>
@@ -1410,12 +1410,12 @@ const DashboardClients = () => {
             />
           </div>
           <div className="form-group">
-            <label className="ui-label">Preferred Courier</label>
+            <label className="ui-label">Prefered Courier</label>
             <input 
               className="ui-input" 
-              placeholder="Preferred Courier"
-              value={formData.preferred_courier}
-              onChange={(e) => handleInputChange('preferred_courier', e.target.value)}
+              placeholder="Prefered Courier"
+              value={formData.prefered_courier}
+              onChange={(e) => handleInputChange('prefered_courier', e.target.value)}
             />
           </div>
         </form>

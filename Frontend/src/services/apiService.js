@@ -1311,7 +1311,7 @@ export const createParty = async (partyData) => {
     gstin,
     pan,
     credit_days,
-    preferred_courier,
+    prefered_courier,
   } = partyData;
   
   // Helper functions to get validated UUIDs
@@ -1321,7 +1321,7 @@ export const createParty = async (partyData) => {
     return isValidUUID(value) ? String(value).trim() : null;
   };
 
-  const getCityId = () => {
+const getCityId = () => {
     const value = city_id?.trim() || '';
     if (value === '') return null;
     return isValidUUID(value) ? String(value).trim() : null;
@@ -1349,8 +1349,8 @@ export const createParty = async (partyData) => {
     pincode: String(pincode || ''),
     gstin: String(gstin || ''),
     pan: String(pan || ''),
-    credit_days: credit_days ? Number(credit_days) : null,
-    preferred_courier: String(preferred_courier || ''),
+    credit_days: String(credit_days || ''),
+    prefered_courier: String(prefered_courier || ''),
   };
   
   // Validate that all required fields are present (no undefined)
@@ -1396,7 +1396,7 @@ export const createParty = async (partyData) => {
  * @param {string} partyData.gstin - GSTIN (optional)
  * @param {string} partyData.pan - PAN (optional)
  * @param {number} partyData.credit_days - Credit Days (optional)
- * @param {string} partyData.preferred_courier - Preferred Courier (optional)
+ * @param {string} partyData.prefered_courier - Preferred Courier (optional)
  * @returns {Promise<Object>} Response with message
  */
 export const updateParty = async (partyId, partyData) => {
@@ -1427,7 +1427,7 @@ export const updateParty = async (partyId, partyData) => {
     gstin,
     pan,
     credit_days,
-    preferred_courier,
+    prefered_courier,
   } = partyData;
   
   // Helper functions to get validated UUIDs
@@ -1465,8 +1465,8 @@ export const updateParty = async (partyId, partyData) => {
     pincode: String(pincode || ''),
     gstin: String(gstin || ''),
     pan: String(pan || ''),
-    credit_days: credit_days ? Number(credit_days) : null,
-    preferred_courier: String(preferred_courier || ''),
+    credit_days: String(credit_days || ''),
+    prefered_courier: String(prefered_courier || ''),
   };
   
   // Validate that all required fields are present (no undefined)
@@ -1485,7 +1485,7 @@ export const updateParty = async (partyId, partyData) => {
   
   // Final validation: ensure absolutely no undefined values
   const finalRequestBody = {};
-  const allFields = ['party_name', 'trade_name', 'contact_person', 'email', 'phone', 'address', 'country_id', 'state_id', 'city_id', 'zone_id', 'pincode', 'gstin', 'pan', 'credit_days', 'preferred_courier'];
+  const allFields = ['party_name', 'trade_name', 'contact_person', 'email', 'phone', 'address', 'country_id', 'state_id', 'city_id', 'zone_id', 'pincode', 'gstin', 'pan', 'credit_days', 'prefered_courier'];
   allFields.forEach(field => {
     const value = requestBody[field];
     if (value === undefined) {
@@ -2744,11 +2744,13 @@ export const deleteCollection = async (collectionId) => {
 
 /**
  * Get all products
+ * @param {number} [page=1] - Page number (default: 1)
+ * @param {number} [limit=1000] - Items per page (default: 1000 to get all products)
  * @returns {Promise<Array>} Array of product objects
  */
-export const getProducts = async () => {
+export const getProducts = async (page = 1, limit = 1000) => {
   try {
-    const response = await apiRequest('/products', {
+    const response = await apiRequest(`/products?page=${page}&limit=${limit}`, {
       method: 'GET',
       includeAuth: true,
     });
@@ -3447,6 +3449,17 @@ export const deleteOrder = async (orderId) => {
   });
 };
 
-// Export base URL for reference (use getBaseURL() for dynamic access)
-export { BASE_URL, getBaseURL };
-
+/**
+ * Get featured products
+ * @param {string} [collectionId="all"] - Collection ID (UUID) or "all" to get all featured products
+ * @returns {Promise<Array>} Array of featured product objects
+ */
+export const getFeaturedProducts = async (collectionId = "all") => {
+  return apiRequest('/products/featured', {
+    method: 'POST',
+    body: {
+      collection_id: collectionId,
+    },
+    includeAuth: false,
+  });
+};
