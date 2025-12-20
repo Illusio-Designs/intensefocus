@@ -3,41 +3,45 @@ import '../styles/pages/Products.css';
 import ProductCard from '../components/ProductCard';
 import {
   getProducts,
-  getBrands,
   getGenders,
   getShapes,
-  getLensColors,
-  getFrameColors,
+  getFrameTypes,
   getLensMaterials,
   getFrameMaterials,
-  getFrameTypes,
+  getColorCodes,
+  getLensColors,
+  getFrameColors,
+  getBrands
 } from '../services/apiService';
 
 const Products = () => {
-  const [minPrice, setMinPrice] = useState(0);
-  const [maxPrice, setMaxPrice] = useState(10000);
-  const [selectedBrands, setSelectedBrands] = useState([]);
-  const [selectedFrameMaterials, setSelectedFrameMaterials] = useState([]);
-  const [selectedShape, setSelectedShape] = useState(null);
-  const [selectedType, setSelectedType] = useState('Full Frame');
-  const [selectedGender, setSelectedGender] = useState([]);
-  const [selectedLensColor, setSelectedLensColor] = useState(null);
-  const [selectedLensMaterial, setSelectedLensMaterial] = useState([]);
-  const [selectedFrameColor, setSelectedFrameColor] = useState(null);
-  const [selectedProductType, setSelectedProductType] = useState([]);
+  const [minPrice, setMinPrice] = useState(100);
+  const [maxPrice, setMaxPrice] = useState(200);
+  const [selectedBrands, setSelectedBrands] = useState([]); // Array of brand IDs
+  const [selectedFrameMaterials, setSelectedFrameMaterials] = useState([]); // Array of frame_material_id
+  const [selectedShapes, setSelectedShapes] = useState([]); // Array of shape_id
+  const [selectedType, setSelectedType] = useState(null); // Single frame_type_id
+  const [selectedGender, setSelectedGender] = useState([]); // Array of gender_id
+  const [selectedLensColor, setSelectedLensColor] = useState(null); // Single lens_color_id
+  const [selectedLensMaterial, setSelectedLensMaterial] = useState([]); // Array of lens_material_id
+  const [selectedFrameColor, setSelectedFrameColor] = useState(null); // Single frame_color_id
+  const [selectedColorCode, setSelectedColorCode] = useState(null); // Single color_code_id
   
-  // API data states
+  // Products display
   const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [totalResults, setTotalResults] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [page, setPage] = useState(1);
+  const limit = 21;
   
-  // Lookup data states
+  // Filter options from API
   const [brandsData, setBrandsData] = useState([]);
   const [gendersData, setGendersData] = useState([]);
   const [shapesData, setShapesData] = useState([]);
   const [lensColorsData, setLensColorsData] = useState([]);
   const [frameColorsData, setFrameColorsData] = useState([]);
+  const [colorCodesData, setColorCodesData] = useState([]);
   const [lensMaterialsData, setLensMaterialsData] = useState([]);
   const [frameMaterialsData, setFrameMaterialsData] = useState([]);
   const [frameTypesData, setFrameTypesData] = useState([]);
@@ -51,179 +55,159 @@ const Products = () => {
     gender: false,
     lensColor: false,
     lensMaterial: false,
-    frameColor: false,
-    productType: false
+    frameColor: false
   });
 
-  // Static data for filters (will be replaced with API data)
+  // Static data for filters
   const types = ['Full Frame', 'Half Frame', 'Rimless'];
-  const productTypes = ['Sunglasses', 'Eyeglasses', 'Riding Goggles', 'Safety Goggles'];
   
-  const colors = [
-    { name: 'Black', hex: '#000000' },
-    { name: 'Dark Blue', hex: '#1E3A8A' },
-    { name: 'Light Blue', hex: '#60A5FA' },
-    { name: 'Green', hex: '#10B981' },
-    { name: 'Yellow', hex: '#FBBF24' },
-    { name: 'Pink', hex: '#EC4899' },
-    { name: 'Grey', hex: '#9CA3AF' },
-    { name: 'White', hex: '#FFFFFF' }
-  ];
+  // Color mapping helper
+  const getColorHex = (colorName) => {
+    const colorMap = {
+      'Black': '#000000',
+      'Dark Blue': '#1E3A8A',
+      'Light Blue': '#60A5FA',
+      'Green': '#10B981',
+      'Yellow': '#FBBF24',
+      'Pink': '#EC4899',
+      'Grey': '#9CA3AF',
+      'Gray': '#9CA3AF',
+      'White': '#FFFFFF'
+    };
+    return colorMap[colorName] || '#CCCCCC';
+  };
 
-  // Fetch lookup data on mount
+
+  // Fetch filter options on mount
   useEffect(() => {
-    const fetchLookupData = async () => {
+    const fetchFilterOptions = async () => {
       try {
-        const [brands, genders, shapes, lensColors, frameColors, lensMaterials, frameMaterials, frameTypes] = await Promise.all([
-          getBrands(),
-          getGenders(),
-          getShapes(),
-          getLensColors(),
-          getFrameColors(),
-          getLensMaterials(),
-          getFrameMaterials(),
-          getFrameTypes(),
+        const [brands, genders, shapes, frameTypes, lensMaterials, frameMaterials, colorCodes, lensColors, frameColors] = await Promise.all([
+          getBrands().catch(() => []),
+          getGenders().catch(() => []),
+          getShapes().catch(() => []),
+          getFrameTypes().catch(() => []),
+          getLensMaterials().catch(() => []),
+          getFrameMaterials().catch(() => []),
+          getColorCodes().catch(() => []),
+          getLensColors().catch(() => []),
+          getFrameColors().catch(() => [])
         ]);
         
-        setBrandsData(Array.isArray(brands) ? brands : []);
-        setGendersData(Array.isArray(genders) ? genders : []);
-        setShapesData(Array.isArray(shapes) ? shapes : []);
-        setLensColorsData(Array.isArray(lensColors) ? lensColors : []);
-        setFrameColorsData(Array.isArray(frameColors) ? frameColors : []);
-        setLensMaterialsData(Array.isArray(lensMaterials) ? lensMaterials : []);
-        setFrameMaterialsData(Array.isArray(frameMaterials) ? frameMaterials : []);
-        setFrameTypesData(Array.isArray(frameTypes) ? frameTypes : []);
+        setBrandsData(brands || []);
+        setGendersData(genders || []);
+        setShapesData(shapes || []);
+        setFrameTypesData(frameTypes || []);
+        setLensMaterialsData(lensMaterials || []);
+        setFrameMaterialsData(frameMaterials || []);
+        setColorCodesData(colorCodes || []);
+        setLensColorsData(lensColors || []);
+        setFrameColorsData(frameColors || []);
       } catch (err) {
-        console.error('Error fetching lookup data:', err);
+        console.error('Error fetching filter options:', err);
       }
     };
     
-    fetchLookupData();
+    fetchFilterOptions();
   }, []);
 
-  // Helper function to map filter values to IDs
-  const mapFilterToIds = useCallback((filterValues, lookupData, nameKey, idKey) => {
-    if (!Array.isArray(filterValues) || filterValues.length === 0) return undefined;
-    
-    const ids = filterValues
-      .map(value => {
-        const item = lookupData.find(item => 
-          (item[nameKey] || '').toLowerCase() === (value || '').toLowerCase()
-        );
-        return item?.[idKey] || item?.id;
-      })
-      .filter(id => id !== undefined);
-    
-    return ids.length > 0 ? (ids.length === 1 ? ids[0] : ids) : undefined;
-  }, []);
-
-  // Build filter object for API
+  // Build filter object for API - Only include fields with actual values
   const buildFilters = useCallback(() => {
     const filters = {};
     
-    // Map brands
-    if (selectedBrands.length > 0) {
-      const brandIds = mapFilterToIds(selectedBrands, brandsData, 'brand_name', 'brand_id');
-      if (brandIds) filters.brand_id = brandIds;
-    }
-    
-    // Map genders
+    // Only include filter fields that have values (don't include null/empty fields)
+    // gender_id
     if (selectedGender.length > 0) {
-      const genderIds = mapFilterToIds(selectedGender, gendersData, 'gender_name', 'gender_id');
-      if (genderIds) filters.gender_id = genderIds;
+      filters.gender_id = selectedGender.length === 1 ? selectedGender[0] : selectedGender;
     }
     
-    // Map shapes
-    if (selectedShape) {
-      const shapeMap = {
-        'cateye': 'Cat Eye',
-        'phantos': 'Phantos',
-        'geometric': 'Geometric',
-        'oval': 'Oval'
-      };
-      const shapeName = shapeMap[selectedShape];
-      if (shapeName) {
-        const shape = shapesData.find(s => 
-          (s.shape_name || '').toLowerCase() === shapeName.toLowerCase()
-        );
-        if (shape?.shape_id || shape?.id) {
-          filters.shape_id = shape.shape_id || shape.id;
-        }
-      }
+    // color_code_id
+    if (selectedColorCode !== null && selectedColorCode !== undefined) {
+      filters.color_code_id = selectedColorCode;
     }
     
-    // Map frame type
-    if (selectedType && selectedType !== 'Full Frame') {
-      const frameType = frameTypesData.find(ft => 
-        (ft.frame_type_name || '').toLowerCase() === selectedType.toLowerCase()
-      );
-      if (frameType?.frame_type_id || frameType?.id) {
-        filters.frame_type_id = frameType.frame_type_id || frameType.id;
-      }
+    // shape_id
+    if (selectedShapes.length > 0) {
+      filters.shape_id = selectedShapes.length === 1 ? selectedShapes[0] : selectedShapes;
     }
     
-    // Map lens color
-    if (selectedLensColor) {
-      const lensColor = lensColorsData.find(lc => 
-        (lc.lens_color_name || '').toLowerCase() === selectedLensColor.toLowerCase()
-      );
-      if (lensColor?.lens_color_id || lensColor?.id) {
-        filters.lens_color_id = lensColor.lens_color_id || lensColor.id;
-      }
+    // lens_color_id
+    if (selectedLensColor !== null && selectedLensColor !== undefined) {
+      filters.lens_color_id = selectedLensColor;
     }
     
-    // Map frame color
-    if (selectedFrameColor) {
-      const frameColor = frameColorsData.find(fc => 
-        (fc.frame_color_name || '').toLowerCase() === selectedFrameColor.toLowerCase()
-      );
-      if (frameColor?.frame_color_id || frameColor?.id) {
-        filters.frame_color_id = frameColor.frame_color_id || frameColor.id;
-      }
+    // frame_color_id
+    if (selectedFrameColor !== null && selectedFrameColor !== undefined) {
+      filters.frame_color_id = selectedFrameColor;
     }
     
-    // Map lens materials
+    // frame_type_id
+    if (selectedType !== null && selectedType !== undefined) {
+      filters.frame_type_id = selectedType;
+    }
+    
+    // lens_material_id
     if (selectedLensMaterial.length > 0) {
-      const lensMaterialIds = mapFilterToIds(selectedLensMaterial, lensMaterialsData, 'lens_material_name', 'lens_material_id');
-      if (lensMaterialIds) filters.lens_material_id = lensMaterialIds;
+      filters.lens_material_id = selectedLensMaterial.length === 1 ? selectedLensMaterial[0] : selectedLensMaterial;
     }
     
-    // Map frame materials
+    // frame_material_id
     if (selectedFrameMaterials.length > 0) {
-      const frameMaterialIds = mapFilterToIds(selectedFrameMaterials, frameMaterialsData, 'frame_material_name', 'frame_material_id');
-      if (frameMaterialIds) filters.frame_material_id = frameMaterialIds;
+      filters.frame_material_id = selectedFrameMaterials.length === 1 ? selectedFrameMaterials[0] : selectedFrameMaterials;
     }
     
-    // Price filter
-    if (minPrice > 0 || maxPrice < 10000) {
-      filters.price = {
-        min: minPrice,
-        max: maxPrice
-      };
+    // brand_id (optional, but include if selected)
+    if (selectedBrands.length > 0) {
+      filters.brand_id = selectedBrands.length === 1 ? selectedBrands[0] : selectedBrands;
     }
+    
+    // Always include price filter
+    filters.price = {
+      min: minPrice,
+      max: maxPrice
+    };
     
     return filters;
   }, [
-    selectedBrands, selectedGender, selectedShape, selectedType,
-    selectedLensColor, selectedFrameColor, selectedLensMaterial,
-    selectedFrameMaterials, minPrice, maxPrice,
-    brandsData, gendersData, shapesData, lensColorsData,
-    frameColorsData, lensMaterialsData, frameMaterialsData,
-    frameTypesData, mapFilterToIds
+    selectedGender,
+    selectedColorCode,
+    selectedShapes,
+    selectedLensColor,
+    selectedFrameColor,
+    selectedType,
+    selectedLensMaterial,
+    selectedFrameMaterials,
+    selectedBrands,
+    minPrice,
+    maxPrice
   ]);
 
   // Fetch products when filters change
   useEffect(() => {
     const fetchProducts = async () => {
+      setLoading(true);
+      setError(null);
+      
       try {
-        setLoading(true);
-        setError(null);
-        
         const filters = buildFilters();
-        const data = await getProducts(1, 1000, filters);
+        console.log('Selected filters state:', {
+          selectedGender,
+          selectedColorCode,
+          selectedShapes,
+          selectedLensColor,
+          selectedFrameColor,
+          selectedType,
+          selectedLensMaterial,
+          selectedFrameMaterials,
+          selectedBrands,
+          minPrice,
+          maxPrice
+        });
+        console.log('Built filters object:', filters);
+        const productsData = await getProducts(page, limit, filters);
         
-        setProducts(Array.isArray(data) ? data : []);
-        setTotalResults(Array.isArray(data) ? data.length : 0);
+        setProducts(productsData || []);
+        setTotalResults(productsData?.length || 0);
       } catch (err) {
         console.error('Error fetching products:', err);
         setError(err.message || 'Failed to fetch products');
@@ -235,20 +219,21 @@ const Products = () => {
     };
     
     fetchProducts();
-  }, [buildFilters]);
+  }, [page, buildFilters]);
 
   const handleReset = () => {
-    setMinPrice(0);
-    setMaxPrice(10000);
+    setMinPrice(100);
+    setMaxPrice(200);
     setSelectedBrands([]);
     setSelectedFrameMaterials([]);
-    setSelectedShape(null);
-    setSelectedType('Full Frame');
+    setSelectedShapes([]);
+    setSelectedType(null);
     setSelectedGender([]);
     setSelectedLensColor(null);
     setSelectedLensMaterial([]);
     setSelectedFrameColor(null);
-    setSelectedProductType([]);
+    setSelectedColorCode(null);
+    setPage(1);
   };
 
   const toggleSelection = (item, selectedItems, setSelectedItems) => {
@@ -357,13 +342,14 @@ const Products = () => {
         {expandedSections.brands && (
           <div className="filter-section-content">
             {brandsData.map(brand => {
+              const brandId = brand.brand_id || brand.id;
               const brandName = brand.brand_name || brand.name || '';
               return (
-                <label key={brand.brand_id || brand.id || brandName} className="checkbox-label">
+                <label key={brandId} className="checkbox-label">
                   <input 
                     type="checkbox" 
-                    checked={selectedBrands.includes(brandName)}
-                    onChange={() => toggleSelection(brandName, selectedBrands, setSelectedBrands)}
+                    checked={selectedBrands.includes(brandId)}
+                    onChange={() => toggleSelection(brandId, selectedBrands, setSelectedBrands)}
                   />
                   <span>{brandName}</span>
                 </label>
@@ -386,13 +372,14 @@ const Products = () => {
         {expandedSections.frameMaterial && (
           <div className="filter-section-content">
             {frameMaterialsData.map(material => {
-              const materialName = material.frame_material_name || material.name || '';
+              const materialId = material.frame_material_id || material.id;
+              const materialName = material.frame_material || material.frame_material_name || material.name || '';
               return (
-                <label key={material.frame_material_id || material.id || materialName} className="checkbox-label">
+                <label key={materialId} className="checkbox-label">
                   <input 
                     type="checkbox"
-                    checked={selectedFrameMaterials.includes(materialName)}
-                    onChange={() => toggleSelection(materialName, selectedFrameMaterials, setSelectedFrameMaterials)}
+                    checked={selectedFrameMaterials.includes(materialId)}
+                    onChange={() => toggleSelection(materialId, selectedFrameMaterials, setSelectedFrameMaterials)}
                   />
                   <span>{materialName}</span>
                 </label>
@@ -414,33 +401,28 @@ const Products = () => {
         </div>
         {expandedSections.shape && (
           <div className="filter-section-content">
-            <div className="shape-grid">
-              {[
-                { id: 'cateye', name: 'Cat Eye', image: '/images/productshape/cateye.webp' },
-                { id: 'phantos', name: 'Phantos', image: '/images/productshape/phantos.webp' },
-                { id: 'geometric', name: 'Geometric', image: '/images/productshape/geomatric.webp' },
-                { id: 'oval', name: 'Oval', image: '/images/productshape/oval.webp' }
-              ].map(shape => (
-                <div 
-                  key={shape.id}
-                  className={`shape-card ${selectedShape === shape.id ? 'active' : ''}`}
-                  onClick={() => setSelectedShape(shape.id)}
-                >
-                  <div className="shape-image-container">
-                    <img src={shape.image} alt={shape.name} className="shape-image" />
-                  </div>
-                  <span className="shape-name">{shape.name}</span>
-                </div>
-              ))}
-            </div>
+            {shapesData.map(shape => {
+              const shapeId = shape.shape_id || shape.id;
+              const shapeName = shape.shape_name || shape.name || '';
+              return (
+                <label key={shapeId} className="checkbox-label">
+                  <input 
+                    type="checkbox"
+                    checked={selectedShapes.includes(shapeId)}
+                    onChange={() => toggleSelection(shapeId, selectedShapes, setSelectedShapes)}
+                  />
+                  <span>{shapeName}</span>
+                </label>
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* Type Filter */}
+      {/* Frame Type Filter */}
       <div className="filter-section">
         <div className="filter-section-header" onClick={() => toggleSection('type')}>
-          <h3>Type</h3>
+          <h3>Frame Type</h3>
           <span className={`chevron ${expandedSections.type ? 'expanded' : ''}`}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -449,17 +431,21 @@ const Products = () => {
         </div>
         {expandedSections.type && (
           <div className="filter-section-content">
-            {types.map(type => (
-              <label key={type} className="radio-label">
-                <input 
-                  type="radio" 
-                  name="type"
-                  checked={selectedType === type}
-                  onChange={() => setSelectedType(type)}
-                />
-                <span>{type}</span>
-              </label>
-            ))}
+            {frameTypesData.map(frameType => {
+              const typeId = frameType.frame_type_id || frameType.id;
+              const typeName = frameType.frame_type || frameType.frame_type_name || frameType.name || '';
+              return (
+                <label key={typeId} className="radio-label">
+                  <input 
+                    type="radio" 
+                    name="type"
+                    checked={selectedType === typeId}
+                    onChange={() => setSelectedType(selectedType === typeId ? null : typeId)}
+                  />
+                  <span>{typeName}</span>
+                </label>
+              );
+            })}
           </div>
         )}
       </div>
@@ -477,13 +463,14 @@ const Products = () => {
         {expandedSections.gender && (
           <div className="filter-section-content">
             {gendersData.map(gender => {
+              const genderId = gender.gender_id || gender.id;
               const genderName = gender.gender_name || gender.name || '';
               return (
-                <label key={gender.gender_id || gender.id || genderName} className="checkbox-label">
+                <label key={genderId} className="checkbox-label">
                   <input 
                     type="checkbox"
-                    checked={selectedGender.includes(genderName)}
-                    onChange={() => toggleSelection(genderName, selectedGender, setSelectedGender)}
+                    checked={selectedGender.includes(genderId)}
+                    onChange={() => toggleSelection(genderId, selectedGender, setSelectedGender)}
                   />
                   <span>{genderName}</span>
                 </label>
@@ -506,32 +493,20 @@ const Products = () => {
         {expandedSections.lensColor && (
           <div className="filter-section-content">
             <div className="color-swatches">
-              {lensColorsData.length > 0 ? (
-                lensColorsData.map(color => {
-                  const colorName = color.lens_color_name || color.name || '';
-                  // Try to find matching color in static colors array for hex value
-                  const staticColor = colors.find(c => c.name.toLowerCase() === colorName.toLowerCase());
-                  return (
-                    <div
-                      key={color.lens_color_id || color.id || colorName}
-                      className={`color-swatch ${selectedLensColor === colorName ? 'active' : ''}`}
-                      style={{ backgroundColor: staticColor?.hex || '#CCCCCC' }}
-                      onClick={() => setSelectedLensColor(colorName)}
-                      title={colorName}
-                    ></div>
-                  );
-                })
-              ) : (
-                colors.map(color => (
+              {lensColorsData.map(lensColor => {
+                const colorId = lensColor.lens_color_id || lensColor.id;
+                const colorName = lensColor.lens_color || lensColor.name || '';
+                const colorHex = lensColor.hex || lensColor.color_hex || getColorHex(colorName);
+                return (
                   <div
-                    key={color.name}
-                    className={`color-swatch ${selectedLensColor === color.name ? 'active' : ''}`}
-                    style={{ backgroundColor: color.hex }}
-                    onClick={() => setSelectedLensColor(color.name)}
-                    title={color.name}
+                    key={colorId}
+                    className={`color-swatch ${selectedLensColor === colorId ? 'active' : ''}`}
+                    style={{ backgroundColor: colorHex }}
+                    onClick={() => setSelectedLensColor(selectedLensColor === colorId ? null : colorId)}
+                    title={colorName}
                   ></div>
-                ))
-              )}
+                );
+              })}
             </div>
           </div>
         )}
@@ -550,13 +525,14 @@ const Products = () => {
         {expandedSections.lensMaterial && (
           <div className="filter-section-content">
             {lensMaterialsData.map(material => {
-              const materialName = material.lens_material_name || material.name || '';
+              const materialId = material.lens_material_id || material.id;
+              const materialName = material.lens_material || material.lens_material_name || material.name || '';
               return (
-                <label key={material.lens_material_id || material.id || materialName} className="checkbox-label">
+                <label key={materialId} className="checkbox-label">
                   <input 
                     type="checkbox"
-                    checked={selectedLensMaterial.includes(materialName)}
-                    onChange={() => toggleSelection(materialName, selectedLensMaterial, setSelectedLensMaterial)}
+                    checked={selectedLensMaterial.includes(materialId)}
+                    onChange={() => toggleSelection(materialId, selectedLensMaterial, setSelectedLensMaterial)}
                   />
                   <span>{materialName}</span>
                 </label>
@@ -579,59 +555,21 @@ const Products = () => {
         {expandedSections.frameColor && (
           <div className="filter-section-content">
             <div className="color-swatches">
-              {frameColorsData.length > 0 ? (
-                frameColorsData.map(color => {
-                  const colorName = color.frame_color_name || color.name || '';
-                  // Try to find matching color in static colors array for hex value
-                  const staticColor = colors.find(c => c.name.toLowerCase() === colorName.toLowerCase());
-                  return (
-                    <div
-                      key={color.frame_color_id || color.id || colorName}
-                      className={`color-swatch ${selectedFrameColor === colorName ? 'active' : ''}`}
-                      style={{ backgroundColor: staticColor?.hex || '#CCCCCC' }}
-                      onClick={() => setSelectedFrameColor(colorName)}
-                      title={colorName}
-                    ></div>
-                  );
-                })
-              ) : (
-                colors.map(color => (
+              {frameColorsData.map(frameColor => {
+                const colorId = frameColor.frame_color_id || frameColor.id;
+                const colorName = frameColor.frame_color || frameColor.name || '';
+                const colorHex = frameColor.hex || frameColor.color_hex || getColorHex(colorName);
+                return (
                   <div
-                    key={color.name}
-                    className={`color-swatch ${selectedFrameColor === color.name ? 'active' : ''}`}
-                    style={{ backgroundColor: color.hex }}
-                    onClick={() => setSelectedFrameColor(color.name)}
-                    title={color.name}
+                    key={colorId}
+                    className={`color-swatch ${selectedFrameColor === colorId ? 'active' : ''}`}
+                    style={{ backgroundColor: colorHex }}
+                    onClick={() => setSelectedFrameColor(selectedFrameColor === colorId ? null : colorId)}
+                    title={colorName}
                   ></div>
-                ))
-              )}
+                );
+              })}
             </div>
-          </div>
-        )}
-      </div>
-
-      {/* Product Type Filter */}
-      <div className="filter-section">
-        <div className="filter-section-header" onClick={() => toggleSection('productType')}>
-          <h3>Product Type</h3>
-          <span className={`chevron ${expandedSections.productType ? 'expanded' : ''}`}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </span>
-        </div>
-        {expandedSections.productType && (
-          <div className="filter-section-content">
-            {productTypes.map(type => (
-              <label key={type} className="checkbox-label">
-                <input 
-                  type="checkbox"
-                  checked={selectedProductType.includes(type)}
-                  onChange={() => toggleSelection(type, selectedProductType, setSelectedProductType)}
-                />
-                <span>{type}</span>
-              </label>
-            ))}
           </div>
         )}
       </div>
@@ -668,42 +606,39 @@ const Products = () => {
         {/* Products Grid */}
         <main className="products-main">
           <div className="products-header">
-            <h2>{loading ? 'Loading...' : error ? 'Error loading products' : `${totalResults} results`}</h2>
+            <h2>{loading ? 'Loading...' : `${totalResults} results`}</h2>
           </div>
-          {error && (
-            <div style={{ padding: '20px', color: 'red', textAlign: 'center' }}>
-              {error}
-            </div>
-          )}
-          {loading ? (
-            <div style={{ padding: '40px', textAlign: 'center' }}>
-              Loading products...
-            </div>
-          ) : (
-            <div className="products-grid-container">
-              {products.length > 0 ? (
-                products.map(product => {
-                  const productId = product.product_id || product.id;
-                  const productName = product.model_no || product.name || 'Product';
-                  const productImage = getProductImage(product);
-                  
-                  return (
-                    <ProductCard
-                      key={productId}
-                      productId={productId}
-                      productName={productName}
-                      productImage={productImage}
-                      onViewMore={handleViewMore}
-                    />
-                  );
-                })
-              ) : (
-                <div style={{ padding: '40px', textAlign: 'center' }}>
-                  No products found
-                </div>
-              )}
-            </div>
-          )}
+          <div className="products-grid-container">
+            {loading ? (
+              <div style={{ padding: '40px', textAlign: 'center' }}>
+                Loading products...
+              </div>
+            ) : error ? (
+              <div style={{ padding: '40px', textAlign: 'center', color: 'red' }}>
+                Error: {error}
+              </div>
+            ) : products.length > 0 ? (
+              products.map(product => {
+                const productId = product.product_id || product.id;
+                const productName = product.model_no || product.name || 'Product';
+                const productImage = getProductImage(product);
+                
+                return (
+                  <ProductCard
+                    key={productId}
+                    productId={productId}
+                    productName={productName}
+                    productImage={productImage}
+                    onViewMore={handleViewMore}
+                  />
+                );
+              })
+            ) : (
+              <div style={{ padding: '40px', textAlign: 'center' }}>
+                No products found
+              </div>
+            )}
+          </div>
         </main>
       </div>
     </div>
