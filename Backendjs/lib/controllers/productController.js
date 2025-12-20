@@ -13,6 +13,7 @@ const Gender = require('../models/Gender');
 const { PRODUCT_IMAGE_UPLOAD_DIR } = require('../constants/multer');
 const path = require('path');
 const fs = require('fs');
+const { Op } = require('sequelize');
 
 class ProductController {
     async getFeaturedProducts(req, res) {
@@ -38,12 +39,63 @@ class ProductController {
 
     async getProducts(req, res) {
         try {
-            const products = await Product.findAll();
+            const { page, limit } = req.query;
+            if (!page || !limit) {
+                return res.status(400).json({ error: 'Page and limit are required' });
+            }
+            if (isNaN(page) || isNaN(limit)) {
+                return res.status(400).json({ error: 'Page and limit must be numbers' });
+            }
+            const { price, collection_id, brand_id, color_code_id, shape_id, lens_color_id, frame_color_id, frame_type_id, lens_material_id, frame_material_id, gender_id } = req.body;
+            const filter = {
+                status: 'active'
+            };
+            if (collection_id) {
+                filter.collection_id = collection_id;
+            }
+            if (brand_id) {
+                filter.brand_id = brand_id;
+            }
+            if (color_code_id) {
+                filter.color_code_id = color_code_id;
+            }
+            if (shape_id) {
+                filter.shape_id = shape_id;
+            }
+            if (lens_color_id) {
+                filter.lens_color_id = lens_color_id;
+            }
+            if (frame_color_id) {
+                filter.frame_color_id = frame_color_id;
+            }
+            if (frame_type_id) {
+                filter.frame_type_id = frame_type_id;
+            }
+            if (lens_material_id) {
+                filter.lens_material_id = lens_material_id;
+            }
+            if (frame_material_id) {
+                filter.frame_material_id = frame_material_id;
+            }
+            if (gender_id) {
+                filter.gender_id = gender_id;
+            }
+            if (price) {
+                filter.mrp = {
+                    [Op.gte]: price.min,
+                    [Op.lte]: price.max
+                };
+            }
+            const products = await Product.findAll(
+                {
+                    where: filter, limit: parseInt(limit), offset: (parseInt(page) - 1) * parseInt(limit)
+                });
             if (!products || products.length === 0) {
                 return res.status(404).json({ error: 'Products not found' });
             }
             res.status(200).json(products);
         } catch (error) {
+            console.log(error);
             res.status(500).json({ error: error.message });
         }
     }
