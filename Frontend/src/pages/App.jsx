@@ -7,6 +7,8 @@ import PublicLayout from '../layouts/PublicLayout';
 import DashboardLayout from '../layouts/DashboardLayout';
 import '../styles/globals.css';
 import Loader from '../components/Loader';
+import { getUserRole, isLoggedIn } from '../services/authService';
+import { hasPageAccess } from '../utils/rolePermissions';
 
 // Auth Pages
 import Login from './Login';
@@ -30,6 +32,7 @@ import DashboardDistributor from './DashboardDistributor';
 import DashboardOfficeTeam from './DashboardOfficeTeam';
 import DashboardManage from './DashboardManage';
 import DashboardTray from './DashboardTray';
+import DashboardEvents from './DashboardEvents';
 import AnalyticsReports from './AnalyticsReports';
 import DashboardSupport from './DashboardSupport';
 import DashboardSettings from './DashboardSettings';
@@ -66,7 +69,7 @@ const App = ({ initialPage = 'home', productId: initialProductId = null }) => {
   const getLayoutFromPage = (page) => {
     if (['login', 'register'].includes(page)) {
       return 'auth';
-    } else if (['dashboard', 'dashboard-products', 'orders', 'tray', 'party', 'salesmen', 'distributor', 'office-team', 'manage', 'analytics', 'support', 'settings'].includes(page)) {
+    } else if (['dashboard', 'dashboard-products', 'orders', 'tray', 'events', 'party', 'salesmen', 'distributor', 'office-team', 'manage', 'analytics', 'support', 'settings'].includes(page)) {
       return 'dashboard';
     }
     return 'public';
@@ -99,7 +102,7 @@ const App = ({ initialPage = 'home', productId: initialProductId = null }) => {
   // Update URL when page or layout changes
   const handlePageChange = (page, productId = null) => {
     if (page === currentPage && productId === currentProductId) return;
-    const dashboardTabs = ['dashboard', 'dashboard-products', 'orders', 'tray', 'party', 'salesmen', 'distributor', 'office-team', 'manage', 'analytics', 'support', 'settings'];
+    const dashboardTabs = ['dashboard', 'dashboard-products', 'orders', 'tray', 'events', 'party', 'salesmen', 'distributor', 'office-team', 'manage', 'analytics', 'support', 'settings'];
     // For dashboard tabs, keep the same /dashboard route and switch ?tab=
     let url;
     if (dashboardTabs.includes(page)) {
@@ -126,6 +129,29 @@ const App = ({ initialPage = 'home', productId: initialProductId = null }) => {
   };
 
   const renderPage = () => {
+    // Check if this is a dashboard page that requires role-based access
+    const dashboardPages = ['dashboard', 'dashboard-products', 'orders', 'tray', 'events', 'party', 'salesmen', 'distributor', 'office-team', 'manage', 'analytics', 'support', 'settings'];
+    const isDashboardPage = dashboardPages.includes(currentPage);
+    
+    // If it's a dashboard page, check role-based access
+    if (isDashboardPage && isLoggedIn()) {
+      const userRole = getUserRole();
+      if (userRole && !hasPageAccess(userRole, currentPage)) {
+        // User doesn't have access to this page, redirect to settings (which most roles have) or first accessible page
+        const accessiblePages = ['settings', 'dashboard-products', 'orders', 'tray', 'events', 'party', 'salesmen', 'distributor', 'analytics'];
+        for (const page of accessiblePages) {
+          if (hasPageAccess(userRole, page)) {
+            setTimeout(() => {
+              handlePageChange(page);
+            }, 100);
+            return <div style={{ padding: '20px', textAlign: 'center' }}>Redirecting...</div>;
+          }
+        }
+        // If no accessible page found, show error
+        return <div style={{ padding: '20px', textAlign: 'center' }}>You don't have access to this page.</div>;
+      }
+    }
+    
     switch (currentPage) {
       // Auth Pages
       case 'login':
@@ -137,7 +163,7 @@ const App = ({ initialPage = 'home', productId: initialProductId = null }) => {
       case '':
         return <Home onPageChange={handlePageChange} />;
       case 'products':
-        return <Products />;
+        return <Products onPageChange={handlePageChange} />;
       case 'product-detail':
         return <ProductDetail productId={currentProductId || initialProductId} />;
       case 'about':
@@ -156,6 +182,8 @@ const App = ({ initialPage = 'home', productId: initialProductId = null }) => {
         return <DashboardOrders />;
       case 'tray':
         return <DashboardTray />;
+      case 'events':
+        return <DashboardEvents />;
       case 'party':
         return <DashboardClients />;
       case 'salesmen':

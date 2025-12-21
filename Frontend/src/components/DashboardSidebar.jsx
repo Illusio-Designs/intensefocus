@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import '../styles/components/DashboardSidebar.css';
-import { FiUsers, FiSliders, FiInbox } from 'react-icons/fi';
+import { FiUsers, FiSliders, FiInbox, FiCalendar } from 'react-icons/fi';
+import { getUserRole } from '../services/authService';
+import { filterMenuItemsByRole } from '../utils/rolePermissions';
 
 const DashboardSidebar = ({ onPageChange, currentPage, isCollapsed, onToggleCollapse }) => {
   const sidebarIcons = {
@@ -20,12 +22,19 @@ const DashboardSidebar = ({ onPageChange, currentPage, isCollapsed, onToggleColl
     salesmen: FiUsers,
     manage: FiSliders,
     tray: FiInbox,
+    events: FiCalendar,
   };
-  const menuItems = [
+  
+  // Get user role
+  const userRole = getUserRole();
+  
+  // All available menu items
+  const allMenuItems = [
     { id: 'dashboard', text: 'Dashboard' },
     { id: 'dashboard-products', text: 'Products' },
     { id: 'orders', text: 'Orders' },
     { id: 'tray', text: 'Tray' },
+    { id: 'events', text: 'Events' },
     { id: 'party', text: 'Party' },
     { id: 'salesmen', text: 'Salesmen' },
     { id: 'distributor', text: 'Distributor' },
@@ -35,6 +44,12 @@ const DashboardSidebar = ({ onPageChange, currentPage, isCollapsed, onToggleColl
     { id: 'support', text: 'Support' },
     { id: 'settings', text: 'Settings' },
   ];
+  
+  // Filter menu items based on user role
+  const menuItems = useMemo(() => {
+    if (!userRole) return allMenuItems; // If no role, show all (fallback)
+    return filterMenuItemsByRole(allMenuItems, userRole);
+  }, [userRole]);
 
   return (
     <aside className={`dashboard-sidebar ${isCollapsed ? 'collapsed' : 'expanded'}`}>

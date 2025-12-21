@@ -419,11 +419,15 @@ export const getUsers = async () => {
  * @returns {Promise<Object>} Response with message
  */
 export const updateUser = async (userId, userData) => {
-  const { name, email, profile_image, image_url, is_active, role_id } = userData;
+  const { name, email, profile_image, image_url, is_active, role_id, phoneNumber, phone } = userData;
+  // Use phoneNumber if provided, otherwise use phone (for backward compatibility)
+  const phoneValue = phoneNumber || phone || '';
   return apiRequest(`/users/${userId}`, {
     method: 'PUT',
     body: {
       name,
+      phoneNumber: phoneValue,
+      phone: phoneValue, // Also send as 'phone' in case backend expects that
       email: email || '',
       profile_image: profile_image || '',
       is_active,
@@ -2707,7 +2711,7 @@ export const getCollections = async () => {
   try {
     const response = await apiRequest('/collections', {
       method: 'GET',
-      includeAuth: true,
+      includeAuth: false, // Changed to false so it can be used on public pages like Home
     });
     
     if (Array.isArray(response)) {

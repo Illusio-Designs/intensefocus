@@ -211,6 +211,7 @@ const DashboardSettings = () => {
         const userData = {
           name: userName.trim(),
           email: email.trim() || '',
+          phone: phone.trim() || '',
           profile_image: '', // Legacy field, kept empty
           is_active: isActive,
           image_url: imageUrl,
@@ -299,12 +300,7 @@ const DashboardSettings = () => {
                     value={phone} 
                     onChange={(e) => setPhone(e.target.value)} 
                     placeholder="+91-XXXXXXXXXX"
-                    disabled
-                    readOnly
                   />
-                  <small style={{ color: '#666', fontSize: '12px', marginTop: '4px', display: 'block' }}>
-                    Phone number cannot be changed
-                  </small>
                 </div>
 
                 <div className="settings-actions">

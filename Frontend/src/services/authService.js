@@ -49,3 +49,31 @@ export const getToken = () => {
   return localStorage.getItem('token');
 };
 
+// Get user role
+export const getUserRole = () => {
+  const user = getUser();
+  if (!user) return null;
+  
+  // Try different possible role field names (normalize to lowercase for consistency)
+  const role = user.role || user.role_name || user.roleName || user.role_id || user.roleId || null;
+  
+  // Normalize role name - handle common variations
+  if (!role) return null;
+  
+  const roleStr = String(role).toLowerCase().trim();
+  
+  // Map common role variations to standard names
+  const roleMap = {
+    'product manager': 'product_manager',
+    'reports manager': 'reports_manager',
+    'order manager': 'order_manager',
+    'expense manager': 'expense_manager',
+    'tray manager': 'tray_manager',
+    'party manager': 'party_manager',
+    'sales manager': 'sales_manager',
+    'distributor manager': 'distributor_manager',
+  };
+  
+  return roleMap[roleStr] || roleStr;
+};
+

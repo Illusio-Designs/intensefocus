@@ -21,6 +21,7 @@ const DashboardOfficeTeam = () => {
   });
   const [editFormData, setEditFormData] = useState({
     fullName: '',
+    phoneNumber: '',
     roleId: '',
     isActive: true,
   });
@@ -65,6 +66,7 @@ const DashboardOfficeTeam = () => {
     if (editRow) {
       setEditFormData({
         fullName: editRow.fullName || '',
+        phoneNumber: editRow.phoneNumber || '',
         roleId: editRow.roleId || '',
         isActive: editRow.isActive !== undefined ? editRow.isActive : true,
       });
@@ -280,8 +282,20 @@ const DashboardOfficeTeam = () => {
     
     setLoading(true);
     try {
+      // Format phone number to E.164 format if needed
+      let phoneNumber = editFormData.phoneNumber.trim();
+      if (!phoneNumber.startsWith('+')) {
+        // If it doesn't start with +, assume it's an Indian number and add +91
+        phoneNumber = phoneNumber.replace(/^0+/, ''); // Remove leading zeros
+        if (!phoneNumber.startsWith('91')) {
+          phoneNumber = `91${phoneNumber}`;
+        }
+        phoneNumber = `+${phoneNumber}`;
+      }
+
       const userData = {
         name: editFormData.fullName,
+        phoneNumber: phoneNumber,
         email: editRow.email || '',
         profile_image: '', // Legacy field, kept empty
         is_active: editFormData.isActive,
@@ -316,6 +330,10 @@ const DashboardOfficeTeam = () => {
   };
 
   const handleDelete = async (row) => {
+    // Confirm deletion
+    const confirmed = window.confirm(`Are you sure you want to delete user "${row.fullName}"?`);
+    if (!confirmed) return;
+    
     setLoading(true);
     try {
       await deleteUser(row.id);
@@ -337,7 +355,109 @@ const DashboardOfficeTeam = () => {
       showSuccess('User deleted successfully!');
     } catch (error) {
       console.error('Error deleting user:', error);
-      showError(error.message || 'Failed to delete user');
+      console.error('Error details:', {
+        message: error.message,
+        errorData: error.errorData,
+        error: error.error,
+        statusCode: error.statusCode,
+        fullError: error
+      });
+      
+      // Extract error message from various possible locations
+      let errorMessage = '';
+      let rawErrorString = '';
+      
+      // First, check if error.message is a JSON string
+      if (error.message && typeof error.message === 'string') {
+        rawErrorString = error.message;
+        // Check if it's a JSON string
+        if (rawErrorString.trim().startsWith('{') || rawErrorString.trim().startsWith('[')) {
+          try {
+            const parsed = JSON.parse(rawErrorString);
+            errorMessage = parsed.error || parsed.message || parsed.msg || parsed.detail || '';
+          } catch (e) {
+            // Not JSON, use as is
+            errorMessage = rawErrorString;
+          }
+        } else {
+          errorMessage = rawErrorString;
+        }
+      }
+      
+      // Check errorData which contains the API response JSON
+      // The API returns: { "error": "message" }
+      if (!errorMessage && error.errorData) {
+        if (typeof error.errorData === 'object') {
+          errorMessage = error.errorData.error || 
+                        error.errorData.message || 
+                        error.errorData.msg ||
+                        error.errorData.detail ||
+                        '';
+        } else if (typeof error.errorData === 'string') {
+          // errorData might be a JSON string
+          try {
+            const parsed = JSON.parse(error.errorData);
+            errorMessage = parsed.error || parsed.message || '';
+          } catch (e) {
+            errorMessage = error.errorData;
+          }
+        }
+      }
+      
+      // If still no error message, check error.error
+      if (!errorMessage && error.error) {
+        if (typeof error.error === 'string') {
+          errorMessage = error.error;
+        } else if (typeof error.error === 'object') {
+          errorMessage = error.error.message || error.error.error || '';
+        }
+      }
+      
+      // Convert entire error object to string for checking
+      const errorString = JSON.stringify({
+        message: errorMessage,
+        errorData: error.errorData,
+        error: error.error,
+        rawMessage: rawErrorString
+      }).toLowerCase();
+      const messageLower = (errorMessage || '').toLowerCase();
+      const rawMessageLower = (rawErrorString || '').toLowerCase();
+      
+      // Check for foreign key constraint error in various formats
+      // Check both the extracted message and the full error string
+      const hasForeignKeyError = 
+        messageLower.includes('foreign key constraint') || 
+        messageLower.includes('foreign key') ||
+        messageLower.includes('cannot delete or update a parent row') ||
+        messageLower.includes('distributors_ibfk') ||
+        messageLower.includes('created_by') ||
+        messageLower.includes('references `users`') ||
+        rawMessageLower.includes('foreign key constraint') ||
+        rawMessageLower.includes('foreign key') ||
+        rawMessageLower.includes('cannot delete or update a parent row') ||
+        rawMessageLower.includes('distributors_ibfk') ||
+        errorString.includes('foreign key constraint') ||
+        errorString.includes('foreign key') ||
+        errorString.includes('cannot delete or update a parent row') ||
+        errorString.includes('distributors_ibfk') ||
+        errorString.includes('created_by') ||
+        errorString.includes('references `users`');
+      
+      if (hasForeignKeyError) {
+        // Provide specific guidance based on the error
+        if (messageLower.includes('distributors') || rawMessageLower.includes('distributors') || errorString.includes('distributors')) {
+          showError('Cannot delete this user because they have created distributors in the system. Please delete or reassign those distributors to another user first, then try deleting this user again.');
+        } else if (messageLower.includes('orders') || rawMessageLower.includes('orders') || errorString.includes('orders')) {
+          showError('Cannot delete this user because they have orders in the system. Please delete or reassign those orders first, then try deleting this user again.');
+        } else {
+          showError('Cannot delete this user because they have related records in the system (distributors, orders, etc.). Please remove or reassign these records first before deleting the user.');
+        }
+      } else if (messageLower.includes('constraint') || rawMessageLower.includes('constraint') || errorString.includes('constraint')) {
+        showError('Cannot delete this user because they have related records in the system. Please remove or reassign these records first.');
+      } else {
+        // Final fallback - show a generic message if we can't extract a meaningful error
+        showError(errorMessage || 'Failed to delete user. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -456,6 +576,7 @@ const DashboardOfficeTeam = () => {
           setEditRow(null);
           setEditFormData({
             fullName: '',
+            phoneNumber: '',
             roleId: '',
             isActive: true,
           });
@@ -469,6 +590,7 @@ const DashboardOfficeTeam = () => {
                 setEditRow(null);
                 setEditFormData({
                   fullName: '',
+                  phoneNumber: '',
                   roleId: '',
                   isActive: true,
                 });
@@ -480,7 +602,7 @@ const DashboardOfficeTeam = () => {
             <button 
               className="ui-btn ui-btn--primary" 
               onClick={handleEditSubmit}
-              disabled={loading || !editFormData.fullName || !editFormData.roleId}
+              disabled={loading || !editFormData.fullName || !editFormData.phoneNumber || !editFormData.roleId}
             >
               {loading ? 'Updating...' : 'Update'}
             </button>
@@ -499,14 +621,22 @@ const DashboardOfficeTeam = () => {
             />
           </div>
           <div className="form-group form-group--full">
-            <label className="ui-label">Phone Number</label>
-            <input 
-              className="ui-input" 
-              value={editRow?.phoneNumber || ''}
-              disabled
-              readOnly
+            <label className="ui-label">Phone Number *</label>
+            <PhoneInput
+              country={'in'}
+              value={editFormData.phoneNumber}
+              onChange={(value) => setEditFormData(prev => ({ ...prev, phoneNumber: value }))}
+              inputProps={{
+                required: true,
+                placeholder: 'Enter phone number',
+              }}
+              containerClass="phone-input-container"
+              inputClass="phone-input-field"
+              buttonClass="phone-input-button"
+              dropdownClass="phone-input-dropdown"
+              disableDropdown={false}
+              disableCountryGuess={false}
             />
-            <small style={{ color: '#666', fontSize: '12px' }}>Phone number cannot be changed</small>
           </div>
           <div className="form-group form-group--full">
             <label className="ui-label">Role *</label>

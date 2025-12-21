@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import '../styles/pages/Products.css';
 import ProductCard from '../components/ProductCard';
+import { isLoggedIn } from '../services/authService';
 import {
   getProducts,
   getGenders,
@@ -14,7 +15,19 @@ import {
   getBrands
 } from '../services/apiService';
 
-const Products = () => {
+const Products = ({ onPageChange }) => {
+  // Check authentication on mount
+  useEffect(() => {
+    if (!isLoggedIn()) {
+      // Get current URL to use as return URL
+      const currentUrl = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/products';
+      // Redirect to login with return URL
+      if (typeof window !== 'undefined') {
+        window.location.href = `/login?returnUrl=${encodeURIComponent(currentUrl)}`;
+      }
+    }
+  }, []);
+
   const [minPrice, setMinPrice] = useState(100);
   const [maxPrice, setMaxPrice] = useState(200);
   const [selectedBrands, setSelectedBrands] = useState([]); // Array of brand IDs

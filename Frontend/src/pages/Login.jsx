@@ -5,8 +5,9 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import '../styles/pages/Login.css';
 import { showLoginSuccess, showError, showSuccess } from '../services/notificationService';
-import { setAuth } from '../services/authService';
+import { setAuth, isLoggedIn, getUserRole } from '../services/authService';
 import { checkUser, login } from '../services/apiService';
+import { getAccessiblePages, hasPageAccess } from '../utils/rolePermissions';
 import { verifyOTP, resendOTP, initializeOTPWidget, destroyOTPWidget } from '../services/msg91Service';
 
 const Login = ({ onPageChange }) => {
@@ -17,6 +18,48 @@ const Login = ({ onPageChange }) => {
   const [resendDisabled, setResendDisabled] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
   const otpInputRefs = useRef([]);
+  const [returnUrl, setReturnUrl] = useState(null);
+
+  // Get return URL from query parameters on mount and check if already logged in
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // If user is already logged in, redirect them
+      if (isLoggedIn()) {
+        const params = new URLSearchParams(window.location.search);
+        const returnUrlParam = params.get('returnUrl');
+        if (returnUrlParam) {
+          // Redirect to return URL
+          const decodedUrl = decodeURIComponent(returnUrlParam);
+          if (onPageChange) {
+            const pathParts = decodedUrl.split('?');
+            const path = pathParts[0];
+            const page = path.slice(1) || 'products';
+            const queryString = pathParts[1] || '';
+            const searchParams = new URLSearchParams(queryString);
+            const productId = searchParams.get('id');
+            onPageChange(page, productId ? parseInt(productId) : null);
+          } else {
+            window.location.href = decodedUrl;
+          }
+        } else {
+          // No return URL, redirect to dashboard
+          if (onPageChange) {
+            onPageChange('dashboard');
+          } else {
+            window.location.href = '/dashboard';
+          }
+        }
+        return;
+      }
+      
+      // Get return URL for after login
+      const params = new URLSearchParams(window.location.search);
+      const returnUrlParam = params.get('returnUrl');
+      if (returnUrlParam) {
+        setReturnUrl(decodeURIComponent(returnUrlParam));
+      }
+    }
+  }, [onPageChange]);
 
   // Cleanup OTP widget on unmount
   useEffect(() => {
@@ -157,7 +200,8 @@ const Login = ({ onPageChange }) => {
                 email: payload.email,
                 full_name: payload.full_name || payload.fullName,
                 name: payload.full_name || payload.fullName || payload.name,
-                role: loginResponse.role || payload.role,
+                role: loginResponse.role || payload.role || payload.role_name || payload.roleName,
+                role_name: payload.role_name || payload.roleName || loginResponse.role || payload.role,
               };
             }
           } catch (decodeError) {
@@ -193,8 +237,88 @@ const Login = ({ onPageChange }) => {
             // Cleanup OTP widget
             destroyOTPWidget();
             
+            // Redirect to return URL if exists, otherwise to first accessible page based on role
             setTimeout(() => {
-              onPageChange('dashboard');
+              const userRole = getUserRole();
+              
+              if (returnUrl) {
+                // Parse returnUrl - it should be a path like "/products" or "/products?id=123"
+                if (returnUrl.startsWith('/')) {
+                  // Extract page name from path (remove leading slash)
+                  const pathParts = returnUrl.split('?');
+                  const path = pathParts[0];
+                  const page = path.slice(1) || 'products'; // Remove leading slash, default to 'products'
+                  
+                  // Check if user has access to return URL page (if it's a dashboard page)
+                  const dashboardPages = ['dashboard', 'dashboard-products', 'orders', 'tray', 'events', 'party', 'salesmen', 'distributor', 'office-team', 'manage', 'analytics', 'support', 'settings'];
+                  if (dashboardPages.includes(page) && userRole && !hasPageAccess(userRole, page)) {
+                    // User doesn't have access to return URL, redirect to first accessible page
+                    const accessiblePages = getAccessiblePages(userRole);
+                    if (accessiblePages.length > 0) {
+                      if (onPageChange) {
+                        onPageChange(accessiblePages[0]);
+                      } else if (typeof window !== 'undefined') {
+                        window.location.href = `/dashboard?tab=${accessiblePages[0]}`;
+                      }
+                    } else {
+                      // No accessible pages, redirect to settings as fallback
+                      if (onPageChange) {
+                        onPageChange('settings');
+                      } else if (typeof window !== 'undefined') {
+                        window.location.href = '/dashboard?tab=settings';
+                      }
+                    }
+                    return;
+                  }
+                  
+                  // Extract query parameters if any
+                  const queryString = pathParts[1] || '';
+                  const searchParams = new URLSearchParams(queryString);
+                  const productId = searchParams.get('id');
+                  
+                  if (onPageChange) {
+                    // Use onPageChange for navigation
+                    onPageChange(page, productId ? parseInt(productId) : null);
+                  } else if (typeof window !== 'undefined') {
+                    // Fallback to window.location
+                    window.location.href = returnUrl;
+                  }
+                } else {
+                  // If it's just a page name without leading slash
+                  if (onPageChange) {
+                    onPageChange(returnUrl);
+                  } else if (typeof window !== 'undefined') {
+                    window.location.href = `/${returnUrl}`;
+                  }
+                }
+              } else {
+                // No return URL, redirect to first accessible page based on role
+                if (userRole) {
+                  const accessiblePages = getAccessiblePages(userRole);
+                  if (accessiblePages.length > 0) {
+                    // Redirect to first accessible page
+                    if (onPageChange) {
+                      onPageChange(accessiblePages[0]);
+                    } else if (typeof window !== 'undefined') {
+                      window.location.href = `/dashboard?tab=${accessiblePages[0]}`;
+                    }
+                  } else {
+                    // No accessible pages, redirect to settings as fallback
+                    if (onPageChange) {
+                      onPageChange('settings');
+                    } else if (typeof window !== 'undefined') {
+                      window.location.href = '/dashboard?tab=settings';
+                    }
+                  }
+                } else {
+                  // No role, default to dashboard
+                  if (onPageChange) {
+                    onPageChange('dashboard');
+                  } else if (typeof window !== 'undefined') {
+                    window.location.href = '/dashboard';
+                  }
+                }
+              }
             }, 500);
           } else {
             showError('Login failed. Unable to extract user information.');
