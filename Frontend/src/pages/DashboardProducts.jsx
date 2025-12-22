@@ -47,29 +47,63 @@ const parseImageUrls = (product) => {
     });
   } 
   // Check if image_urls is a JSON string (like "[\"/uploads/products/image.webp\"]")
+  // Also handles double-encoded JSON strings
   else if (product.image_urls && typeof product.image_urls === 'string') {
-    const trimmed = product.image_urls.trim();
+    let trimmed = product.image_urls.trim();
     if (trimmed.length > 0 && trimmed !== '[]') {
-      // Try to parse as JSON array
-      if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      // Try to parse as JSON array - may need multiple parsing attempts for double-encoded strings
+      let parsed = null;
+      let parseAttempts = 0;
+      const maxAttempts = 3;
+      let currentString = trimmed;
+      
+      while (parseAttempts < maxAttempts && (currentString.startsWith('[') || currentString.startsWith('"'))) {
         try {
-          const parsed = JSON.parse(trimmed);
+          parsed = JSON.parse(currentString);
           if (Array.isArray(parsed)) {
             imageUrls = parsed.filter(url => {
               if (!url || typeof url !== 'string') return false;
               const trimmed = url.trim();
               return trimmed.length > 0 && trimmed !== '[]';
             });
+            break; // Successfully parsed
+          } else if (typeof parsed === 'string') {
+            // If parsed result is still a string, try parsing again
+            currentString = parsed;
+            parseAttempts++;
+            continue;
           } else {
-            // If parsed is not an array, treat as single URL
-            imageUrls = [trimmed];
+            // If parsed is not an array or string, treat as single URL
+            imageUrls = [currentString];
+            break;
           }
         } catch (e) {
-          // If JSON parsing fails, treat as single URL string
-          imageUrls = [trimmed];
+          // If JSON parsing fails, check if it's a single URL string
+          if (currentString.startsWith('/') || currentString.startsWith('http')) {
+            imageUrls = [currentString];
+            break;
+          }
+          // If it looks like it might be double-encoded, try unescaping
+          if (currentString.includes('\\')) {
+            try {
+              currentString = currentString.replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+              parseAttempts++;
+              continue;
+            } catch (e2) {
+              // If unescaping fails, treat as single URL string
+              imageUrls = [currentString];
+              break;
+            }
+          } else {
+            // Not parseable, treat as single URL string
+            imageUrls = [currentString];
+            break;
+          }
         }
-      } else {
-        // Not a JSON array, treat as single URL string
+      }
+      
+      // If we didn't successfully parse, treat as single URL string
+      if (imageUrls.length === 0 && trimmed.length > 0) {
         imageUrls = [trimmed];
       }
     }
@@ -1252,32 +1286,104 @@ const DashboardProducts = () => {
           return null;
         };
         
-        // Check by full URL (normalized and original)
+        // Get all variations of the current image URL for comparison
         const normalizedUrlNoQuery = normalizedUrl.split('?')[0];
         const imageUrlNoQuery = imageUrl.split('?')[0];
+        const currentFileName = fileName || getFilenameFromUrl(normalizedUrl) || getFilenameFromUrl(imageUrl);
+        const currentPath = getPathAfterProducts(normalizedUrl) || getPathAfterProducts(imageUrl);
         
-        if (productImageUrls.has(normalizedUrl) || 
-            productImageUrls.has(imageUrl) ||
-            productImageUrls.has(normalizedUrlNoQuery) ||
-            productImageUrls.has(imageUrlNoQuery)) {
-          isAssigned = true;
+        // Check by full URL (normalized and original) - check all variations
+        const urlVariations = [
+          normalizedUrl,
+          imageUrl,
+          normalizedUrlNoQuery,
+          imageUrlNoQuery,
+          `https://stallion.nishree.com${normalizedUrl}`,
+          `https://stallion.nishree.com${imageUrl}`,
+          `https://stallion.nishree.com${normalizedUrlNoQuery}`,
+          `https://stallion.nishree.com${imageUrlNoQuery}`
+        ];
+        
+        for (const urlVar of urlVariations) {
+          if (productImageUrls.has(urlVar)) {
+            isAssigned = true;
+            break;
+          }
         }
         
-        // Check by filename
-        if (!isAssigned && fileName && productImageFilenames.has(fileName)) {
-          isAssigned = true;
-        }
-        
-        // Check by path formats
-        if (!isAssigned) {
-          const pathAfterProducts = getPathAfterProducts(normalizedUrl);
-          if (pathAfterProducts) {
-            if (productImagePaths.has(`/uploads/products/${pathAfterProducts}`) ||
-                productImagePaths.has(pathAfterProducts) ||
-                productImagePaths.has(normalizedUrlNoQuery) ||
-                productImagePaths.has(imageUrlNoQuery)) {
-              isAssigned = true;
+        // Check by filename - also check normalized filename
+        if (!isAssigned && currentFileName) {
+          if (productImageFilenames.has(currentFileName)) {
+            isAssigned = true;
+          } else {
+            // Also check if any product image filename matches (case-insensitive)
+            for (const productFilename of productImageFilenames) {
+              if (productFilename.toLowerCase() === currentFileName.toLowerCase()) {
+                isAssigned = true;
+                break;
+              }
             }
+          }
+        }
+        
+        // Check by path formats - check all variations
+        if (!isAssigned && currentPath) {
+          const pathVariations = [
+            `/uploads/products/${currentPath}`,
+            currentPath,
+            normalizedUrlNoQuery,
+            imageUrlNoQuery,
+            `https://stallion.nishree.com/uploads/products/${currentPath}`,
+            `https://stallion.nishree.com${normalizedUrlNoQuery}`,
+            `https://stallion.nishree.com${imageUrlNoQuery}`
+          ];
+          
+          for (const pathVar of pathVariations) {
+            if (productImagePaths.has(pathVar)) {
+              isAssigned = true;
+              break;
+            }
+          }
+        }
+        
+        // Additional check: directly compare against all product images
+        if (!isAssigned) {
+          for (const product of products) {
+            const productImageUrls = parseImageUrls(product);
+            for (const productImageUrl of productImageUrls) {
+              const normalizedProductUrl = normalizeImageUrl(productImageUrl);
+              const productFileName = getFilenameFromUrl(normalizedProductUrl) || getFilenameFromUrl(productImageUrl);
+              const productPath = getPathAfterProducts(normalizedProductUrl) || getPathAfterProducts(productImageUrl);
+              
+              // Compare URLs
+              if (normalizedProductUrl === normalizedUrl || 
+                  normalizedProductUrl === imageUrl ||
+                  productImageUrl === normalizedUrl ||
+                  productImageUrl === imageUrl ||
+                  normalizedProductUrl?.split('?')[0] === normalizedUrlNoQuery ||
+                  productImageUrl?.split('?')[0] === imageUrlNoQuery) {
+                isAssigned = true;
+                assignedProduct = product;
+                break;
+              }
+              
+              // Compare filenames
+              if (currentFileName && productFileName && 
+                  (currentFileName === productFileName || 
+                   currentFileName.toLowerCase() === productFileName.toLowerCase())) {
+                isAssigned = true;
+                assignedProduct = product;
+                break;
+              }
+              
+              // Compare paths
+              if (currentPath && productPath && currentPath === productPath) {
+                isAssigned = true;
+                assignedProduct = product;
+                break;
+              }
+            }
+            if (isAssigned) break;
           }
         }
         
