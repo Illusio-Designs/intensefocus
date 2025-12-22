@@ -5,8 +5,8 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import '../styles/pages/Login.css';
 import { showLoginSuccess, showError, showSuccess } from '../services/notificationService';
-import { setAuth, isLoggedIn, getUserRole } from '../services/authService';
-import { checkUser, login } from '../services/apiService';
+import { setAuth, isLoggedIn, getUserRole, getUser } from '../services/authService';
+import { checkUser, login, getUsers, getRoles } from '../services/apiService';
 import { getAccessiblePages, hasPageAccess } from '../utils/rolePermissions';
 import { verifyOTP, resendOTP, initializeOTPWidget, destroyOTPWidget } from '../services/msg91Service';
 
@@ -186,7 +186,7 @@ const Login = ({ onPageChange }) => {
         console.log('Login response:', loginResponse);
         
         if (loginResponse.token) {
-          // Decode JWT token to extract user information
+          // Decode JWT token to extract user information (as fallback)
           let userData = null;
           try {
             // JWT token structure: header.payload.signature
@@ -200,8 +200,9 @@ const Login = ({ onPageChange }) => {
                 email: payload.email,
                 full_name: payload.full_name || payload.fullName,
                 name: payload.full_name || payload.fullName || payload.name,
-                role: loginResponse.role || payload.role || payload.role_name || payload.roleName,
-                role_name: payload.role_name || payload.roleName || loginResponse.role || payload.role,
+                // Note: role from JWT is fallback only - API response should have updated role
+                role: payload.role || payload.role_name || payload.roleName,
+                role_name: payload.role_name || payload.roleName || payload.role,
               };
             }
           } catch (decodeError) {
@@ -209,12 +210,41 @@ const Login = ({ onPageChange }) => {
             // Fallback: create user object from available data
             userData = {
               phone: formattedPhone,
-              role: loginResponse.role || 'user',
+              role: null,
             };
           }
           
-          // If user object exists in response, use it; otherwise use decoded data
-          const user = loginResponse.user || userData;
+          // Prioritize user data from API response (which has updated role from database)
+          // over JWT token payload (which might have stale role)
+          let user = null;
+          
+          if (loginResponse.user) {
+            // Use user object from API response - this should have the latest role from database
+            user = {
+              ...loginResponse.user,
+              // Ensure role is set from API response user object first
+              role: loginResponse.user.role || 
+                    loginResponse.user.role_name || 
+                    loginResponse.user.roleName ||
+                    loginResponse.role ||
+                    userData?.role,
+              role_name: loginResponse.user.role_name || 
+                        loginResponse.user.roleName || 
+                        loginResponse.user.role ||
+                        loginResponse.role ||
+                        userData?.role_name,
+            };
+          } else if (loginResponse.role) {
+            // If no user object but role is in response, merge with decoded data
+            user = {
+              ...userData,
+              role: loginResponse.role,
+              role_name: loginResponse.role,
+            };
+          } else {
+            // Fallback to decoded JWT data (least preferred)
+            user = userData;
+          }
           
           if (user) {
             // Set authentication
@@ -232,13 +262,99 @@ const Login = ({ onPageChange }) => {
               window.localStorage.setItem('userAvatarUrl', profileImage.trim());
             }
             
+            // Refresh user data from API to ensure we have the latest role information
+            // This is important when a user's role has been updated
+            const refreshUserData = async () => {
+              try {
+                const currentUser = getUser();
+                if (!currentUser || !currentUser.id) return;
+                
+                // Fetch all users to get the latest user data
+                const usersResponse = await getUsers();
+                let usersArray = [];
+                if (Array.isArray(usersResponse)) {
+                  usersArray = usersResponse;
+                } else if (usersResponse && Array.isArray(usersResponse.data)) {
+                  usersArray = usersResponse.data;
+                } else if (usersResponse && Array.isArray(usersResponse.users)) {
+                  usersArray = usersResponse.users;
+                }
+                
+                // Find current user in the list
+                const updatedUserData = usersArray.find(u => 
+                  (u.user_id || u.id) === currentUser.id
+                );
+                
+                if (updatedUserData) {
+                  // Fetch roles to map role_id to role_name
+                  let rolesArray = [];
+                  try {
+                    const rolesResponse = await getRoles();
+                    if (Array.isArray(rolesResponse)) {
+                      rolesArray = rolesResponse;
+                    } else if (rolesResponse && Array.isArray(rolesResponse.data)) {
+                      rolesArray = rolesResponse.data;
+                    } else if (rolesResponse && Array.isArray(rolesResponse.roles)) {
+                      rolesArray = rolesResponse.roles;
+                    }
+                  } catch (rolesError) {
+                    console.error('Error fetching roles for user refresh:', rolesError);
+                  }
+                  
+                  // Find role name from role_id
+                  const userRole = rolesArray.find(r => {
+                    const roleId = r.role_id || r.id || r.roleId || r._id || r.uuid || r.ID;
+                    return roleId === (updatedUserData.role_id || updatedUserData.roleId);
+                  });
+                  
+                  const roleName = userRole 
+                    ? (userRole.role_name || userRole.name || userRole.roleName || userRole.title || userRole.role || userRole.Name || userRole.RoleName)
+                    : null;
+                  
+                  // Update user object with latest data, especially role
+                  const updatedUser = {
+                    ...currentUser,
+                    ...updatedUserData,
+                    id: updatedUserData.user_id || updatedUserData.id || currentUser.id,
+                    full_name: updatedUserData.full_name || updatedUserData.fullName || updatedUserData.name || currentUser.full_name,
+                    fullName: updatedUserData.full_name || updatedUserData.fullName || updatedUserData.name || currentUser.fullName,
+                    name: updatedUserData.full_name || updatedUserData.fullName || updatedUserData.name || currentUser.name,
+                    email: updatedUserData.email || currentUser.email,
+                    phone: updatedUserData.phone || updatedUserData.phoneNumber || currentUser.phone,
+                    profile_image: updatedUserData.profile_image || updatedUserData.image_url || currentUser.profile_image,
+                    image_url: updatedUserData.image_url || updatedUserData.profile_image || currentUser.image_url,
+                    role_id: updatedUserData.role_id || updatedUserData.roleId || currentUser.role_id,
+                    roleId: updatedUserData.role_id || updatedUserData.roleId || currentUser.roleId,
+                    // Update role name if we found it
+                    role: roleName || updatedUserData.role || currentUser.role,
+                    role_name: roleName || updatedUserData.role_name || updatedUserData.roleName || currentUser.role_name,
+                    roleName: roleName || updatedUserData.roleName || updatedUserData.role_name || currentUser.roleName,
+                  };
+                  
+                  // Update stored user data with latest information
+                  setAuth(updatedUser, loginResponse.token);
+                  
+                  console.log('User data refreshed with latest role:', {
+                    role_id: updatedUser.role_id,
+                    role: updatedUser.role,
+                    role_name: updatedUser.role_name,
+                  });
+                }
+              } catch (refreshError) {
+                console.error('Error refreshing user data after login:', refreshError);
+                // Don't block login if refresh fails - user can still proceed
+              }
+            };
+            
             showLoginSuccess();
             
             // Cleanup OTP widget
             destroyOTPWidget();
             
-            // Redirect to return URL if exists, otherwise to first accessible page based on role
-            setTimeout(() => {
+            // Refresh user data and then redirect
+            // This ensures we have the latest role information before redirecting
+            refreshUserData().then(() => {
+              // Redirect after user data is refreshed
               const userRole = getUserRole();
               
               if (returnUrl) {
@@ -319,7 +435,90 @@ const Login = ({ onPageChange }) => {
                   }
                 }
               }
-            }, 500);
+            }).catch((refreshError) => {
+              // If refresh fails, still redirect with whatever role we have
+              console.error('User data refresh failed, proceeding with available role:', refreshError);
+              const userRole = getUserRole();
+              
+              if (returnUrl) {
+                // Parse returnUrl - it should be a path like "/products" or "/products?id=123"
+                if (returnUrl.startsWith('/')) {
+                  // Extract page name from path (remove leading slash)
+                  const pathParts = returnUrl.split('?');
+                  const path = pathParts[0];
+                  const page = path.slice(1) || 'products'; // Remove leading slash, default to 'products'
+                  
+                  // Check if user has access to return URL page (if it's a dashboard page)
+                  const dashboardPages = ['dashboard', 'dashboard-products', 'orders', 'tray', 'events', 'party', 'salesmen', 'distributor', 'office-team', 'manage', 'analytics', 'support', 'settings'];
+                  if (dashboardPages.includes(page) && userRole && !hasPageAccess(userRole, page)) {
+                    // User doesn't have access to return URL, redirect to first accessible page
+                    const accessiblePages = getAccessiblePages(userRole);
+                    if (accessiblePages.length > 0) {
+                      if (onPageChange) {
+                        onPageChange(accessiblePages[0]);
+                      } else if (typeof window !== 'undefined') {
+                        window.location.href = `/dashboard?tab=${accessiblePages[0]}`;
+                      }
+                    } else {
+                      // No accessible pages, redirect to settings as fallback
+                      if (onPageChange) {
+                        onPageChange('settings');
+                      } else if (typeof window !== 'undefined') {
+                        window.location.href = '/dashboard?tab=settings';
+                      }
+                    }
+                    return;
+                  }
+                  
+                  // Extract query parameters if any
+                  const queryString = pathParts[1] || '';
+                  const searchParams = new URLSearchParams(queryString);
+                  const productId = searchParams.get('id');
+                  
+                  if (onPageChange) {
+                    // Use onPageChange for navigation
+                    onPageChange(page, productId ? parseInt(productId) : null);
+                  } else if (typeof window !== 'undefined') {
+                    // Fallback to window.location
+                    window.location.href = returnUrl;
+                  }
+                } else {
+                  // If it's just a page name without leading slash
+                  if (onPageChange) {
+                    onPageChange(returnUrl);
+                  } else if (typeof window !== 'undefined') {
+                    window.location.href = `/${returnUrl}`;
+                  }
+                }
+              } else {
+                // No return URL, redirect to first accessible page based on role
+                if (userRole) {
+                  const accessiblePages = getAccessiblePages(userRole);
+                  if (accessiblePages.length > 0) {
+                    // Redirect to first accessible page
+                    if (onPageChange) {
+                      onPageChange(accessiblePages[0]);
+                    } else if (typeof window !== 'undefined') {
+                      window.location.href = `/dashboard?tab=${accessiblePages[0]}`;
+                    }
+                  } else {
+                    // No accessible pages, redirect to settings as fallback
+                    if (onPageChange) {
+                      onPageChange('settings');
+                    } else if (typeof window !== 'undefined') {
+                      window.location.href = '/dashboard?tab=settings';
+                    }
+                  }
+                } else {
+                  // No role, default to dashboard
+                  if (onPageChange) {
+                    onPageChange('dashboard');
+                  } else if (typeof window !== 'undefined') {
+                    window.location.href = '/dashboard';
+                  }
+                }
+              }
+            });
           } else {
             showError('Login failed. Unable to extract user information.');
           }
