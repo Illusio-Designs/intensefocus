@@ -298,26 +298,219 @@ const DashboardProducts = () => {
     }
   };
 
+  // Combined fetch function that waits for both products and related data
+  const fetchAllData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      // Fetch both products and related data in parallel
+      await Promise.all([
+        fetchProductsWithoutLoading(),
+        fetchRelatedData()
+      ]);
+    } catch (error) {
+      console.error('Error fetching all data:', error);
+      if (!error.message?.toLowerCase().includes('token expired') && 
+          !error.message?.toLowerCase().includes('unauthorized')) {
+        setError(`Failed to load data: ${error.message}`);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch products without managing loading state (for use in combined fetch)
+  const fetchProductsWithoutLoading = async () => {
+    try {
+      setError(null);
+      // Send null filters to get all products
+      const data = await getProducts(1, 21, null);
+      setProducts(data || []);
+      
+      // Get all product image URLs to identify which orphaned images are now assigned
+      const productImageUrls = new Set(); // Store original URLs
+      const productNormalizedUrls = new Set(); // Store normalized URLs for comparison
+      const productImageFilenames = new Set();
+      
+      if (data && data.length > 0) {
+        data.forEach(product => {
+          // Handle image_urls array (API returns array)
+          // Ensure imageUrls is always an array and filter out invalid values
+          let imageUrls = [];
+          if (Array.isArray(product.image_urls)) {
+            // Filter out empty strings, whitespace-only strings, and the string "[]"
+            imageUrls = product.image_urls.filter(url => {
+              if (!url || typeof url !== 'string') return false;
+              const trimmed = url.trim();
+              return trimmed.length > 0 && trimmed !== '[]';
+            });
+          } else if (product.image_urls && typeof product.image_urls === 'string') {
+            // If it's a string, check if it's valid (not empty, not "[]")
+            const trimmed = product.image_urls.trim();
+            if (trimmed.length > 0 && trimmed !== '[]') {
+              imageUrls = [product.image_urls];
+            }
+          } else if (product.image_url && typeof product.image_url === 'string') {
+            // Check legacy image_url string
+            const trimmed = product.image_url.trim();
+            if (trimmed.length > 0 && trimmed !== '[]') {
+              imageUrls = [product.image_url];
+            }
+          }
+          imageUrls.forEach(imageUrl => {
+            if (imageUrl && typeof imageUrl === 'string') {
+              const trimmed = imageUrl.trim();
+              // Double-check it's not empty or "[]"
+              if (trimmed.length > 0 && trimmed !== '[]') {
+                productImageUrls.add(imageUrl);
+                // Also store normalized URL for better comparison
+                const normalizedUrl = normalizeImageUrl(imageUrl);
+                if (normalizedUrl) {
+                  productNormalizedUrls.add(normalizedUrl);
+                }
+                // Extract filename for comparison
+                const urlParts = imageUrl.split('/');
+                const filename = urlParts[urlParts.length - 1]?.split('?')[0]?.split('#')[0];
+                if (filename) {
+                  productImageFilenames.add(filename);
+                }
+              }
+            }
+          });
+        });
+      }
+      
+      // If database has no images at all, clear all orphaned images
+      // This ensures we don't show stale orphaned images when database is empty
+      if (productImageFilenames.size === 0 && productImageUrls.size === 0) {
+        setOrphanedImages([]);
+        // Also clear from localStorage
+        try {
+          localStorage.removeItem('orphanedImages');
+        } catch (e) {
+          console.error('Error clearing orphaned images from localStorage:', e);
+        }
+      } else {
+      // Remove orphaned images that are now assigned to products
+      setOrphanedImages(prev => {
+        return prev.filter(img => {
+          const imageUrl = img.url || img.image_url;
+          if (!imageUrl) return false;
+          
+            // Check if this image URL (original) is assigned to any product
+          if (productImageUrls.has(imageUrl)) {
+            return false; // Remove - it's assigned
+          }
+            
+            // Check if normalized URL matches any assigned image
+            const normalizedUrl = normalizeImageUrl(imageUrl);
+            if (normalizedUrl && productNormalizedUrls.has(normalizedUrl)) {
+            return false; // Remove - it's assigned
+          }
+          
+          // Check by filename
+          const urlParts = imageUrl.split('/');
+            const filename = urlParts[urlParts.length - 1]?.split('?')[0]?.split('#')[0];
+          if (filename && productImageFilenames.has(filename)) {
+            return false; // Remove - it's assigned
+          }
+          
+          // Check if filename matches
+          if (img.fileName && productImageFilenames.has(img.fileName)) {
+            return false; // Remove - it's assigned
+          }
+          
+          return true; // Keep - still unassigned
+        });
+      });
+      }
+      
+      // After fetching products, try to verify orphaned images
+      // by checking if any match the pattern of existing product images
+      if (orphanedImages.length > 0 && data && data.length > 0) {
+        // Find a product with an image to understand the URL pattern
+        const productWithImage = data.find(p => p.image_url);
+        if (productWithImage && productWithImage.image_url) {
+          // Extract the base path pattern from existing product images
+          const imageUrl = productWithImage.image_url;
+          const urlParts = imageUrl.split('/');
+          const basePath = urlParts.slice(0, -1).join('/'); // Everything except filename
+          
+          // Update orphaned images with potential URLs based on product image pattern
+          setOrphanedImages(prev => prev.map(img => {
+            if (img.isTemporary && img.fileName && !img.verified) {
+              // Construct URL using the same pattern as product images
+              const constructedUrl = `${basePath}/${img.fileName}`;
+              return {
+                ...img,
+                potentialUrls: [constructedUrl, ...(img.potentialUrls || [])]
+              };
+            }
+            return img;
+          }));
+          
+          // Verify the constructed URLs asynchronously
+          setTimeout(async () => {
+            setOrphanedImages(currentImages => {
+              // Verify URLs asynchronously
+              Promise.all(
+                currentImages.map(async (img) => {
+                  if (img.isTemporary && img.potentialUrls && !img.verified) {
+                    for (const potentialUrl of img.potentialUrls) {
+                      try {
+                        const testResponse = await fetch(potentialUrl, { method: 'HEAD' });
+                        if (testResponse.ok) {
+                          URL.revokeObjectURL(img.url);
+                          return {
+                            ...img,
+                            url: potentialUrl,
+                            isTemporary: false,
+                            verified: true
+                          };
+                        }
+                      } catch (e) {
+                        continue;
+                      }
+                    }
+                  }
+                  return img;
+                })
+              ).then(verifiedImages => {
+                setOrphanedImages(verifiedImages);
+              });
+              
+              return currentImages; // Return current state while verifying
+            });
+          }, 500);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      if (!error.message?.toLowerCase().includes('token expired') && 
+          !error.message?.toLowerCase().includes('unauthorized')) {
+        setError(`Failed to load products: ${error.message}`);
+      }
+      throw error; // Re-throw to be caught by fetchAllData
+    }
+  };
+
   // Fetch data based on active tab
   useEffect(() => {
     if (activeTab === 'Products') {
-      // Fetch products and related data when Products tab is active
-      fetchProducts();
-      fetchRelatedData();
+      // Fetch products and related data together
+      fetchAllData();
     } else if (activeTab === 'Media Gallery') {
       // Only fetch images from uploads/products folder - no products API call
       fetchAllUploads();
     } else if (activeTab === 'Unuploaded Media Gallery') {
       // Fetch products to check which ones don't have images when Unuploaded Media Gallery tab is active
-      fetchProducts();
-      fetchRelatedData();
+      fetchAllData();
     }
   }, [activeTab]);
 
   // Initial fetch on component mount
   useEffect(() => {
-    fetchProducts();
-    fetchRelatedData();
+    fetchAllData();
   }, []);
 
   // Cleanup object URLs when component unmounts or images are removed
@@ -335,7 +528,8 @@ const DashboardProducts = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await getProducts();
+      // Send null filters to get all products
+      const data = await getProducts(1, 21, null);
       setProducts(data || []);
       
       // Get all product image URLs to identify which orphaned images are now assigned
@@ -651,7 +845,8 @@ const DashboardProducts = () => {
       await updateProduct(productId, updateData);
       
       // Refresh products to get updated values
-      await fetchProducts();
+      await fetchProductsWithoutLoading();
+      await fetchRelatedData();
       await fetchAllUploads(); // Refresh the images list in the modal
 
       showSuccess(`Image attached to product ${product.model_no || 'successfully'}!`);
@@ -783,7 +978,8 @@ const DashboardProducts = () => {
       await updateProduct(productId, updateData);
       
       // Refresh products to get updated values
-      await fetchProducts();
+      await fetchProductsWithoutLoading();
+      await fetchRelatedData();
       await fetchAllUploads(); // Refresh the images list in the modal
 
       const skippedCount = newImagePaths.length - uniqueNewPaths.length;
@@ -809,6 +1005,14 @@ const DashboardProducts = () => {
     return products.map(product => {
       const brand = brands.find(b => (b.brand_id || b.id) === product.brand_id);
       const collection = collections.find(c => (c.collection_id || c.id) === product.collection_id);
+      const gender = genders.find(g => (g.gender_id || g.id) === product.gender_id);
+      const colorCode = colorCodes.find(cc => (cc.color_code_id || cc.id) === product.color_code_id);
+      const shape = shapes.find(s => (s.shape_id || s.id) === product.shape_id);
+      const lensColor = lensColors.find(lc => (lc.lens_color_id || lc.id) === product.lens_color_id);
+      const frameColor = frameColors.find(fc => (fc.frame_color_id || fc.id) === product.frame_color_id);
+      const frameType = frameTypes.find(ft => (ft.frame_type_id || ft.id) === product.frame_type_id);
+      const lensMaterial = lensMaterials.find(lm => (lm.lens_material_id || lm.id) === product.lens_material_id);
+      const frameMaterial = frameMaterials.find(fm => (fm.frame_material_id || fm.id) === product.frame_material_id);
       
       // Check if product has valid images using helper function
       // This properly handles empty arrays [], arrays with empty strings, and the string "[]"
@@ -816,20 +1020,42 @@ const DashboardProducts = () => {
       
       return {
         id: product.product_id || product.id,
+        product_id: product.product_id || product.id,
         model_no: product.model_no || '',
+        gender_id: product.gender_id || '',
+        gender_name: gender?.gender_name || gender?.name || 'N/A',
+        color_code_id: product.color_code_id || '',
+        color_code_name: colorCode?.color_code || colorCode?.name || 'N/A',
+        shape_id: product.shape_id || '',
+        shape_name: shape?.shape_name || shape?.name || 'N/A',
+        lens_color_id: product.lens_color_id || '',
+        lens_color_name: lensColor?.lens_color || lensColor?.name || 'N/A',
+        frame_color_id: product.frame_color_id || '',
+        frame_color_name: frameColor?.frame_color || frameColor?.name || 'N/A',
+        frame_type_id: product.frame_type_id || '',
+        frame_type_name: frameType?.frame_type || frameType?.name || 'N/A',
+        lens_material_id: product.lens_material_id || '',
+        lens_material_name: lensMaterial?.lens_material || lensMaterial?.name || 'N/A',
+        frame_material_id: product.frame_material_id || '',
+        frame_material_name: frameMaterial?.frame_material || frameMaterial?.name || 'N/A',
+        brand_id: product.brand_id || '',
         brand: brand?.brand_name || 'N/A',
+        collection_id: product.collection_id || '',
         collection: collection?.collection_name || 'N/A',
-        // Backend may send total_qty or qty; prefer total_qty and fall back to qty
-        stock: product.total_qty || product.qty || 0,
-        mrp: `₹${parseFloat(product.mrp || 0).toLocaleString('en-IN')}`,
-        whp: `₹${parseFloat(product.whp || 0).toLocaleString('en-IN')}`,
+        mrp: product.mrp || '0.00',
+        mrp_formatted: `₹${parseFloat(product.mrp || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        whp: product.whp || '0.00',
+        whp_formatted: `₹${parseFloat(product.whp || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        size_mm: product.size_mm || '',
         warehouse_qty: product.warehouse_qty || 0,
+        tray_qty: product.tray_qty || 0,
+        total_qty: product.total_qty || product.qty || 0,
         status: product.status || 'draft',
         hasUploadedMedia: hasUploadedMedia,
         data: product,
       };
     });
-  }, [products, brands, collections]);
+  }, [products, brands, collections, genders, colorCodes, shapes, lensColors, frameColors, frameTypes, lensMaterials, frameMaterials]);
 
   const uploadedProducts = useMemo(
     () => products.filter(p => hasValidImageUrls(p)),
@@ -1476,14 +1702,25 @@ const DashboardProducts = () => {
   };
 
   const columns = useMemo(() => ([
-    { key: 'model_no', label: 'MODEL NO' },
-    { key: 'brand', label: 'BRAND' },
-    { key: 'collection', label: 'COLLECTION' },
-    { key: 'mrp', label: 'MRP' },
-    { key: 'whp', label: 'WHP' },
-    { key: 'warehouse_qty', label: 'WAREHOUSE QTY' },
-    { key: 'status', label: 'STATUS' },
-    { key: 'action', label: 'ACTION', render: (_v, row) => (
+    { key: 'model_no', label: 'MODEL NO', width: '120px' },
+    { key: 'gender_name', label: 'GENDER', width: '100px' },
+    { key: 'color_code_name', label: 'COLOR CODE', width: '120px' },
+    { key: 'shape_name', label: 'SHAPE', width: '120px' },
+    { key: 'lens_color_name', label: 'LENS COLOR', width: '130px' },
+    { key: 'frame_color_name', label: 'FRAME COLOR', width: '140px' },
+    { key: 'frame_type_name', label: 'FRAME TYPE', width: '130px' },
+    { key: 'lens_material_name', label: 'LENS MATERIAL', width: '150px' },
+    { key: 'frame_material_name', label: 'FRAME MATERIAL', width: '160px' },
+    { key: 'mrp_formatted', label: 'MRP', width: '100px' },
+    { key: 'whp_formatted', label: 'WHP', width: '100px' },
+    { key: 'size_mm', label: 'SIZE (MM)', width: '110px' },
+    { key: 'warehouse_qty', label: 'WAREHOUSE QTY', width: '140px' },
+    { key: 'tray_qty', label: 'TRAY QTY', width: '110px' },
+    { key: 'total_qty', label: 'TOTAL QTY', width: '110px' },
+    { key: 'status', label: 'STATUS', width: '100px' },
+    { key: 'brand', label: 'BRAND', width: '120px' },
+    { key: 'collection', label: 'COLLECTION', width: '130px' },
+    { key: 'action', label: 'ACTION', width: '120px', render: (_v, row) => (
       <RowActions 
         onEdit={() => handleEdit(row)} 
         onDelete={() => handleDelete(row)} 
@@ -1536,7 +1773,8 @@ const DashboardProducts = () => {
         showSuccess('Product created successfully');
       }
       
-      await fetchProducts();
+      await fetchProductsWithoutLoading();
+      await fetchRelatedData();
       setError(null);
       setOpenAdd(false);
       setEditRow(null);
@@ -1603,7 +1841,8 @@ const DashboardProducts = () => {
       
       // If upload successful and uploaded to a specific product, refresh to get updated image_urls
       if (targetProductId) {
-        await fetchProducts();
+        await fetchProductsWithoutLoading();
+        await fetchRelatedData();
       }
       
       // Handle orphaned images (uploaded without product_id)
@@ -1760,7 +1999,8 @@ const DashboardProducts = () => {
       showSuccess(successMessage);
       
       // Refresh products list
-      await fetchProducts();
+      await fetchProductsWithoutLoading();
+      await fetchRelatedData();
       
       // Clear selection and close modal after 3 seconds
       setTimeout(() => {
@@ -1986,7 +2226,8 @@ const DashboardProducts = () => {
                                 });
                                 
                                 showSuccess('Product updated successfully');
-                                await fetchProducts();
+                                await fetchProductsWithoutLoading();
+                                await fetchRelatedData();
                               }
                             } else {
                               // For unassigned images, remove from state and mark URL as invalid

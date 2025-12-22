@@ -23,10 +23,54 @@ const ProductCard = ({
     }
   };
 
+  // Construct image URL - extract filename from path and use the specified format
+  const getImageUrl = () => {
+    if (!productImage) {
+      return '/images/products/spac1.webp';
+    }
+    
+    // If already a full URL (starts with http), use it as-is
+    if (productImage.startsWith('http')) {
+      return productImage;
+    }
+    
+    // Remove any query parameters or fragments
+    const cleanPath = productImage.split('?')[0].split('#')[0];
+    
+    // Extract filename from path
+    // Handles paths like:
+    // - "/uploads/products/spac2-1766058948930.webp" -> "spac2-1766058948930.webp"
+    // - "/Users/.../uploads/products/filename.jpg" -> "filename.jpg"
+    // - "filename.webp" -> "filename.webp"
+    const parts = cleanPath.split('/');
+    const filename = parts[parts.length - 1];
+    
+    // Make sure we got a valid filename (not empty, has extension)
+    if (filename && filename.includes('.')) {
+      // Use the specified URL format: https://stallion.nishree.com/uploads/products/${filename}
+      return `https://stallion.nishree.com/uploads/products/${filename}`;
+    }
+    
+    // Fallback to default image
+    return '/images/products/spac1.webp';
+  };
+
+  const imageUrl = getImageUrl();
+  
+  const handleImageError = (e) => {
+    console.error('[ProductCard] Image failed to load:', imageUrl);
+    // Fallback to default image
+    e.target.src = '/images/products/spac1.webp';
+  };
+
   return (
     <div className="product-card">
       <div className="product-image">
-        <img src={productImage} alt={productName} />
+        <img 
+          src={imageUrl} 
+          alt={productName}
+          onError={handleImageError}
+        />
       </div>
       <h3 className="product-name">{productName}</h3>
       <div className="color-options">

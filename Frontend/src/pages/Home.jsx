@@ -204,33 +204,62 @@ const Home = ({ onPageChange }) => {
               };
 
               // Parse image_urls - handle both array and JSON string formats
-              let productImage = `/images/products/spac1.webp`; // default fallback
-              
-              if (product.image_urls) {
-                if (Array.isArray(product.image_urls) && product.image_urls.length > 0) {
-                  // Already an array
-                  productImage = product.image_urls[0];
-                } else if (typeof product.image_urls === 'string') {
-                  // Try to parse JSON string like "[\"/uploads/products/spac2-1766058948930.webp\"]"
+              const parseImageUrls = (imageUrls) => {
+                if (!imageUrls) return null;
+                
+                // If it's already an array, return it
+                if (Array.isArray(imageUrls)) {
+                  return imageUrls;
+                }
+                
+                // If it's a string, try to parse it as JSON
+                if (typeof imageUrls === 'string') {
                   try {
-                    const parsed = JSON.parse(product.image_urls);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                      productImage = parsed[0];
+                    // Try parsing once
+                    let parsed = JSON.parse(imageUrls);
+                    
+                    // Handle double-encoded strings
+                    if (typeof parsed === 'string') {
+                      try {
+                        parsed = JSON.parse(parsed);
+                      } catch (e) {
+                        // If second parse fails, use the first parsed value
+                      }
+                    }
+                    
+                    // If parsed result is an array, return it
+                    if (Array.isArray(parsed)) {
+                      return parsed;
+                    }
+                    
+                    // If parsed result is a string, wrap it in an array
+                    if (typeof parsed === 'string') {
+                      return [parsed];
                     }
                   } catch (e) {
-                    // If parsing fails, check if it's already a valid URL string
-                    if (product.image_urls.trim().length > 0 && product.image_urls !== '[]') {
-                      productImage = product.image_urls;
+                    // If parsing fails, treat the string itself as the image path
+                    if (imageUrls.trim().length > 0 && imageUrls !== '[]') {
+                      return [imageUrls];
                     }
                   }
                 }
+                
+                return null;
+              };
+              
+              // Get first image from image_urls
+              const imageUrls = parseImageUrls(product.image_urls);
+              let productImage = null;
+              
+              if (imageUrls && imageUrls.length > 0) {
+                productImage = imageUrls[0];
               } else if (product.image_url) {
                 // Fallback to image_url if image_urls is not available
                 productImage = product.image_url;
               }
               
-              // Construct full URL from the parsed image path
-              const fullImageUrl = constructFullUrl(productImage) || productImage;
+              // ProductCard will handle URL construction, so just pass the path
+              const fullImageUrl = productImage || '/images/products/spac1.webp';
               
               // Use model_no as product name, or a default name
               const productName = product.model_no || 'Safety Goggles';

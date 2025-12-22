@@ -289,11 +289,18 @@ const apiRequest = async (endpoint, options = {}) => {
   };
 
   // Add body for POST/PUT/PATCH requests
-  if (requestBody && actualMethod !== 'GET') {
-    // Clean the body - remove any undefined values and ensure proper JSON
-    const cleanBody = JSON.parse(JSON.stringify(requestBody)); // This removes undefined and ensures valid JSON
-    config.body = JSON.stringify(cleanBody);
-    console.log(`[API Request Body]`, cleanBody); // Debug log
+  if (actualMethod !== 'GET') {
+    if (requestBody === null) {
+      // Explicitly send null as JSON
+      config.body = 'null';
+      console.log(`[API Request Body]`, null); // Debug log
+    } else if (requestBody) {
+      // Clean the body - remove any undefined values and ensure proper JSON
+      const cleanBody = JSON.parse(JSON.stringify(requestBody)); // This removes undefined and ensures valid JSON
+      config.body = JSON.stringify(cleanBody);
+      console.log(`[API Request Body]`, cleanBody); // Debug log
+    }
+    // If requestBody is undefined, don't add body
   }
 
   try {
@@ -2809,79 +2816,100 @@ export const getProducts = async (page = 1, limit = 21, filters = {}) => {
     queryParams.append('page', page.toString());
     queryParams.append('limit', limit.toString());
     
-    // Build filter body exactly as shown in Postman collection
-    // Postman format: { gender_id, color_code_id, shape_id, lens_color_id, frame_color_id, frame_type_id, lens_material_id, frame_material_id, price: { min, max } }
-    // Postman example: { "gender_id": 2, "color_code_id": 2, "shape_id": 2, "lens_color_id": 2, "frame_color_id": 2, "frame_type_id": 2, "lens_material_id": 2, "frame_material_id": 2, "price": { "min": 100, "max": 200 } }
-    // Only include filter fields that have actual values (don't include null/empty fields)
+    const endpoint = `/products/?${queryParams.toString()}`; // Note: trailing slash as in Postman
+    
+    // If filters is explicitly null, send all filter fields as null (matching Postman collection)
+    // Postman uses GET with body, but browsers can't send body with GET, so apiRequest will convert to POST
+    if (filters === null) {
+      const filterBody = {
+        gender_id: null,
+        color_code_id: null,
+        shape_id: null,
+        lens_color_id: null,
+        frame_color_id: null,
+        frame_type_id: null,
+        lens_material_id: null,
+        frame_material_id: null,
+        price: null
+      };
+      
+      // Use GET method (matching Postman), apiRequest will convert to POST since body exists
+      const response = await apiRequest(endpoint, {
+        method: 'GET',
+        body: filterBody,
+        includeAuth: true,
+      });
+      
+      if (Array.isArray(response)) {
+        return response;
+      }
+      if (response && Array.isArray(response.data)) {
+        return response.data;
+      }
+      return [];
+    }
+    
+    // Build filter body exactly as shown in Postman collection, but only when filters exist
     const filterBody = {};
     
-    // Only include filter fields that have values
     // gender_id
     if (filters.gender_id !== undefined && filters.gender_id !== null) {
-      filterBody.gender_id = Array.isArray(filters.gender_id) ? filters.gender_id : filters.gender_id;
+      filterBody.gender_id = filters.gender_id;
     }
     
     // color_code_id
     if (filters.color_code_id !== undefined && filters.color_code_id !== null) {
-      filterBody.color_code_id = Array.isArray(filters.color_code_id) ? filters.color_code_id : filters.color_code_id;
+      filterBody.color_code_id = filters.color_code_id;
     }
     
     // shape_id
     if (filters.shape_id !== undefined && filters.shape_id !== null) {
-      filterBody.shape_id = Array.isArray(filters.shape_id) ? filters.shape_id : filters.shape_id;
+      filterBody.shape_id = filters.shape_id;
     }
     
     // lens_color_id
     if (filters.lens_color_id !== undefined && filters.lens_color_id !== null) {
-      filterBody.lens_color_id = Array.isArray(filters.lens_color_id) ? filters.lens_color_id : filters.lens_color_id;
+      filterBody.lens_color_id = filters.lens_color_id;
     }
     
     // frame_color_id
     if (filters.frame_color_id !== undefined && filters.frame_color_id !== null) {
-      filterBody.frame_color_id = Array.isArray(filters.frame_color_id) ? filters.frame_color_id : filters.frame_color_id;
+      filterBody.frame_color_id = filters.frame_color_id;
     }
     
     // frame_type_id
     if (filters.frame_type_id !== undefined && filters.frame_type_id !== null) {
-      filterBody.frame_type_id = Array.isArray(filters.frame_type_id) ? filters.frame_type_id : filters.frame_type_id;
+      filterBody.frame_type_id = filters.frame_type_id;
     }
     
     // lens_material_id
     if (filters.lens_material_id !== undefined && filters.lens_material_id !== null) {
-      filterBody.lens_material_id = Array.isArray(filters.lens_material_id) ? filters.lens_material_id : filters.lens_material_id;
+      filterBody.lens_material_id = filters.lens_material_id;
     }
     
     // frame_material_id
     if (filters.frame_material_id !== undefined && filters.frame_material_id !== null) {
-      filterBody.frame_material_id = Array.isArray(filters.frame_material_id) ? filters.frame_material_id : filters.frame_material_id;
+      filterBody.frame_material_id = filters.frame_material_id;
     }
     
     // brand_id (optional, but include if provided)
     if (filters.brand_id !== undefined && filters.brand_id !== null) {
-      filterBody.brand_id = Array.isArray(filters.brand_id) ? filters.brand_id : filters.brand_id;
+      filterBody.brand_id = filters.brand_id;
     }
     
-    // Always include price object to prevent backend destructuring error
-    // Backend expects req.body.price to exist, even if it's an empty object
+    // Always include price filter (backend requires it)
+    // If price is not provided, use full range (0-10000) to show all products
     if (filters.price !== undefined && filters.price !== null) {
       filterBody.price = filters.price;
     } else {
-      // Include empty price object if not provided to prevent destructuring error
+      // Default to full range when no price filter is specified
       filterBody.price = { min: 0, max: 10000 };
     }
     
-    // Match Postman collection exactly: GET /products/?page=1&limit=21 with JSON body
-    // Postman shows: Method: GET, URL: /products/?page=1&limit=21, Body: JSON with filter fields
-    // Note: Browsers don't allow GET with body, so we use POST as workaround
-    // The backend should accept POST with same structure (many backends support both)
-    const endpoint = `/products/?${queryParams.toString()}`; // Note: trailing slash as in Postman
-    
-    // Send filterBody (matches Postman format exactly)
-    // Postman always includes price in body, so filterBody will always have at least price
-    // Use POST since browsers don't allow GET with body and we always have a body (at least price)
+    // Always use POST with body since backend requires price field
     const response = await apiRequest(endpoint, {
-      method: 'POST', // Always POST since we always have a body (at least with price object)
-      body: filterBody, // Always send body (matches Postman - always includes price)
+      method: 'POST',
+      body: filterBody,
       includeAuth: true,
     });
     
@@ -2948,7 +2976,7 @@ export const createProduct = async (productData) => {
     status,
   } = productData;
   
-  return apiRequest('/products/', {
+  return apiRequest('/products/create', {
     method: 'POST',
     body: {
       model_no,

@@ -28,8 +28,10 @@ const Products = ({ onPageChange }) => {
     }
   }, []);
 
-  const [minPrice, setMinPrice] = useState(100);
-  const [maxPrice, setMaxPrice] = useState(200);
+  const PRICE_MIN = 0;
+  const PRICE_MAX = 10000;
+  const [minPrice, setMinPrice] = useState(PRICE_MIN);
+  const [maxPrice, setMaxPrice] = useState(PRICE_MAX);
   const [selectedBrands, setSelectedBrands] = useState([]); // Array of brand IDs
   const [selectedFrameMaterials, setSelectedFrameMaterials] = useState([]); // Array of frame_material_id
   const [selectedShapes, setSelectedShapes] = useState([]); // Array of shape_id
@@ -174,7 +176,8 @@ const Products = ({ onPageChange }) => {
       filters.brand_id = selectedBrands.length === 1 ? selectedBrands[0] : selectedBrands;
     }
     
-    // Always include price filter
+    // Always include price filter (backend requires it)
+    // Use full range (0-10000) when user hasn't changed it, so it effectively shows all products
     filters.price = {
       min: minPrice,
       max: maxPrice
@@ -235,8 +238,8 @@ const Products = ({ onPageChange }) => {
   }, [page, buildFilters]);
 
   const handleReset = () => {
-    setMinPrice(100);
-    setMaxPrice(200);
+    setMinPrice(PRICE_MIN);
+    setMaxPrice(PRICE_MAX);
     setSelectedBrands([]);
     setSelectedFrameMaterials([]);
     setSelectedShapes([]);
@@ -276,30 +279,95 @@ const Products = ({ onPageChange }) => {
   const getProductImage = (product) => {
     if (!product) return '/images/products/spac1.webp';
     
-    // Handle image_urls array
-    if (product.image_urls && Array.isArray(product.image_urls) && product.image_urls.length > 0) {
-      const firstImage = product.image_urls[0];
-      // If it's a full path, use it; otherwise prepend base URL if needed
-      if (firstImage.startsWith('http') || firstImage.startsWith('/')) {
-        return firstImage;
+    // Extract filename from path and construct URL
+    const extractFilename = (imagePath) => {
+      if (!imagePath || typeof imagePath !== 'string') return null;
+      
+      // Remove any query parameters or fragments
+      const cleanPath = imagePath.split('?')[0].split('#')[0];
+      
+      // Extract filename from path (handles "/uploads/products/filename.webp" or full paths)
+      const parts = cleanPath.split('/');
+      const filename = parts[parts.length - 1];
+      
+      // Make sure we got a valid filename (not empty, has extension)
+      if (filename && filename.includes('.')) {
+        return filename;
       }
-      return `/${firstImage}`;
+      
+      return null;
+    };
+    
+    // Parse image_urls - handle JSON string format like "[\"/uploads/products/spac2-1766058948930.webp\"]"
+    const parseImageUrls = (imageUrls) => {
+      if (!imageUrls) return null;
+      
+      // If it's already an array, return it
+      if (Array.isArray(imageUrls)) {
+        return imageUrls;
+      }
+      
+      // If it's a string, try to parse it as JSON
+      if (typeof imageUrls === 'string') {
+        try {
+          // Try parsing once
+          let parsed = JSON.parse(imageUrls);
+          
+          // Handle double-encoded strings (some APIs return double-encoded JSON)
+          if (typeof parsed === 'string') {
+            try {
+              parsed = JSON.parse(parsed);
+            } catch (e) {
+              // If second parse fails, use the first parsed value
+            }
+          }
+          
+          // If parsed result is an array, return it
+          if (Array.isArray(parsed)) {
+            return parsed;
+          }
+          
+          // If parsed result is a string, wrap it in an array
+          if (typeof parsed === 'string') {
+            return [parsed];
+          }
+        } catch (e) {
+          // If parsing fails, treat the string itself as the image path
+          if (imageUrls.trim().length > 0 && imageUrls !== '[]') {
+            return [imageUrls];
+          }
+        }
+      }
+      
+      return null;
+    };
+    
+    // Handle image_urls (can be array or JSON string)
+    const imageUrls = parseImageUrls(product.image_urls);
+    if (imageUrls && imageUrls.length > 0) {
+      const firstImage = imageUrls[0];
+      if (firstImage) {
+        const filename = extractFilename(firstImage);
+        if (filename) {
+          return `https://stallion.nishree.com/uploads/products/${filename}`;
+        }
+      }
     }
     
     // Handle single image_url string
     if (product.image_url) {
-      if (product.image_url.startsWith('http') || product.image_url.startsWith('/')) {
-        return product.image_url;
+      const filename = extractFilename(product.image_url);
+      if (filename) {
+        return `https://stallion.nishree.com/uploads/products/${filename}`;
       }
-      return `/${product.image_url}`;
     }
     
     // Default fallback
     return '/images/products/spac1.webp';
   };
 
-  const minPercent = (minPrice / 10000) * 100;
-  const maxPercent = (maxPrice / 10000) * 100;
+  const minPercent = (minPrice / PRICE_MAX) * 100;
+  const maxPercent = (maxPrice / PRICE_MAX) * 100;
 
   const FilterContent = () => (
     <>
@@ -319,8 +387,8 @@ const Products = ({ onPageChange }) => {
           ></div>
           <input 
             type="range" 
-            min="0" 
-            max="10000" 
+            min={PRICE_MIN} 
+            max={PRICE_MAX} 
             value={minPrice}
             onChange={(e) => setMinPrice(Math.min(parseInt(e.target.value), maxPrice - 1))}
             className="price-range-input"
@@ -328,8 +396,8 @@ const Products = ({ onPageChange }) => {
           />
           <input 
             type="range" 
-            min="0" 
-            max="10000" 
+            min={PRICE_MIN} 
+            max={PRICE_MAX} 
             value={maxPrice}
             onChange={(e) => setMaxPrice(Math.max(parseInt(e.target.value), minPrice + 1))}
             className="price-range-input"

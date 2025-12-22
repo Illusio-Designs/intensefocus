@@ -3,7 +3,7 @@ import React from 'react';
 // Reusable row action buttons: only renders buttons for handlers provided
 export default function RowActions({ onView, onEdit, onDownload, onDelete, onUpload }) {
   return (
-    <div style={{ display: 'flex', gap: 10 }}>
+    <div style={{ display: 'flex', gap: 10, position: 'relative', zIndex: 1 }}>
       {onView && (
         <button className="ui-btn ui-btn--ghost ui-btn--sm has-tt" onClick={onView}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

@@ -225,7 +225,7 @@ export default function TableWithControls({
           <thead>
             <tr>
               {selectable && (
-                <th>
+                <th style={{ width: '40px', padding: '20px 8px' }}>
                   <input
                     type="checkbox"
                     checked={
@@ -251,7 +251,7 @@ export default function TableWithControls({
                 </th>
               )}
               {showSerialNumber && visible.has('__serialNumber') && (
-                <th style={{ width: '80px' }}>
+                <th style={{ width: '60px', padding: '20px 8px' }}>
                   <span className="ui-th">SR NO</span>
                 </th>
               )}
@@ -313,7 +313,7 @@ export default function TableWithControls({
               return (
                 <tr key={idx}>
                   {selectable && (
-                    <td>
+                    <td style={{ width: '40px', padding: '18px 8px 0px' }}>
                       <input
                         type="checkbox"
                         checked={selected.has((page - 1) * pageSize + idx)}
@@ -328,12 +328,12 @@ export default function TableWithControls({
                     </td>
                   )}
                   {showSerialNumber && visible.has('__serialNumber') && (
-                    <td>{serialNumber}</td>
+                    <td style={{ width: '60px', padding: '18px 8px 0px' }}>{serialNumber}</td>
                   )}
                   {columns
                     .filter((c) => visible.has(c.key))
                     .map((c) => (
-                      <td key={c.key}>
+                      <td key={c.key} style={c.width ? { width: c.width } : undefined}>
                         {c.render
                           ? c.render(row[c.key], row)
                           : String(row[c.key] ?? "")}

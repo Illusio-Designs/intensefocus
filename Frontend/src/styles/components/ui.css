@@ -82,7 +82,7 @@
 }
 
 /* Tooltips (sidebar-like) */
-.has-tt { position: relative; }
+.has-tt { position: relative; z-index: 1; }
 .has-tt .ui-tt {
   position: absolute;
   left: 50%;
@@ -98,10 +98,25 @@
   opacity: 0;
   pointer-events: none;
   transition: opacity .15s ease, transform .15s ease;
+  z-index: 10000;
 }
 .has-tt:hover .ui-tt {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
+}
+/* Position tooltip below for first row to avoid header overlap */
+.ui-table tbody tr:first-child .has-tt .ui-tt {
+  bottom: auto;
+  top: calc(100% + 8px);
+  transform: translateX(-50%) translateY(-4px);
+}
+.ui-table tbody tr:first-child .has-tt:hover .ui-tt {
+  transform: translateX(-50%) translateY(0);
+}
+.ui-table tbody tr:first-child .has-tt .ui-tt::after {
+  bottom: auto;
+  top: -6px;
+  border-color: transparent transparent #0d0a34 transparent;
 }
 .has-tt .ui-tt::after {
   content: '';
@@ -538,16 +553,26 @@
   font-size: 14px;
 }
 .ui-table__scroll {
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: visible;
+  /* Hide scrollbar but keep scrolling functional */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+  position: relative;
+}
+.ui-table__scroll::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
 }
 .ui-table table {
   width: 100%;
+  min-width: 100%;
   border-collapse: separate;
   border-spacing: 0;
+  table-layout: fixed; /* Respect column widths */
 }
 .ui-table thead th {
   text-align: left;
-  padding: 20px 0px;
+  padding: 20px 12px;
   font-size: 14px;
   color: #000000;
   border-bottom: 1px solid #E0E0E0;
@@ -555,6 +580,11 @@
   top: 0;
   text-transform: uppercase;
   letter-spacing: 0.3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: #ffffff;
+  z-index: 100;
 }
 .ui-th {
   display: inline-flex;
@@ -592,8 +622,15 @@
   height: 16px;
   accent-color: #181265;
 }
+.ui-table tbody tr {
+  position: relative;
+}
 .ui-table tbody td {
-  padding: 18px 0px 0px;
+  padding: 18px 12px 0px;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: ellipsis;
+  position: relative;
 }
 .ui-empty {
   text-align: center;
