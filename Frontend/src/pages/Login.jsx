@@ -100,8 +100,20 @@ const Login = ({ onPageChange }) => {
       return;
     }
 
-    // Format phone number to E.164 format
-    const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
+    // Format phone number to E.164 format (must match format used during registration)
+    // This ensures exact match with backend database
+    let formattedPhone = phoneNumber.trim();
+    if (!formattedPhone.startsWith('+')) {
+      // Remove leading zeros
+      formattedPhone = formattedPhone.replace(/^0+/, '');
+      // If it doesn't start with country code, add 91 for India
+      if (!formattedPhone.startsWith('91')) {
+        formattedPhone = `91${formattedPhone}`;
+      }
+      formattedPhone = `+${formattedPhone}`;
+    }
+    
+    console.log('[Login] Original phone:', phoneNumber, 'Formatted phone:', formattedPhone);
 
     try {
       console.log('[Login] Checking user with phone:', formattedPhone);
@@ -196,8 +208,19 @@ const Login = ({ onPageChange }) => {
     setLoading(true);
 
     try {
-      // Format phone number to E.164 format
-      const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
+      // Format phone number to E.164 format (must match format used during registration)
+      let formattedPhone = phoneNumber.trim();
+      if (!formattedPhone.startsWith('+')) {
+        // Remove leading zeros
+        formattedPhone = formattedPhone.replace(/^0+/, '');
+        // If it doesn't start with country code, add 91 for India
+        if (!formattedPhone.startsWith('91')) {
+          formattedPhone = `91${formattedPhone}`;
+        }
+        formattedPhone = `+${formattedPhone}`;
+      }
+      
+      console.log('[Login] OTP verification - Original phone:', phoneNumber, 'Formatted phone:', formattedPhone);
 
       // Verify OTP via MSG91
       const verifyResponse = await verifyOTP(otpValue);
