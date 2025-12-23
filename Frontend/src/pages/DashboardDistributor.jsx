@@ -427,7 +427,7 @@ const DashboardDistributor = () => {
   };
 
   const handleDelete = async (row) => {
-    if (!window.confirm(`Are you sure you want to delete this distributor?`)) {
+    if (!window.confirm(`Are you sure you want to delete this distributor? This will also delete the associated user account.`)) {
       return;
     }
 
@@ -439,6 +439,9 @@ const DashboardDistributor = () => {
       return;
     }
 
+    // Get phone number from distributor to find associated user
+    const distributorPhone = row.phone || row.phoneNumber || '';
+    
     // Optimistically remove from table immediately
     const distributorName = row.distributor_name || 'Distributor';
     setDistributors(prev => prev.filter(d => {
@@ -449,14 +452,107 @@ const DashboardDistributor = () => {
     try {
       setLoading(true);
       setError(null);
-      console.log('Deleting distributor with ID:', distributorId);
-      await deleteDistributor(distributorId);
+      console.log('[Delete Distributor] Deleting distributor with ID:', distributorId);
       
-      // Show success notification
-      showSuccess('Distributor deleted successfully');
+      // Delete distributor first
+      await deleteDistributor(distributorId);
+      console.log('[Delete Distributor] Distributor deleted successfully');
+      
+      // Now find and delete associated user account by phone number
+      if (distributorPhone) {
+        try {
+          const { getUsers, deleteUser } = await import('../services/apiService');
+          console.log('[Delete Distributor] Finding user account with phone:', distributorPhone);
+          
+          // Get all users
+          const usersResponse = await getUsers();
+          let usersArray = [];
+          if (Array.isArray(usersResponse)) {
+            usersArray = usersResponse;
+          } else if (usersResponse && Array.isArray(usersResponse.data)) {
+            usersArray = usersResponse.data;
+          } else if (usersResponse && Array.isArray(usersResponse.users)) {
+            usersArray = usersResponse.users;
+          }
+          
+          console.log('[Delete Distributor] Total users found:', usersArray.length);
+          console.log('[Delete Distributor] Searching for user with phone:', distributorPhone);
+          
+          // Normalize phone numbers for comparison (remove +, spaces, dashes)
+          const normalizePhone = (phone) => {
+            if (!phone) return '';
+            return String(phone).trim().replace(/^\+/, '').replace(/[\s-]/g, '');
+          };
+          
+          const normalizedDistributorPhone = normalizePhone(distributorPhone);
+          console.log('[Delete Distributor] Normalized distributor phone:', normalizedDistributorPhone);
+          
+          // Find user by phone number (try multiple matching strategies)
+          const foundUser = usersArray.find(u => {
+            const userPhone = (u.phone || u.phoneNumber || '').trim();
+            const normalizedUserPhone = normalizePhone(userPhone);
+            
+            // Log for debugging
+            if (normalizedUserPhone === normalizedDistributorPhone) {
+              console.log('[Delete Distributor] Match found! User phone:', userPhone, 'Normalized:', normalizedUserPhone);
+            }
+            
+            // Try exact match
+            if (userPhone === distributorPhone) return true;
+            // Try normalized match (without +)
+            if (normalizedUserPhone === normalizedDistributorPhone) return true;
+            // Try with + prefix variations
+            if (userPhone === `+${distributorPhone}` || `+${userPhone}` === distributorPhone) return true;
+            // Try normalized with + prefix
+            if (`+${normalizedUserPhone}` === `+${normalizedDistributorPhone}`) return true;
+            
+            return false;
+          });
+          
+          if (foundUser) {
+            const userId = foundUser.user_id || foundUser.id;
+            console.log('[Delete Distributor] Found associated user account:', {
+              userId,
+              userPhone: foundUser.phone || foundUser.phoneNumber,
+              userName: foundUser.full_name || foundUser.name
+            });
+            
+            try {
+              await deleteUser(userId);
+              console.log('[Delete Distributor] User account deleted successfully');
+              showSuccess('Distributor and associated user account deleted successfully');
+            } catch (deleteError) {
+              console.error('[Delete Distributor] Error calling deleteUser:', deleteError);
+              throw deleteError;
+            }
+          } else {
+            console.warn('[Delete Distributor] No user account found with phone:', distributorPhone);
+            console.warn('[Delete Distributor] Available user phones:', usersArray.map(u => ({
+              id: u.user_id || u.id,
+              phone: u.phone || u.phoneNumber,
+              name: u.full_name || u.name
+            })));
+            showSuccess('Distributor deleted successfully. (No associated user account found - check console for details)');
+          }
+        } catch (userDeleteError) {
+          console.error('[Delete Distributor] Error deleting user account:', userDeleteError);
+          console.error('[Delete Distributor] Error details:', {
+            message: userDeleteError.message,
+            errorData: userDeleteError.errorData,
+            statusCode: userDeleteError.statusCode
+          });
+          // Don't fail the whole operation if user deletion fails
+          showSuccess('Distributor deleted successfully. (User account deletion failed - check console for details)');
+        }
+      } else {
+        console.warn('[Delete Distributor] No phone number found in distributor record');
+        console.warn('[Delete Distributor] Distributor row data:', row);
+        showSuccess('Distributor deleted successfully');
+      }
+      
       setError(null);
     } catch (error) {
-      console.error('Delete distributor error:', error);
+      console.error('[Delete Distributor] Delete distributor error:', error);
       
       // Revert optimistic update on error
       if (selectedCountryFilter) {
@@ -580,7 +676,13 @@ const DashboardDistributor = () => {
             await fetchDistributorsForCountry(selectedCountryFilter);
           }
           
-          if (!error.message?.toLowerCase().includes('token expired') && 
+          // Check for backend initialization error
+          const isInitError = error.isInitializationError || 
+                             (error.message && error.message.toLowerCase().includes("cannot access 'distributor' before initialization"));
+          
+          if (isInitError) {
+            showError('Backend initialization error. Please refresh the page and try again. If the problem persists, contact the administrator.');
+          } else if (!error.message?.toLowerCase().includes('token expired') && 
               !error.message?.toLowerCase().includes('unauthorized')) {
             showError(`Failed to update distributor: ${error.message}`);
           }

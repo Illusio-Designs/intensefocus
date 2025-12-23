@@ -414,7 +414,7 @@ const DashboardSuppliers = () => {
   };
 
   const handleDelete = async (row) => {
-    if (!window.confirm(`Are you sure you want to delete this salesman?`)) {
+    if (!window.confirm(`Are you sure you want to delete this salesman? This will also delete the associated user account.`)) {
       return;
     }
 
@@ -426,6 +426,12 @@ const DashboardSuppliers = () => {
       return;
     }
 
+    // Get phone number from salesman to find associated user
+    const salesmanPhone = row.phone || row.phoneNumber || '';
+    
+    // Also check if user_id is directly available in the row
+    const userId = row.user_id || row.userId;
+
     // Optimistically remove from table immediately
     const salesmanName = row.full_name || 'Salesman';
     setSalesmen(prev => prev.filter(s => {
@@ -436,14 +442,111 @@ const DashboardSuppliers = () => {
     try {
       setLoading(true);
       setError(null);
-      console.log('Deleting salesman with ID:', salesmanId);
-      await deleteSalesman(salesmanId);
+      console.log('[Delete Salesman] Deleting salesman with ID:', salesmanId);
       
-      // Show success notification
-      showSuccess('Salesman deleted successfully');
+      // Delete salesman first
+      await deleteSalesman(salesmanId);
+      console.log('[Delete Salesman] Salesman deleted successfully');
+      
+      // Now find and delete associated user account
+      let userToDelete = null;
+      
+      // First, try to use user_id if available
+      if (userId) {
+        try {
+          const { deleteUser } = await import('../services/apiService');
+          console.log('[Delete Salesman] Deleting user account with ID:', userId);
+          await deleteUser(userId);
+          console.log('[Delete Salesman] User account deleted successfully');
+          showSuccess('Salesman and associated user account deleted successfully');
+          setError(null);
+          return;
+        } catch (userDeleteError) {
+          console.warn('[Delete Salesman] Failed to delete user by user_id, trying by phone:', userDeleteError);
+        }
+      }
+      
+      // If user_id not available or deletion failed, try finding by phone number
+      if (salesmanPhone) {
+        try {
+          const { getUsers, deleteUser } = await import('../services/apiService');
+          console.log('[Delete Salesman] Finding user account with phone:', salesmanPhone);
+          
+          // Get all users
+          const usersResponse = await getUsers();
+          let usersArray = [];
+          if (Array.isArray(usersResponse)) {
+            usersArray = usersResponse;
+          } else if (usersResponse && Array.isArray(usersResponse.data)) {
+            usersArray = usersResponse.data;
+          } else if (usersResponse && Array.isArray(usersResponse.users)) {
+            usersArray = usersResponse.users;
+          }
+          
+          console.log('[Delete Salesman] Total users found:', usersArray.length);
+          
+          // Normalize phone numbers for comparison (remove +, spaces, dashes)
+          const normalizePhone = (phone) => {
+            if (!phone) return '';
+            return String(phone).trim().replace(/^\+/, '').replace(/[\s-]/g, '');
+          };
+          
+          const normalizedSalesmanPhone = normalizePhone(salesmanPhone);
+          
+          // Find user by phone number
+          const foundUser = usersArray.find(u => {
+            const userPhone = (u.phone || u.phoneNumber || '').trim();
+            const normalizedUserPhone = normalizePhone(userPhone);
+            
+            return userPhone === salesmanPhone || 
+                   normalizedUserPhone === normalizedSalesmanPhone ||
+                   userPhone === `+${salesmanPhone}` ||
+                   `+${userPhone}` === salesmanPhone;
+          });
+          
+          if (foundUser) {
+            const foundUserId = foundUser.user_id || foundUser.id;
+            console.log('[Delete Salesman] Found associated user account:', {
+              userId: foundUserId,
+              userPhone: foundUser.phone || foundUser.phoneNumber,
+              userName: foundUser.full_name || foundUser.name
+            });
+            
+            try {
+              await deleteUser(foundUserId);
+              console.log('[Delete Salesman] User account deleted successfully');
+              showSuccess('Salesman and associated user account deleted successfully');
+            } catch (deleteError) {
+              console.error('[Delete Salesman] Error calling deleteUser:', deleteError);
+              throw deleteError;
+            }
+          } else {
+            console.warn('[Delete Salesman] No user account found with phone:', salesmanPhone);
+            console.warn('[Delete Salesman] Available user phones:', usersArray.map(u => ({
+              id: u.user_id || u.id,
+              phone: u.phone || u.phoneNumber,
+              name: u.full_name || u.name
+            })));
+            showSuccess('Salesman deleted successfully. (No associated user account found - check console for details)');
+          }
+        } catch (userDeleteError) {
+          console.error('[Delete Salesman] Error deleting user account:', userDeleteError);
+          console.error('[Delete Salesman] Error details:', {
+            message: userDeleteError.message,
+            errorData: userDeleteError.errorData,
+            statusCode: userDeleteError.statusCode
+          });
+          showSuccess('Salesman deleted successfully. (User account deletion failed - check console for details)');
+        }
+      } else {
+        console.warn('[Delete Salesman] No phone number or user_id found in salesman record');
+        console.warn('[Delete Salesman] Salesman row data:', row);
+        showSuccess('Salesman deleted successfully');
+      }
+      
       setError(null);
     } catch (error) {
-      console.error('Delete salesman error:', error);
+      console.error('[Delete Salesman] Delete salesman error:', error);
       
       // Revert optimistic update on error
       if (selectedCountryFilter) {

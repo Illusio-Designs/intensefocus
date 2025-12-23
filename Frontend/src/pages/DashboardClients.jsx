@@ -493,7 +493,7 @@ const DashboardClients = () => {
   };
 
   const handleDelete = async (row) => {
-    if (!window.confirm(`Are you sure you want to delete this party?`)) {
+    if (!window.confirm(`Are you sure you want to delete this party? This will also delete the associated user account.`)) {
       return;
     }
 
@@ -504,10 +504,17 @@ const DashboardClients = () => {
       return;
     }
 
+    // Get phone number from party to find associated user
+    const partyPhone = row.phone || row.phoneNumber || '';
+
     try {
       setLoading(true);
       setError(null);
+      
+      // Delete party first
+      console.log('[Delete Party] Deleting party with ID:', partyId.trim());
       await deleteParty(partyId.trim());
+      console.log('[Delete Party] Party deleted successfully');
       
       // Optimistically remove from table immediately
       setParties(prevParties => prevParties.filter(party => {
@@ -515,7 +522,83 @@ const DashboardClients = () => {
         return id !== partyId.trim();
       }));
       
-      showSuccess('Party deleted successfully!');
+      // Now find and delete associated user account by phone number
+      if (partyPhone) {
+        try {
+          const { getUsers, deleteUser } = await import('../services/apiService');
+          console.log('[Delete Party] Finding user account with phone:', partyPhone);
+          
+          // Get all users
+          const usersResponse = await getUsers();
+          let usersArray = [];
+          if (Array.isArray(usersResponse)) {
+            usersArray = usersResponse;
+          } else if (usersResponse && Array.isArray(usersResponse.data)) {
+            usersArray = usersResponse.data;
+          } else if (usersResponse && Array.isArray(usersResponse.users)) {
+            usersArray = usersResponse.users;
+          }
+          
+          console.log('[Delete Party] Total users found:', usersArray.length);
+          
+          // Normalize phone numbers for comparison (remove +, spaces, dashes)
+          const normalizePhone = (phone) => {
+            if (!phone) return '';
+            return String(phone).trim().replace(/^\+/, '').replace(/[\s-]/g, '');
+          };
+          
+          const normalizedPartyPhone = normalizePhone(partyPhone);
+          
+          // Find user by phone number
+          const foundUser = usersArray.find(u => {
+            const userPhone = (u.phone || u.phoneNumber || '').trim();
+            const normalizedUserPhone = normalizePhone(userPhone);
+            
+            return userPhone === partyPhone || 
+                   normalizedUserPhone === normalizedPartyPhone ||
+                   userPhone === `+${partyPhone}` ||
+                   `+${userPhone}` === partyPhone;
+          });
+          
+          if (foundUser) {
+            const userId = foundUser.user_id || foundUser.id;
+            console.log('[Delete Party] Found associated user account:', {
+              userId,
+              userPhone: foundUser.phone || foundUser.phoneNumber,
+              userName: foundUser.full_name || foundUser.name
+            });
+            
+            try {
+              await deleteUser(userId);
+              console.log('[Delete Party] User account deleted successfully');
+              showSuccess('Party and associated user account deleted successfully!');
+            } catch (deleteError) {
+              console.error('[Delete Party] Error calling deleteUser:', deleteError);
+              throw deleteError;
+            }
+          } else {
+            console.warn('[Delete Party] No user account found with phone:', partyPhone);
+            console.warn('[Delete Party] Available user phones:', usersArray.map(u => ({
+              id: u.user_id || u.id,
+              phone: u.phone || u.phoneNumber,
+              name: u.full_name || u.name
+            })));
+            showSuccess('Party deleted successfully! (No associated user account found - check console for details)');
+          }
+        } catch (userDeleteError) {
+          console.error('[Delete Party] Error deleting user account:', userDeleteError);
+          console.error('[Delete Party] Error details:', {
+            message: userDeleteError.message,
+            errorData: userDeleteError.errorData,
+            statusCode: userDeleteError.statusCode
+          });
+          showSuccess('Party deleted successfully! (User account deletion failed - check console for details)');
+        }
+      } else {
+        console.warn('[Delete Party] No phone number found in party record');
+        showSuccess('Party deleted successfully!');
+      }
+      
       setError(null);
     } catch (error) {
       if (!error.message?.toLowerCase().includes('token expired') && 

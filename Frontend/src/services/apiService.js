@@ -181,7 +181,36 @@ const handleResponse = async (response) => {
     throw error;
   }
 
-  return isJson ? await response.json() : await response.text();
+  // Handle successful responses
+  // For DELETE requests, the response might be empty, null, or the string "null"
+  // Read the response as text first (we can only read the body once)
+  const text = await response.text();
+  
+  // If response is empty, return success
+  if (!text || text.trim() === '') {
+    return { message: 'Deleted successfully' };
+  }
+  
+  // If response is the string "null", return success
+  const trimmedText = text.trim();
+  if (trimmedText === 'null' || trimmedText.toLowerCase() === 'null') {
+    return { message: 'Deleted successfully' };
+  }
+  
+  // Try to parse as JSON if content-type suggests JSON
+  if (isJson) {
+    try {
+      return JSON.parse(text);
+    } catch (jsonParseError) {
+      // If JSON parsing fails, log warning but return success for DELETE operations
+      console.warn('[API] Failed to parse JSON response, but operation may have succeeded:', jsonParseError);
+      console.warn('[API] Response text:', text);
+      return { message: 'Deleted successfully' };
+    }
+  }
+  
+  // For non-JSON responses, return the text
+  return text;
 };
 
 /**
@@ -291,18 +320,24 @@ const apiRequest = async (endpoint, options = {}) => {
   };
 
   // Add body for POST/PUT/PATCH requests
-  if (actualMethod !== 'GET') {
+  // DELETE requests should not have a body (or should have undefined body)
+  if (actualMethod !== 'GET' && actualMethod !== 'DELETE') {
     if (requestBody === null) {
-      // Explicitly send null as JSON
-      config.body = 'null';
+      // For POST/PUT/PATCH, if body is explicitly null, don't send body
+      // Don't add body to config
       console.log(`[API Request Body]`, null); // Debug log
     } else if (requestBody) {
       // Clean the body - remove any undefined values and ensure proper JSON
       const cleanBody = JSON.parse(JSON.stringify(requestBody)); // This removes undefined and ensures valid JSON
       config.body = JSON.stringify(cleanBody);
+      config.headers['Content-Type'] = 'application/json';
       console.log(`[API Request Body]`, cleanBody); // Debug log
     }
     // If requestBody is undefined, don't add body
+  } else if (actualMethod === 'DELETE') {
+    // DELETE requests should not have a body
+    // Don't add body to config at all
+    console.log(`[API Request] DELETE request - no body sent`);
   }
 
   try {
