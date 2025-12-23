@@ -84,7 +84,6 @@ const DashboardOrders = () => {
   };
 
   const [createFormData, setCreateFormData] = useState({
-    order_date: new Date().toISOString().split('T')[0],
     order_type: getInitialOrderType(),
     party_id: '',
     distributor_id: '',
@@ -502,11 +501,6 @@ const DashboardOrders = () => {
   // Handle create order
   const handleCreateOrder = async () => {
     try {
-      // Validation
-      if (!createFormData.order_date) {
-        showError('Order date is required');
-        return;
-      }
       // Order type validation
       // Admin doesn't need order type
       // Distributor can select or defaults to distributor_order
@@ -554,9 +548,9 @@ const DashboardOrders = () => {
 
       setLoading(true);
       
-      // Prepare order data
+      // Prepare order data - order_date is automatically set to current date/time
       const orderData = {
-        order_date: new Date(createFormData.order_date).toISOString(),
+        order_date: new Date().toISOString(),
         order_items: createFormData.order_items.map(item => ({
           product_id: item.product_id,
           quantity: Number(item.quantity),
@@ -611,7 +605,6 @@ const DashboardOrders = () => {
   // Reset create form
   const resetCreateForm = () => {
     setCreateFormData({
-      order_date: new Date().toISOString().split('T')[0],
       order_type: getInitialOrderType(),
       party_id: '',
       distributor_id: '',
@@ -856,18 +849,6 @@ const DashboardOrders = () => {
         )}
       >
         <div className="ui-form" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-          {/* Order Date */}
-          <div className="form-group">
-            <label className="ui-label">Order Date <span style={{ color: 'red' }}>*</span></label>
-            <input 
-              type="date"
-              className="ui-input" 
-              value={createFormData.order_date}
-              onChange={(e) => setCreateFormData(prev => ({ ...prev, order_date: e.target.value }))}
-              required
-            />
-          </div>
-
           {/* Order Type - Hidden for admin and party roles */}
           {/* Salesman and Distributor can see order type dropdown */}
           {!isAdmin && !isParty && (

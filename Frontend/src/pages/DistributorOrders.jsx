@@ -62,7 +62,6 @@ const DistributorOrders = () => {
   
   // Create order form data - order_type is auto-set to distributor_order
   const [createFormData, setCreateFormData] = useState({
-    order_date: new Date().toISOString().split('T')[0],
     order_type: 'distributor_order', // Auto-set for distributor
     distributor_id: distributorId || '',
     order_items: [{ product_id: '', quantity: 1, price: 0 }],
@@ -249,10 +248,6 @@ const DistributorOrders = () => {
   const handleCreateOrder = async () => {
     try {
       // Validation
-      if (!createFormData.order_date) {
-        showError('Order date is required');
-        return;
-      }
       if (!distributorId) {
         showError('Distributor ID not found. Please contact support.');
         return;
@@ -265,9 +260,9 @@ const DistributorOrders = () => {
 
       setLoading(true);
       
-      // Prepare order data - order_type is always distributor_order
+      // Prepare order data - order_type is always distributor_order, order_date is automatically set to current date/time
       const orderData = {
-        order_date: new Date(createFormData.order_date).toISOString(),
+        order_date: new Date().toISOString(),
         order_type: 'distributor_order', // Always distributor_order for distributor users
         distributor_id: distributorId,
         order_items: createFormData.order_items.map(item => ({
@@ -295,7 +290,6 @@ const DistributorOrders = () => {
   // Reset create form
   const resetCreateForm = () => {
     setCreateFormData({
-      order_date: new Date().toISOString().split('T')[0],
       order_type: 'distributor_order',
       distributor_id: distributorId || '',
       order_items: [{ product_id: '', quantity: 1, price: 0 }],
@@ -442,18 +436,6 @@ const DistributorOrders = () => {
         )}
       >
         <div className="ui-form" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-          {/* Order Date */}
-          <div className="form-group">
-            <label className="ui-label">Order Date <span style={{ color: 'red' }}>*</span></label>
-            <input 
-              type="date"
-              className="ui-input" 
-              value={createFormData.order_date}
-              onChange={(e) => setCreateFormData(prev => ({ ...prev, order_date: e.target.value }))}
-              required
-            />
-          </div>
-
           {/* Order Type - Hidden, auto-set to distributor_order */}
           <div className="form-group" style={{ display: 'none' }}>
             <label className="ui-label">Order Type</label>
