@@ -284,11 +284,18 @@ const Products = ({ onPageChange }) => {
       if (!imagePath || typeof imagePath !== 'string') return null;
       
       // Remove any query parameters or fragments
-      const cleanPath = imagePath.split('?')[0].split('#')[0];
+      let cleanPath = imagePath.split('?')[0].split('#')[0];
+      
+      // Remove any trailing JSON syntax characters (like \]", ]", \", etc.)
+      // Remove backslashes, closing brackets, and quotes at the end
+      cleanPath = cleanPath.replace(/([\]"\\])+$/, '');
       
       // Extract filename from path (handles "/uploads/products/filename.webp" or full paths)
       const parts = cleanPath.split('/');
-      const filename = parts[parts.length - 1];
+      let filename = parts[parts.length - 1];
+      
+      // Clean filename: remove any remaining JSON syntax characters
+      filename = filename.replace(/([\]"\\])+$/, '');
       
       // Make sure we got a valid filename (not empty, has extension)
       if (filename && filename.includes('.')) {
@@ -687,12 +694,12 @@ const Products = ({ onPageChange }) => {
         {/* Products Grid */}
         <main className="products-main">
           <div className="products-header">
-            <h2>{loading ? 'Loading...' : `${totalResults} results`}</h2>
+            <h2>{loading ? '' : `${totalResults} results`}</h2>
           </div>
           <div className="products-grid-container">
             {loading ? (
-              <div style={{ padding: '40px', textAlign: 'center' }}>
-                Loading products...
+              <div className="white-loader-container" style={{ gridColumn: '1 / -1' }}>
+                <div className="white-loader"></div>
               </div>
             ) : error ? (
               <div style={{ padding: '40px', textAlign: 'center', color: 'red' }}>

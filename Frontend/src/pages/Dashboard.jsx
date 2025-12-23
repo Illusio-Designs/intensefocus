@@ -1,11 +1,166 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import '../styles/pages/dashboard.css';
 import SalesRevenueChart from '../components/charts/SalesRevenueChart';
 import RowActions from '../components/ui/RowActions';
 import StatusBadge from '../components/ui/StatusBadge';
+import { getOrders, getProducts } from '../services/apiService';
+import { getUserRole, getUser } from '../services/authService';
 
 const Dashboard = () => {
   const [period, setPeriod] = useState('Monthly');
+  const [orders, setOrders] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const userRole = getUserRole();
+  const user = getUser();
+  const isAdmin = userRole === 'admin';
+  const isDistributor = userRole === 'distributor';
+  const isParty = userRole === 'party';
+  const isSalesman = userRole === 'salesman';
+
+  // Fetch orders and products on mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [ordersData, productsData] = await Promise.all([
+          getOrders(),
+          getProducts()
+        ]);
+        
+        // Filter orders based on role
+        let filteredOrders = Array.isArray(ordersData) ? ordersData : [];
+        
+        if (isDistributor && user?.distributor_id) {
+          // Filter orders for this distributor
+          filteredOrders = filteredOrders.filter(order => 
+            order.distributor_id === user.distributor_id || 
+            order.distributor?.distributor_id === user.distributor_id ||
+            order.distributor?.id === user.distributor_id
+          );
+        } else if (isParty && user?.party_id) {
+          // Filter orders for this party
+          filteredOrders = filteredOrders.filter(order => 
+            order.party_id === user.party_id || 
+            order.party?.party_id === user.party_id ||
+            order.party?.id === user.party_id
+          );
+        } else if (isSalesman && user?.salesman_id) {
+          // Filter orders for this salesman
+          filteredOrders = filteredOrders.filter(order => 
+            order.salesman_id === user.salesman_id || 
+            order.salesman?.salesman_id === user.salesman_id ||
+            order.salesman?.id === user.salesman_id
+          );
+        }
+        
+        setOrders(filteredOrders);
+        setProducts(Array.isArray(productsData) ? productsData : []);
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error);
+        setOrders([]);
+        setProducts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [userRole, user, isDistributor, isParty, isSalesman]);
+
+  // Calculate dashboard statistics
+  const stats = useMemo(() => {
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    
+    // Filter orders for current month
+    const currentMonthOrders = orders.filter(order => {
+      if (!order.order_date) return false;
+      const orderDate = new Date(order.order_date);
+      return orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear;
+    });
+    
+    // Calculate total sales for current month
+    const totalSales = currentMonthOrders.reduce((sum, order) => {
+      return sum + (order.total_value || order.total_amount || 0);
+    }, 0);
+    
+    // Calculate total orders
+    const totalOrders = orders.length;
+    
+    // Count by order type
+    const retailOrders = orders.filter(o => 
+      o.order_type?.includes('retail') || o.order_type === 'retail_order'
+    ).length;
+    const bulkOrders = orders.filter(o => 
+      o.order_type?.includes('bulk') || o.order_type === 'bulk_order'
+    ).length;
+    
+    // Calculate completed orders value
+    const completedOrders = orders.filter(o => 
+      o.order_status?.toLowerCase() === 'completed'
+    );
+    const completedValue = completedOrders.reduce((sum, o) => {
+      return sum + (o.total_value || o.total_amount || 0);
+    }, 0);
+    
+    // Calculate pending payments (orders that are not completed)
+    const pendingOrders = orders.filter(o => 
+      o.order_status?.toLowerCase() !== 'completed' && 
+      o.order_status?.toLowerCase() !== 'cancelled'
+    );
+    const pendingPayments = pendingOrders.reduce((sum, o) => {
+      return sum + (o.total_value || o.total_amount || 0);
+    }, 0);
+    
+    // Get unique clients count
+    const uniqueClients = new Set();
+    orders.forEach(order => {
+      if (order.party_id) uniqueClients.add(order.party_id);
+      if (order.party?.party_id) uniqueClients.add(order.party.party_id);
+      if (order.party?.id) uniqueClients.add(order.party.id);
+    });
+    
+    return {
+      totalSales,
+      totalOrders,
+      retailOrders,
+      bulkOrders,
+      completedValue,
+      pendingPayments,
+      activeClients: uniqueClients.size
+    };
+  }, [orders]);
+
+  // Get recent orders for table (limit to 5)
+  const recentOrders = useMemo(() => {
+    return orders
+      .sort((a, b) => {
+        const dateA = new Date(a.order_date || 0);
+        const dateB = new Date(b.order_date || 0);
+        return dateB - dateA;
+      })
+      .slice(0, 5)
+      .map(order => {
+        const orderId = order.order_id || order.id;
+        const partyName = order.party?.party_name || order.party_name || 'N/A';
+        const orderItems = Array.isArray(order.order_items) ? order.order_items : [];
+        const firstItem = orderItems[0] || {};
+        const productName = firstItem.product?.model_no || firstItem.product_name || 'N/A';
+        const quantity = orderItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
+        const status = order.order_status?.toUpperCase() || 'PENDING';
+        const value = order.total_value || order.total_amount || 0;
+        
+        return {
+          id: `#${orderId?.toString().slice(-6) || 'N/A'}`,
+          client: partyName,
+          product: productName,
+          qty: quantity,
+          status: status,
+          value: `₹${value.toLocaleString('en-IN')}`
+        };
+      });
+  }, [orders]);
 
   return (
     <div className="dash-page">
@@ -13,22 +168,30 @@ const Dashboard = () => {
         <div className="dash-row">
           <div className="dash-card metric">
             <h4>Total Sales (This Month)</h4>
-            <div className="metric-value">₹12,45,000</div>
+            <div className="metric-value">
+              {loading ? 'Loading...' : `₹${stats.totalSales.toLocaleString('en-IN')}`}
+            </div>
             <div className="metric-sub green">↑ 12% vs last month</div>
           </div>
           <div className="dash-card metric">
             <h4>Total Orders</h4>
-            <div className="metric-value">845 Orders</div>
-            <div className="metric-sub">Retail 620 | Bulk 225</div>
+            <div className="metric-value">
+              {loading ? 'Loading...' : `${stats.totalOrders} Orders`}
+            </div>
+            <div className="metric-sub">Retail {stats.retailOrders} | Bulk {stats.bulkOrders}</div>
           </div>
           <div className="dash-card metric">
             <h4>Active Clients</h4>
-            <div className="metric-value">549</div>
+            <div className="metric-value">
+              {loading ? 'Loading...' : stats.activeClients}
+            </div>
             <div className="metric-sub">Optical Stores + Enterprises</div>
           </div>
           <div className="dash-card metric">
             <h4>Pending Payments</h4>
-            <div className="metric-value">₹2,10,000</div>
+            <div className="metric-value">
+              {loading ? 'Loading...' : `₹${stats.pendingPayments.toLocaleString('en-IN')}`}
+            </div>
             <div className="metric-sub red">↓ 10% vs last month</div>
           </div>
         </div>
@@ -118,22 +281,37 @@ const Dashboard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {[
-                    {id:'#250985', client:'XYZ Optical', product:'Italian Glasses', qty:200, status:'PROCESSING', value:'₹85,000'},
-                    {id:'#250985', client:'ABC Pharma', product:'Safety Goggles', qty:500, status:'PENDING', value:'₹1,50,000'},
-                  ].map((r,i)=> (
-                    <tr key={i}>
-                      <td style={{padding:'14px 0'}}>{r.id}</td>
-                      <td style={{padding:'14px 0'}}>{r.client}</td>
-                      <td style={{padding:'14px 0', color:'#6b7280'}}>{r.product}</td>
-                      <td style={{padding:'14px 0'}}>{r.qty}</td>
-                      <td style={{padding:'14px 0'}}><StatusBadge status={r.status.toLowerCase()}>{r.status}</StatusBadge></td>
-                      <td style={{padding:'14px 0'}}>{r.value}</td>
-                      <td style={{padding:'14px 0'}}>
-                        <RowActions onView={()=>console.log('view', r)} />
+                  {loading ? (
+                    <tr>
+                      <td colSpan="7" style={{padding:'20px', textAlign:'center', color:'#6b7280'}}>
+                        Loading orders...
                       </td>
                     </tr>
-                  ))}
+                  ) : recentOrders.length === 0 ? (
+                    <tr>
+                      <td colSpan="7" style={{padding:'20px', textAlign:'center', color:'#6b7280'}}>
+                        No orders found
+                      </td>
+                    </tr>
+                  ) : (
+                    recentOrders.map((r,i)=> (
+                      <tr key={i}>
+                        <td style={{padding:'14px 0'}}>{r.id}</td>
+                        <td style={{padding:'14px 0'}}>{r.client}</td>
+                        <td style={{padding:'14px 0', color:'#6b7280'}}>{r.product}</td>
+                        <td style={{padding:'14px 0'}}>{r.qty}</td>
+                        <td style={{padding:'14px 0'}}>
+                          <StatusBadge status={r.status.toLowerCase().replace(/\s+/g, '-')}>
+                            {r.status}
+                          </StatusBadge>
+                        </td>
+                        <td style={{padding:'14px 0'}}>{r.value}</td>
+                        <td style={{padding:'14px 0'}}>
+                          <RowActions onView={()=>console.log('view', r)} />
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

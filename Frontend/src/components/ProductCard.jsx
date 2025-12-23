@@ -29,13 +29,18 @@ const ProductCard = ({
       return '/images/products/spac1.webp';
     }
     
-    // If already a full URL (starts with http), use it as-is
+    // If already a full URL (starts with http), use it as-is (but clean it first)
     if (productImage.startsWith('http')) {
-      return productImage;
+      // Remove any trailing JSON syntax characters (backslashes, brackets, quotes)
+      let cleaned = productImage.replace(/([\]"\\])+$/, '');
+      return cleaned;
     }
     
     // Remove any query parameters or fragments
-    const cleanPath = productImage.split('?')[0].split('#')[0];
+    let cleanPath = productImage.split('?')[0].split('#')[0];
+    
+    // Remove any trailing JSON syntax characters (like \]", ]", \", etc.)
+    cleanPath = cleanPath.replace(/([\]"\\])+$/, '');
     
     // Extract filename from path
     // Handles paths like:
@@ -43,7 +48,10 @@ const ProductCard = ({
     // - "/Users/.../uploads/products/filename.jpg" -> "filename.jpg"
     // - "filename.webp" -> "filename.webp"
     const parts = cleanPath.split('/');
-    const filename = parts[parts.length - 1];
+    let filename = parts[parts.length - 1];
+    
+    // Clean filename: remove any remaining JSON syntax characters
+    filename = filename.replace(/([\]"\\])+$/, '');
     
     // Make sure we got a valid filename (not empty, has extension)
     if (filename && filename.includes('.')) {

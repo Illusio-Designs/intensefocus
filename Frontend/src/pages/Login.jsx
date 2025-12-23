@@ -104,8 +104,10 @@ const Login = ({ onPageChange }) => {
     const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
 
     try {
+      console.log('[Login] Checking user with phone:', formattedPhone);
       // Check user and auto-send OTP via MSG91
       const response = await checkUser(formattedPhone);
+      console.log('[Login] Check user response:', response);
       
       if (response.otpSent) {
         // Initialize OTP widget for verification
@@ -127,8 +129,29 @@ const Login = ({ onPageChange }) => {
         showError(response.otpError || 'Failed to send OTP. Please try again.');
       }
     } catch (error) {
-      console.error('Check user error:', error);
-      showError(error.message || 'Something went wrong. Please try again.');
+      console.error('[Login] Check user error:', error);
+      console.error('[Login] Error details:', {
+        message: error.message,
+        statusCode: error.statusCode,
+        statusText: error.statusText,
+        errorData: error.errorData,
+        response: error.response,
+        phoneNumber: formattedPhone
+      });
+      
+      // Check if it's a 400 "User not found" error
+      const errorMessage = (error.message || '').toLowerCase();
+      const errorDataMessage = (error.errorData?.error || error.errorData?.message || error.errorData?.msg || '').toLowerCase();
+      const errorText = JSON.stringify(error.errorData || {}).toLowerCase();
+      
+      if (error.statusCode === 400 || 
+          errorMessage.includes('user not found') || 
+          errorDataMessage.includes('user not found') ||
+          errorText.includes('user not found')) {
+        showError('User not found. Please ensure your phone number is registered. If you were just created by an administrator, please wait a few moments and try again, or contact your administrator.');
+      } else {
+        showError(error.message || 'Something went wrong. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

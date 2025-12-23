@@ -104,20 +104,7 @@
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
-/* Position tooltip below for first row to avoid header overlap */
-.ui-table tbody tr:first-child .has-tt .ui-tt {
-  bottom: auto;
-  top: calc(100% + 8px);
-  transform: translateX(-50%) translateY(-4px);
-}
-.ui-table tbody tr:first-child .has-tt:hover .ui-tt {
-  transform: translateX(-50%) translateY(0);
-}
-.ui-table tbody tr:first-child .has-tt .ui-tt::after {
-  bottom: auto;
-  top: -6px;
-  border-color: transparent transparent #0d0a34 transparent;
-}
+
 .has-tt .ui-tt::after {
   content: '';
   position: absolute;
@@ -584,7 +571,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   background: #ffffff;
-  z-index: 100;
+  z-index: 1;
 }
 .ui-th {
   display: inline-flex;

@@ -151,8 +151,8 @@ const Home = ({ onPageChange }) => {
 
         <div className="collection-filters">
           {loadingCollections ? (
-            <div style={{ textAlign: 'center', padding: '1rem' }}>
-              Loading collections...
+            <div className="white-loader-container" style={{ padding: '1rem' }}>
+              <div className="white-loader"></div>
             </div>
           ) : (
             filters.map((filter) => (
@@ -169,8 +169,8 @@ const Home = ({ onPageChange }) => {
 
         <div className="products-grid">
           {loadingProducts ? (
-            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '2rem' }}>
-              Loading products...
+            <div style={{ gridColumn: '1 / -1' }} className="white-loader-container">
+              <div className="white-loader"></div>
             </div>
           ) : featuredProducts.length > 0 ? (
             featuredProducts.map((product) => {

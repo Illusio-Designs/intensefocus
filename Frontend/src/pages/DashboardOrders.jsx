@@ -17,6 +17,7 @@ import {
   getCountries
 } from '../services/apiService';
 import { showSuccess, showError } from '../services/notificationService';
+import { getUserRole, getUser } from '../services/authService';
 import '../styles/pages/dashboard-orders.css';
 
 // Map API status to UI status
@@ -55,20 +56,36 @@ const DashboardOrders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const userRole = getUserRole();
+  const user = getUser();
+  const isAdmin = userRole === 'admin';
+  const isDistributor = userRole === 'distributor';
+  const isParty = userRole === 'party';
+  const isSalesman = userRole === 'salesman';
   
   // Dropdown data
   const [countries, setCountries] = useState([]);
   const [selectedCountry, setSelectedCountry] = useState(null);
-  const [parties, setParties] = useState([]);
+  const [allParties, setAllParties] = useState([]); // Store all parties fetched from API
+  const [parties, setParties] = useState([]); // Filtered parties to display
   const [distributors, setDistributors] = useState([]);
   const [salesmen, setSalesmen] = useState([]);
   const [events, setEvents] = useState([]);
   const [products, setProducts] = useState([]);
   
   // Create order form data
+  // Auto-set order_type based on role
+  // Distributor can select order type, but defaults to distributor_order
+  const getInitialOrderType = () => {
+    if (isParty) return 'party_order';
+    // Distributor can select, but default is distributor_order
+    if (isDistributor) return 'distributor_order';
+    return '';
+  };
+
   const [createFormData, setCreateFormData] = useState({
     order_date: new Date().toISOString().split('T')[0],
-    order_type: '',
+    order_type: getInitialOrderType(),
     party_id: '',
     distributor_id: '',
     salesman_id: '',
@@ -83,7 +100,37 @@ const DashboardOrders = () => {
       setLoading(true);
       setError(null);
       const response = await getOrders();
-      setOrders(Array.isArray(response) ? response : []);
+      let allOrders = Array.isArray(response) ? response : [];
+      
+      // Filter orders based on role - only show orders created by the logged-in user
+      if (isDistributor && user?.distributor_id) {
+        // Filter orders for this distributor
+        const distributorId = String(user.distributor_id).trim();
+        allOrders = allOrders.filter(order => {
+          const orderDistributorId = order.distributor_id || order.distributor?.distributor_id || order.distributor?.id;
+          return orderDistributorId && String(orderDistributorId).trim() === distributorId;
+        });
+        console.log('[fetchOrders] Filtered orders for distributor:', distributorId, 'Total:', allOrders.length);
+      } else if (isParty && user?.party_id) {
+        // Filter orders for this party
+        const partyId = String(user.party_id).trim();
+        allOrders = allOrders.filter(order => {
+          const orderPartyId = order.party_id || order.party?.party_id || order.party?.id;
+          return orderPartyId && String(orderPartyId).trim() === partyId;
+        });
+        console.log('[fetchOrders] Filtered orders for party:', partyId, 'Total:', allOrders.length);
+      } else if (isSalesman && user?.salesman_id) {
+        // Filter orders for this salesman
+        const salesmanId = String(user.salesman_id).trim();
+        allOrders = allOrders.filter(order => {
+          const orderSalesmanId = order.salesman_id || order.salesman?.salesman_id || order.salesman?.id;
+          return orderSalesmanId && String(orderSalesmanId).trim() === salesmanId;
+        });
+        console.log('[fetchOrders] Filtered orders for salesman:', salesmanId, 'Total:', allOrders.length);
+      }
+      // Admin sees all orders (no filtering)
+      
+      setOrders(allOrders);
     } catch (err) {
       const message = err?.response?.data?.message || err?.message || 'Failed to fetch orders';
       const errorMessage = (message || '').toLowerCase();
@@ -149,9 +196,42 @@ const DashboardOrders = () => {
     }
   }, [createFormData.order_type, events.length, fetchEvents]);
 
+  // Filter parties based on salesman zone and order type
+  const filterPartiesByZone = useCallback((partiesList, orderType) => {
+    if (!isSalesman || !user?.zone_preference) {
+      // Not a salesman or no zone preference, show all parties
+      setParties(partiesList);
+      return;
+    }
+
+    const salesmanZone = String(user.zone_preference).trim();
+    
+    // For event_order, show all parties regardless of zone
+    if (orderType === 'event_order') {
+      setParties(partiesList);
+      return;
+    }
+
+    // For visit_order and whatsapp_order, filter by zone
+    if (orderType === 'visit_order' || orderType === 'whatsapp_order') {
+      const filteredParties = partiesList.filter(party => {
+        const partyZoneId = party.zone_id || party.zoneId;
+        if (!partyZoneId) return false;
+        return String(partyZoneId).trim() === salesmanZone;
+      });
+      console.log('[filterPartiesByZone] Filtered parties for zone:', salesmanZone, 'Order type:', orderType, 'Total:', partiesList.length, 'Filtered:', filteredParties.length);
+      setParties(filteredParties);
+      return;
+    }
+
+    // For other order types, show all parties
+    setParties(partiesList);
+  }, [isSalesman, user]);
+
   // Fetch parties when country is selected
   const fetchPartiesForCountry = useCallback(async (countryId) => {
     if (!countryId) {
+      setAllParties([]);
       setParties([]);
       return;
     }
@@ -160,6 +240,7 @@ const DashboardOrders = () => {
       const cleanCountryId = String(countryId).trim();
       if (!cleanCountryId || cleanCountryId === 'undefined' || cleanCountryId === 'null') {
         console.error('[fetchPartiesForCountry] Invalid country ID:', countryId);
+        setAllParties([]);
         setParties([]);
         return;
       }
@@ -167,12 +248,15 @@ const DashboardOrders = () => {
       console.log('[fetchPartiesForCountry] Fetching parties for country:', cleanCountryId);
       const partiesData = await getParties(cleanCountryId);
       console.log('[fetchPartiesForCountry] Received', partiesData?.length || 0, 'parties');
-      setParties(partiesData || []);
+      setAllParties(partiesData || []);
+      // Apply filtering based on order type and salesman zone
+      filterPartiesByZone(partiesData || [], createFormData.order_type);
     } catch (err) {
       console.error('Failed to fetch parties:', err);
+      setAllParties([]);
       setParties([]);
     }
-  }, []);
+  }, [filterPartiesByZone, createFormData.order_type]);
 
   // Fetch distributors when country is selected
   const fetchDistributorsForCountry = useCallback(async (countryId) => {
@@ -224,11 +308,19 @@ const DashboardOrders = () => {
     }
   }, []);
 
+  // Apply filtering when order type changes (for salesman)
+  useEffect(() => {
+    if (isSalesman && allParties.length > 0) {
+      filterPartiesByZone(allParties, createFormData.order_type);
+    }
+  }, [createFormData.order_type, isSalesman, allParties, filterPartiesByZone]);
+
   // Fetch parties when country is selected
   useEffect(() => {
     if (selectedCountry) {
       fetchPartiesForCountry(selectedCountry);
     } else {
+      setAllParties([]);
       setParties([]);
     }
   }, [selectedCountry, fetchPartiesForCountry]);
@@ -415,9 +507,19 @@ const DashboardOrders = () => {
         showError('Order date is required');
         return;
       }
-      if (!createFormData.order_type) {
+      // Order type validation
+      // Admin doesn't need order type
+      // Distributor can select or defaults to distributor_order
+      // Party auto-sets to party_order
+      // Salesman must select order type
+      if (!isAdmin && !isDistributor && !isParty && !createFormData.order_type) {
         showError('Order type is required');
         return;
+      }
+      
+      // For distributor, if no order type selected, default to distributor_order
+      if (isDistributor && !createFormData.order_type) {
+        createFormData.order_type = 'distributor_order';
       }
       if (createFormData.order_items.length === 0 || 
           createFormData.order_items.some(item => !item.product_id || !item.quantity || !item.price)) {
@@ -427,21 +529,27 @@ const DashboardOrders = () => {
 
       // Validate conditional fields based on order type
       const orderType = createFormData.order_type;
-      if (['event_order', 'party_order', 'visit_order', 'whatsapp_order'].includes(orderType) && !createFormData.party_id) {
-        showError('Party is required for this order type');
-        return;
-      }
-      if (['event_order', 'party_order', 'distributor_order', 'visit_order', 'whatsapp_order'].includes(orderType) && !createFormData.distributor_id) {
-        showError('Distributor is required for this order type');
-        return;
-      }
-      if (['event_order', 'visit_order', 'whatsapp_order'].includes(orderType) && !createFormData.salesman_id) {
-        showError('Salesman is required for this order type');
-        return;
-      }
-      if (orderType === 'event_order' && !createFormData.event_id) {
-        showError('Event is required for event orders');
-        return;
+      
+      // Skip validation for distributor and party roles (they auto-set their IDs)
+      // Salesman auto-sets their ID, but still needs party and distributor for their order types
+      if (!isDistributor && !isParty) {
+        if (['event_order', 'party_order', 'visit_order', 'whatsapp_order'].includes(orderType) && !createFormData.party_id) {
+          showError('Party is required for this order type');
+          return;
+        }
+        if (['event_order', 'party_order', 'distributor_order', 'visit_order', 'whatsapp_order'].includes(orderType) && !createFormData.distributor_id) {
+          showError('Distributor is required for this order type');
+          return;
+        }
+        // Salesman ID is auto-set for salesman role, but still validate for other roles
+        if (!isSalesman && ['event_order', 'visit_order', 'whatsapp_order'].includes(orderType) && !createFormData.salesman_id) {
+          showError('Salesman is required for this order type');
+          return;
+        }
+        if (orderType === 'event_order' && !createFormData.event_id) {
+          showError('Event is required for event orders');
+          return;
+        }
       }
 
       setLoading(true);
@@ -449,17 +557,40 @@ const DashboardOrders = () => {
       // Prepare order data
       const orderData = {
         order_date: new Date(createFormData.order_date).toISOString(),
-        order_type: createFormData.order_type,
         order_items: createFormData.order_items.map(item => ({
           product_id: item.product_id,
           quantity: Number(item.quantity),
           price: Number(item.price)
         }))
       };
+      
+      // Include order_type
+      // For distributor, if not selected, default to distributor_order
+      const finalOrderType = createFormData.order_type || (isDistributor ? 'distributor_order' : '');
+      if (finalOrderType) {
+        orderData.order_type = finalOrderType;
+      }
 
-      if (createFormData.party_id) orderData.party_id = createFormData.party_id;
-      if (createFormData.distributor_id) orderData.distributor_id = createFormData.distributor_id;
-      if (createFormData.salesman_id) orderData.salesman_id = createFormData.salesman_id;
+      // Auto-set distributor_id for distributor role
+      if (isDistributor && user?.distributor_id) {
+        orderData.distributor_id = user.distributor_id;
+      } else if (createFormData.distributor_id) {
+        orderData.distributor_id = createFormData.distributor_id;
+      }
+
+      // Auto-set party_id for party role
+      if (isParty && user?.party_id) {
+        orderData.party_id = user.party_id;
+      } else if (createFormData.party_id) {
+        orderData.party_id = createFormData.party_id;
+      }
+
+      // Auto-set salesman_id for salesman role
+      if (isSalesman && user?.salesman_id) {
+        orderData.salesman_id = user.salesman_id;
+      } else if (createFormData.salesman_id) {
+        orderData.salesman_id = createFormData.salesman_id;
+      }
       if (createFormData.event_id) orderData.event_id = createFormData.event_id;
       if (createFormData.order_notes) orderData.order_notes = createFormData.order_notes;
 
@@ -481,7 +612,7 @@ const DashboardOrders = () => {
   const resetCreateForm = () => {
     setCreateFormData({
       order_date: new Date().toISOString().split('T')[0],
-      order_type: '',
+      order_type: getInitialOrderType(),
       party_id: '',
       distributor_id: '',
       salesman_id: '',
@@ -737,32 +868,62 @@ const DashboardOrders = () => {
             />
           </div>
 
-          {/* Order Type */}
-          <div className="form-group">
-            <label className="ui-label">Order Type <span style={{ color: 'red' }}>*</span></label>
-            <select 
-              className="ui-select"
-              value={createFormData.order_type}
-              onChange={(e) => {
-                setCreateFormData(prev => ({ 
-                  ...prev, 
-                  order_type: e.target.value,
-                  party_id: '',
-                  distributor_id: '',
-                  salesman_id: '',
-                  event_id: ''
-                }));
-              }}
-              required
-            >
-              <option value="">Select Order Type</option>
-              <option value="event_order">Event Order</option>
-              <option value="party_order">Party Order</option>
-              <option value="distributor_order">Distributor Order</option>
-              <option value="visit_order">Visit Order</option>
-              <option value="whatsapp_order">WhatsApp Order</option>
-            </select>
-          </div>
+          {/* Order Type - Hidden for admin and party roles */}
+          {/* Salesman and Distributor can see order type dropdown */}
+          {!isAdmin && !isParty && (
+            <div className="form-group">
+              <label className="ui-label">
+                Order Type 
+                {!isDistributor && <span style={{ color: 'red' }}>*</span>}
+                {isDistributor && <span style={{ color: '#666', fontSize: '12px' }}> (Default: Distributor Order)</span>}
+              </label>
+              <select 
+                className="ui-select"
+                value={createFormData.order_type}
+                onChange={(e) => {
+                  const newOrderType = e.target.value;
+                  setCreateFormData(prev => ({ 
+                    ...prev, 
+                    order_type: newOrderType,
+                    party_id: '',
+                    distributor_id: '',
+                    salesman_id: '',
+                    event_id: ''
+                  }));
+                  // Re-filter parties when order type changes (for salesman)
+                  if (isSalesman && allParties.length > 0) {
+                    filterPartiesByZone(allParties, newOrderType);
+                  }
+                }}
+                required={!isDistributor}
+              >
+                <option value="">Select Order Type</option>
+                {isSalesman ? (
+                  // Salesman can only create these 3 order types
+                  <>
+                    <option value="visit_order">Visit Order</option>
+                    <option value="whatsapp_order">WhatsApp Order</option>
+                    <option value="event_order">Event Order</option>
+                  </>
+                ) : isDistributor ? (
+                  // Distributor can create distributor_order or party_order
+                  <>
+                    <option value="distributor_order">Distributor Order</option>
+                    <option value="party_order">Party Order</option>
+                  </>
+                ) : (
+                  // Other roles see all order types
+                  <>
+                    <option value="event_order">Event Order</option>
+                    <option value="party_order">Party Order</option>
+                    <option value="distributor_order">Distributor Order</option>
+                    <option value="visit_order">Visit Order</option>
+                    <option value="whatsapp_order">WhatsApp Order</option>
+                  </>
+                )}
+              </select>
+            </div>
+          )}
 
           {/* Country Selection (for fetching parties, distributors, salesmen) */}
           <div className="form-group">
@@ -810,8 +971,17 @@ const DashboardOrders = () => {
               {!selectedCountry && (
                 <small style={{ color: '#666', fontSize: '12px' }}>Please select a country first</small>
               )}
-              {selectedCountry && parties.length === 0 && (
+              {selectedCountry && parties.length === 0 && allParties.length > 0 && isSalesman && (createFormData.order_type === 'visit_order' || createFormData.order_type === 'whatsapp_order') && (
+                <small style={{ color: '#666', fontSize: '12px' }}>No parties found in your zone for this order type</small>
+              )}
+              {selectedCountry && parties.length === 0 && allParties.length === 0 && (
                 <small style={{ color: '#666', fontSize: '12px' }}>No parties available for this country</small>
+              )}
+              {selectedCountry && parties.length > 0 && isSalesman && (createFormData.order_type === 'visit_order' || createFormData.order_type === 'whatsapp_order') && (
+                <small style={{ color: '#666', fontSize: '12px' }}>Showing parties from your zone only</small>
+              )}
+              {selectedCountry && parties.length > 0 && isSalesman && createFormData.order_type === 'event_order' && (
+                <small style={{ color: '#666', fontSize: '12px' }}>Showing all parties for event orders</small>
               )}
             </div>
           )}
@@ -851,8 +1021,8 @@ const DashboardOrders = () => {
             </div>
           )}
 
-          {/* Salesman ID - Conditional */}
-          {(isFieldRequired('salesman_id') || createFormData.salesman_id) && (
+          {/* Salesman ID - Conditional - Hidden for salesman role (auto-set) */}
+          {!isSalesman && (isFieldRequired('salesman_id') || createFormData.salesman_id) && (
             <div className="form-group">
               <label className="ui-label">
                 Salesman {isFieldRequired('salesman_id') && <span style={{ color: 'red' }}>*</span>}

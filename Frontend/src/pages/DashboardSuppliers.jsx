@@ -11,6 +11,8 @@ import {
   getStates,
   getCities,
   getZones,
+  register,
+  getRoles,
 } from '../services/apiService';
 import { showSuccess, showError } from '../services/notificationService';
 import { getUser } from '../services/authService';
@@ -572,9 +574,62 @@ const DashboardSuppliers = () => {
           return;
         }
       } else {
-        // Create new salesman
+        // Create new salesman - first create user account
         try {
-          const newSalesman = await createSalesman(dataToSend);
+          // Format phone number to E.164 format
+          let phoneNumber = formData.phone.trim();
+          if (!phoneNumber.startsWith('+')) {
+            phoneNumber = phoneNumber.replace(/^0+/, '');
+            if (!phoneNumber.startsWith('91')) {
+              phoneNumber = `91${phoneNumber}`;
+            }
+            phoneNumber = `+${phoneNumber}`;
+          }
+
+          // Get roles to find salesman role ID
+          const rolesResponse = await getRoles();
+          let rolesArray = [];
+          if (Array.isArray(rolesResponse)) {
+            rolesArray = rolesResponse;
+          } else if (rolesResponse && Array.isArray(rolesResponse.data)) {
+            rolesArray = rolesResponse.data;
+          } else if (rolesResponse && Array.isArray(rolesResponse.roles)) {
+            rolesArray = rolesResponse.roles;
+          }
+
+          // Find salesman role ID
+          const salesmanRole = rolesArray.find(r => {
+            const roleName = (r.role_name || r.name || r.roleName || r.title || r.role || '').toLowerCase().trim();
+            return roleName === 'salesman' || roleName === 'salesmen';
+          });
+
+          if (!salesmanRole) {
+            throw new Error('Salesman role not found. Please contact administrator.');
+          }
+
+          const salesmanRoleId = salesmanRole.role_id || salesmanRole.id || salesmanRole.roleId;
+
+          // Create user account first
+          const userData = {
+            phoneNumber,
+            fullName: formData.full_name.trim(),
+            roleId: salesmanRoleId,
+          };
+
+          const registeredUser = await register(userData);
+          const newUserId = registeredUser.user_id || registeredUser.id || registeredUser.user?.user_id || registeredUser.user?.id;
+
+          if (!newUserId) {
+            throw new Error('Failed to create user account. User ID not returned.');
+          }
+
+          // Now create salesman with the new user_id
+          const salesmanData = {
+            ...dataToSend,
+            user_id: newUserId,
+          };
+
+          const newSalesman = await createSalesman(salesmanData);
           
           // Optimistically add to table if it matches the current filter
           if (selectedCountryFilter && newSalesman && newSalesman.country_id === selectedCountryFilter) {

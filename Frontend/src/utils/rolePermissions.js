@@ -72,6 +72,24 @@ export const ROLE_PERMISSIONS = {
     ALL_PAGES.DISTRIBUTOR,
     ALL_PAGES.SETTINGS,
   ],
+  'distributor': [
+    ALL_PAGES.DASHBOARD,
+    ALL_PAGES.ORDERS,
+    ALL_PAGES.PARTY,
+    ALL_PAGES.SETTINGS,
+  ],
+  'party': [
+    ALL_PAGES.DASHBOARD,
+    ALL_PAGES.ORDERS,
+    ALL_PAGES.SETTINGS,
+  ],
+  'salesman': [
+    ALL_PAGES.DASHBOARD,
+    ALL_PAGES.ORDERS,
+    ALL_PAGES.ANALYTICS, // Reports
+    ALL_PAGES.PARTY,
+    ALL_PAGES.SETTINGS,
+  ],
 };
 
 /**

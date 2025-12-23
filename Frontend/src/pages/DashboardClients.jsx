@@ -11,10 +11,17 @@ import {
   getStates,
   getCities,
   getZones,
+  register,
+  getRoles,
 } from '../services/apiService';
 import { showSuccess, showError } from '../services/notificationService';
+import { getUserRole, getUser } from '../services/authService';
 
 const DashboardClients = () => {
+  const userRole = getUserRole();
+  const user = getUser();
+  const isSalesman = userRole === 'salesman';
+  const isDistributor = userRole === 'distributor';
   const [activeTab, setActiveTab] = useState('All');
   const [openAdd, setOpenAdd] = useState(false);
   const [editRow, setEditRow] = useState(null);
@@ -236,8 +243,20 @@ const DashboardClients = () => {
         }
       }
       
+      // Filter by zone for salesman and distributor
+      let filteredParties = validParties;
+      if ((isSalesman || isDistributor) && user?.zone_preference) {
+        const userZone = String(user.zone_preference).trim();
+        filteredParties = validParties.filter(party => {
+          const partyZoneId = party.zone_id || party.zoneId;
+          if (!partyZoneId) return false;
+          return String(partyZoneId).trim() === userZone;
+        });
+        console.log('[fetchPartiesForCountry] Filtered parties by zone:', userZone, 'Total:', validParties.length, 'Filtered:', filteredParties.length);
+      }
+      
       // Ensure all parties have consistent ID field and preserve all fields including state/city/zone
-      const normalizedParties = validParties.map(party => {
+      const normalizedParties = filteredParties.map(party => {
         const partyId = party.id || party.party_id || party._id;
         return { 
           ...party, 
@@ -271,7 +290,7 @@ const DashboardClients = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isSalesman, isDistributor, user]);
 
   // Set India as default country filter (only once when countries are loaded)
   useEffect(() => {
@@ -342,6 +361,19 @@ const DashboardClients = () => {
       console.log('[rows] No country selected, showing no parties');
     }
     
+    // Filter by zone for salesman and distributor
+    if ((isSalesman || isDistributor) && user?.zone_preference && filteredParties.length > 0) {
+      const userZone = String(user.zone_preference).trim();
+      const beforeZoneFilter = filteredParties.length;
+      filteredParties = filteredParties.filter(party => {
+        const partyZoneId = party.zone_id || party.zoneId;
+        if (!partyZoneId) return false;
+        return String(partyZoneId).trim() === userZone;
+      });
+      console.log('[rows] Zone filter applied:', userZone, 'Before:', beforeZoneFilter, 'After:', filteredParties.length);
+    }
+    
+    
     return filteredParties.map(party => {
       // Ensure ID is preserved - check multiple possible field names
       const partyId = party.id || party.party_id || party._id;
@@ -351,7 +383,7 @@ const DashboardClients = () => {
         isActive: party.is_active !== false,
       };
     });
-  }, [parties, selectedCountryFilter]);
+  }, [parties, selectedCountryFilter, isSalesman, isDistributor, user]);
 
   const filteredRowsByTab = useMemo(() => {
     if (activeTab === 'All') return rows;
@@ -727,7 +759,57 @@ const DashboardClients = () => {
         
         setError(null);
       } else {
+        // Create new party - first create user account
         try {
+          // Format phone number to E.164 format
+          let phoneNumber = formData.phone.trim();
+          if (!phoneNumber.startsWith('+')) {
+            phoneNumber = phoneNumber.replace(/^0+/, '');
+            if (!phoneNumber.startsWith('91')) {
+              phoneNumber = `91${phoneNumber}`;
+            }
+            phoneNumber = `+${phoneNumber}`;
+          }
+
+          // Get roles to find party role ID
+          const rolesResponse = await getRoles();
+          let rolesArray = [];
+          if (Array.isArray(rolesResponse)) {
+            rolesArray = rolesResponse;
+          } else if (rolesResponse && Array.isArray(rolesResponse.data)) {
+            rolesArray = rolesResponse.data;
+          } else if (rolesResponse && Array.isArray(rolesResponse.roles)) {
+            rolesArray = rolesResponse.roles;
+          }
+
+          // Find party role ID
+          const partyRole = rolesArray.find(r => {
+            const roleName = (r.role_name || r.name || r.roleName || r.title || r.role || '').toLowerCase().trim();
+            return roleName === 'party';
+          });
+
+          if (!partyRole) {
+            throw new Error('Party role not found. Please contact administrator.');
+          }
+
+          const partyRoleId = partyRole.role_id || partyRole.id || partyRole.roleId;
+
+          // Create user account first
+          const userData = {
+            phoneNumber,
+            fullName: formData.contact_person.trim() || formData.party_name.trim(),
+            roleId: partyRoleId,
+          };
+
+          const registeredUser = await register(userData);
+          const newUserId = registeredUser.user_id || registeredUser.id || registeredUser.user?.user_id || registeredUser.user?.id;
+
+          if (!newUserId) {
+            throw new Error('Failed to create user account. User ID not returned.');
+          }
+
+          // Create party (backend should link user_id based on phone/email)
+          // The backend should automatically link the user account created above
           const newParty = await createParty(dataToSend);
           showSuccess('Party created successfully!');
           

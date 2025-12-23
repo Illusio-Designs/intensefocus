@@ -94,7 +94,9 @@ const handleResponse = async (response) => {
                     errorData.message || 
                     errorData.msg ||
                     errorData.detail ||
-                    (errorData.data && (errorData.data.error || errorData.data.message)) ||
+                    errorData.Error ||
+                    errorData.Message ||
+                    (errorData.data && (errorData.data.error || errorData.data.message || errorData.data.msg)) ||
                     errorMessage;
       
       // If we still have the default message, try to get more info
@@ -325,11 +327,14 @@ export const checkUser = async (phoneNumber, options = {}) => {
   const { autoSendOTP = true } = options;
   
   try {
+    console.log('[checkUser] Checking user with phone:', phoneNumber);
     const response = await apiRequest('/auth/check-user', {
       method: 'POST',
       body: { phoneNumber },
       includeAuth: false,
     });
+    
+    console.log('[checkUser] Response received:', response);
 
     // If checkUser returns 200 and autoSendOTP is enabled, send OTP via MSG91
     if (autoSendOTP && response) {
@@ -341,7 +346,7 @@ export const checkUser = async (phoneNumber, options = {}) => {
           message: response.message || 'OTP sent successfully',
         };
       } catch (otpError) {
-        console.error('Error sending OTP via MSG91:', otpError);
+        console.error('[checkUser] Error sending OTP via MSG91:', otpError);
         // Return checkUser response even if OTP sending fails
         return {
           ...response,
@@ -353,6 +358,12 @@ export const checkUser = async (phoneNumber, options = {}) => {
 
     return response;
   } catch (error) {
+    console.error('[checkUser] Error checking user:', {
+      phoneNumber,
+      error: error.message,
+      statusCode: error.statusCode,
+      errorData: error.errorData
+    });
     throw error;
   }
 };
