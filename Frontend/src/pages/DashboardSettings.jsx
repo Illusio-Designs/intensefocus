@@ -20,6 +20,17 @@ const DashboardSettings = () => {
   const initial = useMemo(() => ({ name: '', email: '', phone: '', avatar: '' }), []);
   const [initialData, setInitialData] = useState(initial);
 
+  // Debug: Log avatar changes
+  useEffect(() => {
+    console.log('Avatar state changed:', {
+      hasAvatar: !!avatar,
+      avatarLength: avatar ? avatar.length : 0,
+      isBase64: avatar ? avatar.startsWith('data:') : false,
+      preview: avatar ? avatar.substring(0, 80) + '...' : 'empty',
+      hasError: avatarError
+    });
+  }, [avatar, avatarError]);
+
   // Fetch current user data from API
   useEffect(() => {
     const fetchUserData = async () => {
@@ -66,6 +77,32 @@ const DashboardSettings = () => {
             ? userData.profile_image 
             : null;
           
+          // Debug logging
+          console.log('User data from API:', {
+            userId: userData.user_id || userData.id,
+            hasImageUrl: !!apiImageUrl,
+            hasProfileImage: !!apiProfileImage,
+            profileImageLength: apiProfileImage ? apiProfileImage.length : 0,
+            profileImagePreview: apiProfileImage ? apiProfileImage.substring(0, 50) + '...' : null,
+            profileImageEnd: apiProfileImage ? '...' + apiProfileImage.substring(Math.max(0, apiProfileImage.length - 50)) : null,
+            isBase64: apiProfileImage ? apiProfileImage.startsWith('data:') : false
+          });
+          
+          // Validate base64 data URL format
+          if (apiProfileImage && apiProfileImage.startsWith('data:')) {
+            const base64Match = apiProfileImage.match(/^data:image\/([^;]+);base64,(.+)$/);
+            if (!base64Match) {
+              console.warn('Invalid base64 data URL format:', apiProfileImage.substring(0, 100));
+            } else {
+              const base64Data = base64Match[2];
+              console.log('Base64 data validation:', {
+                imageType: base64Match[1],
+                base64Length: base64Data.length,
+                isValidLength: base64Data.length > 100 // Base64 should be substantial
+              });
+            }
+          }
+          
           // Use API response first (for cross-device sync) - accept base64 from API
           const apiAvatar = apiImageUrl || apiProfileImage;
           const storedAvatar = typeof window !== 'undefined' ? window.localStorage.getItem('userAvatarUrl') : null;
@@ -76,7 +113,15 @@ const DashboardSettings = () => {
           // Prioritize API response (for cross-device sync) - can be URL or base64
           const avatarValue = apiAvatar || validStoredAvatar || '';
           
+          console.log('Setting avatar value:', {
+            hasValue: !!avatarValue,
+            valueLength: avatarValue ? avatarValue.length : 0,
+            isBase64: avatarValue ? avatarValue.startsWith('data:') : false,
+            preview: avatarValue ? avatarValue.substring(0, 50) + '...' : 'empty'
+          });
+          
           setAvatar(avatarValue);
+          setAvatarError(false); // Reset error state when setting new avatar
           setIsActive(userData.is_active !== undefined ? userData.is_active : true);
           setCurrentRoleId(userData.role_id || userData.roleId || null);
           
@@ -397,9 +442,20 @@ const DashboardSettings = () => {
             if (updatedUser) {
               const fetchedImage = updatedUser.image_url || updatedUser.profile_image;
               if (fetchedImage && fetchedImage.trim() !== '') {
+                console.log('Fetched image after update:', {
+                  hasImage: !!fetchedImage,
+                  imageLength: fetchedImage.length,
+                  isBase64: fetchedImage.startsWith('data:'),
+                  preview: fetchedImage.substring(0, 50) + '...',
+                  end: '...' + fetchedImage.substring(Math.max(0, fetchedImage.length - 50))
+                });
                 setAvatar(fetchedImage);
-                console.log('Fetched image after update:', fetchedImage.substring(0, 50) + '...');
+                setAvatarError(false); // Reset error state
+              } else {
+                console.warn('No image found in refetched user data');
               }
+            } else {
+              console.warn('Updated user not found in refetched data');
             }
           } catch (refetchError) {
             console.warn('Failed to refetch user data:', refetchError);
@@ -466,14 +522,37 @@ const DashboardSettings = () => {
                 <div className="settings-avatar__preview settings-avatar__preview--lg">
                   {avatar && !avatarError ? (
                     <img 
+                      key={avatar.substring(0, 100)} // Force re-render if avatar changes
                       src={avatar} 
                       alt="Avatar" 
-                      onError={() => {
-                        console.error('Failed to load avatar image');
+                      onError={(e) => {
+                        console.error('Failed to load avatar image:', {
+                          src: avatar ? avatar.substring(0, 100) : 'empty',
+                          hasAvatar: !!avatar,
+                          avatarLength: avatar ? avatar.length : 0,
+                          isBase64: avatar ? avatar.startsWith('data:') : false,
+                          error: e.target?.error,
+                          naturalWidth: e.target?.naturalWidth,
+                          naturalHeight: e.target?.naturalHeight
+                        });
                         setAvatarError(true);
                       }}
-                      onLoad={() => {
+                      onLoad={(e) => {
+                        console.log('Avatar image loaded successfully:', {
+                          naturalWidth: e.target.naturalWidth,
+                          naturalHeight: e.target.naturalHeight,
+                          complete: e.target.complete,
+                          avatarLength: avatar.length
+                        });
                         setAvatarError(false);
+                      }}
+                      style={{ 
+                        display: 'block', 
+                        width: '100%', 
+                        height: '100%', 
+                        objectFit: 'cover',
+                        visibility: 'visible',
+                        opacity: 1
                       }}
                     />
                   ) : avatarError ? (

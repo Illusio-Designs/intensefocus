@@ -71,13 +71,20 @@ const DashboardHeader = ({ onPageChange, currentPage, isCollapsed }) => {
             }
             
             if (!avatar) {
+              // Accept both base64 data URLs and regular URLs from API
               const apiAvatar = userData.profile_image || userData.image_url || null;
               if (apiAvatar && apiAvatar.trim() !== '') {
                 avatar = apiAvatar.trim();
-                // Update localStorage for future use
+                // Update localStorage for future use (store whatever we got from API)
                 if (typeof window !== 'undefined') {
                   window.localStorage.setItem('userAvatarUrl', avatar);
                 }
+                console.log('Header: Set avatar from API:', {
+                  hasAvatar: !!avatar,
+                  avatarLength: avatar.length,
+                  isBase64: avatar.startsWith('data:'),
+                  preview: avatar.substring(0, 50) + '...'
+                });
               }
             }
             
