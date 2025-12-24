@@ -2939,6 +2939,7 @@ export const getProducts = async (page = 1, limit = 21, filters = {}) => {
         frame_type_id: null,
         lens_material_id: null,
         frame_material_id: null,
+        status: null, // Include null status to get all products including drafts
         price: null
       };
       
@@ -3004,6 +3005,11 @@ export const getProducts = async (page = 1, limit = 21, filters = {}) => {
     // brand_id (optional, but include if provided)
     if (filters.brand_id !== undefined && filters.brand_id !== null) {
       filterBody.brand_id = filters.brand_id;
+    }
+    
+    // status (optional, include if provided to filter by status, or null to get all including drafts)
+    if (filters.status !== undefined) {
+      filterBody.status = filters.status;
     }
     
     // Always include price filter (backend requires it)
