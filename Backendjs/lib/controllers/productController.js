@@ -47,9 +47,8 @@ class ProductController {
                 return res.status(400).json({ error: 'Page and limit must be numbers' });
             }
             const { price, collection_id, brand_id, color_code_id, shape_id, lens_color_id, frame_color_id, frame_type_id, lens_material_id, frame_material_id, gender_id } = req.body;
-            const filter = {
-                status: 'active'
-            };
+            const filter = {};
+
             if (collection_id) {
                 filter.collection_id = collection_id;
             }
@@ -278,9 +277,14 @@ class ProductController {
                 image_urls.push(fileInfo.path);
             }
 
+            let status = product.status;
+            if (status === 'draft') {
+                status = 'active';
+            }
+
             // Update product with new image_urls
             await Product.update(
-                { image_urls: image_urls, updated_at: new Date() },
+                { image_urls: image_urls, status: status, updated_at: new Date() },
                 { where: { product_id: product_id } }
             );
 
@@ -450,7 +454,11 @@ class ProductController {
                     }
 
                     // Check if product with same model_no already exists
-                    const existingProduct = await Product.findOne({ where: { model_no } });
+                    const existingProduct = await Product.findOne({
+                        where: {
+                            model_no, color_code_id: colorCodeModel.color_code_id
+                        }
+                    });
                     if (existingProduct) {
                         Product.update({
                             status: status,
