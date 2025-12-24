@@ -71,6 +71,11 @@
   background: #fff;
   font-size: 14px;
 }
+
+/* Ensure modal form inputs always have 6px border radius */
+.ui-form .ui-input {
+  border-radius: 6px !important;
+}
 .ui-input:focus,
 .ui-select:focus {
   outline: none;
@@ -88,6 +93,10 @@
   font-family: 'Spoof Trial', sans-serif;
   display: inline-block;
   z-index: 1;
+}
+
+.ui-dropdown-custom--open {
+  z-index: 99998;
 }
 
 .ui-dropdown-custom:not(.ui-dropdown-custom--full-width) {
@@ -162,7 +171,7 @@
   border: 1px solid #E0E0E0;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  z-index: 10000;
+  z-index: 99999;
   overflow: hidden;
   min-width: 100%;
 }
@@ -390,6 +399,26 @@
 .ui-form .ui-select {
   width: 100%;
   border-radius: 6px !important;
+}
+
+/* Make dropdowns in modals match regular input fields */
+.ui-form .ui-dropdown-custom__trigger {
+  border-radius: 6px !important;
+  padding: 10px 12px !important;
+  min-height: 42px !important;
+}
+
+/* Ensure dropdowns in forms appear above other fields */
+.ui-form .ui-dropdown-custom {
+  z-index: 1;
+}
+
+.ui-form .ui-dropdown-custom--open {
+  z-index: 99998;
+}
+
+.ui-form .ui-dropdown-custom__menu {
+  z-index: 99999;
 }
 
 /* Phone Input Styling - Same as login page */
