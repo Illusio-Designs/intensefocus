@@ -107,7 +107,6 @@
 .ui-table__controls .ui-dropdown-custom,
 .ui-table__right .ui-dropdown-custom {
   position: relative;
-  z-index: 10001;
 }
 
 .ui-dropdown-custom__trigger {
