@@ -174,7 +174,6 @@ export default function TableWithControls({
                 setPageSize(Number(v));
                 setPage(1);
               }}
-              className="ui-select ui-pill"
             />
 
             {/* Filter Dropdown - appear below filter icon if open */}
