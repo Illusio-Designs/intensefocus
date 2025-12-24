@@ -4,12 +4,12 @@
 .dash-container {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 .dash-row {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
-  gap: 16px;
+  gap: 12px;
 }
 .dash-row.header-row {
   align-items: center;
@@ -19,8 +19,8 @@
 .dash-card {
   background: #ffffff;
   border: 1px solid #e0e0e0;
-  border-radius: 12px;
-  padding: 16px;
+  border-radius: 8px;
+  padding: 12px;
   grid-column: span 6;
 }
 .dash-card.metric {
@@ -39,7 +39,7 @@
 
 /* Equalize heights for chart and quick actions */
 .dash-card.equal {
-  height: 340px;
+  height: 280px;
   display: flex;
   flex-direction: column;
 }
@@ -49,36 +49,36 @@
 }
 
 .dash-card h4 {
-  font-size: 12px;
+  font-size: 11px;
   color: #00000099;
-  margin: 0 0 8px 0;
+  margin: 0 0 6px 0;
 }
 .card-title {
   color: #000000;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 /* Mini list blocks */
 .mini-list .row,
 .inv-list .row {
   display: grid;
-  grid-template-columns: 70px 1fr auto;
+  grid-template-columns: 50px 1fr auto;
   align-items: center;
-  gap: 12px;
-  padding: 10px 0;
+  gap: 8px;
+  padding: 8px 0;
   border-bottom: 1px solid #e5e7eb;
 }
 .inv-list .row {
-  grid-template-columns: auto 70px 1fr auto;
+  grid-template-columns: auto 50px 1fr auto;
 }
 .mini-list .row:last-child,
 .inv-list .row:last-child {
   border-bottom: none;
 }
 .prod-icon {
-  width: auto;
-  height: auto;
+  width: 40px;
+  height: 40px;
   object-fit: contain;
   display: block;
 }
@@ -86,17 +86,18 @@
 .inv-list .name {
   color: #111827;
   font-weight: 500;
+  font-size: 13px;
 }
 .mini-list .units,
 .inv-list .units {
   color: #6b7280;
-  font-size: 12px;
+  font-size: 11px;
 }
 .stock-badge {
   display: inline-block;
-  padding: 4px 10px;
+  padding: 3px 8px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 700;
 }
 .stock-badge.warn {
@@ -109,15 +110,15 @@
 }
 /* Chart header spacing */
 .chart-header .chart-period-select {
-  min-width: 120px;
+  min-width: 100px;
 }
 .metric-value {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
   color: #000;
 }
 .metric-sub {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   color: #181265; /* neutral */
 }
@@ -129,47 +130,50 @@
 }
 
 .placeholder {
-  height: 200px;
+  height: 160px;
   background: #f5f6f8;
   border: 1px dashed #dcdfe6;
-  border-radius: 8px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #9aa1b3;
+  font-size: 12px;
 }
 .btn-col {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 .primary {
   background: #0d0a34;
   color: #fff;
   border: none;
-  border-radius: 8px;
-  padding: 10px 12px;
+  border-radius: 6px;
+  padding: 8px 10px;
   cursor: pointer;
+  font-size: 13px;
 }
 /* Quick Action buttons centered text with Spoof Trial */
 .btn-col .ui-btn.ui-btn--primary {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 44px;
+  height: 36px;
   font-family: "Spoof Trial", sans-serif;
   font-weight: 600;
+  font-size: 13px;
 }
 .primary:hover {
   background: #16124f;
 }
 
 .page-title {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   margin: 0;
 }
 .row-actions {
   display: flex;
-  gap: 8px;
+  gap: 6px;
 }

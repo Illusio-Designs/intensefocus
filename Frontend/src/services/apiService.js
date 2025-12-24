@@ -467,14 +467,77 @@ export const getUsers = async () => {
  * @param {string} userData.email - User's email address
  * @param {string} userData.profile_image - Profile image (legacy field, can be empty)
  * @param {string} userData.image_url - Profile image URL or data URL
+ * @param {File} userData.profileImageFile - Profile image file (optional, for file upload)
  * @param {boolean} userData.is_active - Whether user is active
  * @param {string} userData.role_id - Role ID (UUID)
  * @returns {Promise<Object>} Response with message
  */
 export const updateUser = async (userId, userData) => {
-  const { name, email, profile_image, image_url, is_active, role_id, phoneNumber, phone } = userData;
+  const { name, email, profile_image, image_url, is_active, role_id, phoneNumber, phone, profileImageFile } = userData;
   // Use phoneNumber if provided, otherwise use phone (for backward compatibility)
   const phoneValue = phoneNumber || phone || '';
+  
+  // Validate required fields
+  if (!name || typeof name !== 'string' || name.trim() === '') {
+    throw new Error('Name is required');
+  }
+  
+  // If there's a file and profile_image is not set, use FormData
+  // Otherwise, use JSON with profile_image as base64
+  if (profileImageFile && !profile_image) {
+    const baseUrl = getBaseURL();
+    const fullUrl = `${baseUrl}/users/${userId}`;
+    
+    const formData = new FormData();
+    // Ensure all required fields are sent with proper values
+    const nameValue = name ? String(name).trim() : '';
+    const emailValue = email ? String(email).trim() : '';
+    const phoneValueStr = phoneValue ? String(phoneValue) : '';
+    const roleIdValue = role_id ? String(role_id) : '';
+    const isActiveValue = is_active !== undefined ? (is_active === true || is_active === 'true') : true;
+    
+    formData.append('name', nameValue);
+    formData.append('phoneNumber', phoneValueStr);
+    formData.append('phone', phoneValueStr);
+    formData.append('email', emailValue);
+    formData.append('profile_image', profileImageFile); // Send file directly
+    formData.append('is_active', String(isActiveValue));
+    formData.append('role_id', roleIdValue);
+    // Also append image_url if provided (for existing URLs)
+    if (image_url && !image_url.startsWith('data:')) {
+      formData.append('image_url', String(image_url));
+    } else {
+      formData.append('image_url', '');
+    }
+    
+    // Log FormData contents for debugging
+    console.log('FormData contents:');
+    console.log('name:', nameValue);
+    console.log('email:', emailValue);
+    console.log('phone:', phoneValueStr);
+    console.log('role_id:', roleIdValue);
+    console.log('is_active:', isActiveValue);
+    console.log('profile_image:', `[File: ${profileImageFile.name}, size: ${profileImageFile.size}, type: ${profileImageFile.type}]`);
+    console.log('image_url:', image_url || '');
+    
+    const token = getAuthToken();
+    const headers = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    // Don't set Content-Type for FormData, browser will set it with boundary
+    
+    const response = await fetch(fullUrl, {
+      method: 'PUT',
+      headers,
+      credentials: 'include',
+      body: formData,
+    });
+    
+    return await handleResponse(response);
+  }
+  
+  // Otherwise, use regular JSON request
   return apiRequest(`/users/${userId}`, {
     method: 'PUT',
     body: {

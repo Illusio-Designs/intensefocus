@@ -11,8 +11,8 @@
   transition: all 0.2s ease;
 }
 .ui-btn--sm {
-  padding: 6px 10px;
-  font-size: 12px;
+  padding: 4px 8px;
+  font-size: 11px;
 }
 .ui-btn--md {
   font-size: 14px;
@@ -25,7 +25,7 @@
   background: #181265;
   color: #fff;
   border-color: #181265;
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 700;
 }
 .ui-btn--primary:hover {
@@ -33,7 +33,7 @@
   color: #181265;
 }
 .ui-btn--secondary {
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 700;
   background: #fff;
   color: #181265;
@@ -120,8 +120,8 @@
 .ui-badge {
   display: inline-flex;
   align-items: center;
-  padding: 4px 10px;
-  font-size: 12px;
+  padding: 3px 8px;
+  font-size: 11px;
   border-radius: 999px;
   background: #f3f4f6;
   color: #111827;

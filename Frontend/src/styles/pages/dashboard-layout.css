@@ -13,7 +13,7 @@
 
 /* sidebar width coordination */
 .dashboard-layout.expanded .dashboard-shell { margin-left: 240px; }
-.dashboard-layout.collapsed .dashboard-shell { margin-left: 72px; }
+.dashboard-layout.collapsed .dashboard-shell { margin-left: 64px; }
 
 .dashboard-shell {
   display: flex;
@@ -24,5 +24,5 @@
 
 .dashboard-content {
   flex: 1;
-  padding: 24px;
+  padding: 16px;
 }

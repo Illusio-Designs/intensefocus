@@ -17,11 +17,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px;
+  padding: 14px 20px;
 }
 
 .dashboard-title {
-  font-size: 20px;
+  font-size: 16px;
   color: #000000;
   font-weight: 600;
 }
@@ -35,11 +35,11 @@
 .dashboard-search-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   background: transparent;
   border: 1px solid #e0e0e0;
-  border-radius: 20px;
-  padding: 8px 15px;
+  border-radius: 16px;
+  padding: 6px 12px;
 }
 .dashboard-search-bar input {
   border: none;
@@ -47,7 +47,7 @@
   background: transparent;
   color: #000000;
   width: 100%;
-  font-size: 16px;
+  font-size: 14px;
 }
 .dashboard-search-bar input::placeholder {
   font-family: Spoof Trial;
@@ -59,12 +59,12 @@
 
 .dashboard-action-icons {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 .dashboard-icon-btn {
   background: transparent;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
@@ -75,7 +75,7 @@
   background: #f5f6f9;
 }
 .dashboard-icon-image {
-  width: 20px;
+  width: 18px;
 }
 
 /* Header tooltips (match sidebar style) */
@@ -119,8 +119,8 @@
 .dashboard-avatar-btn {
   background: transparent;
   border: 1px solid #e7e9ee;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
@@ -138,7 +138,7 @@
   border-radius: 50%;
 }
 .dashboard-avatar-initials {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   color: #000000;
 }

@@ -9,7 +9,9 @@ const DashboardSettings = () => {
   const [userName, setUserName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [avatar, setAvatar] = useState(''); // data URL for preview
+  const [avatar, setAvatar] = useState(''); // data URL or URL for preview
+  const [avatarFile, setAvatarFile] = useState(null); // Store original file for upload
+  const [avatarError, setAvatarError] = useState(false);
   const [loading, setLoading] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [currentRoleId, setCurrentRoleId] = useState(null);
@@ -50,22 +52,28 @@ const DashboardSettings = () => {
         );
 
         if (userData) {
-          // Check localStorage for avatar first (in case user uploaded a new image)
-          const storedAvatar = typeof window !== 'undefined' ? window.localStorage.getItem('userAvatarUrl') : null;
-          
           setUserName(userData.full_name || userData.name || userData.fullName || '');
           setEmail(userData.email || '');
           setPhone(userData.phone || userData.phoneNumber || '');
           
-          // Only use avatar if it's a valid non-empty value
-          // Prefer storedAvatar (uploaded image), then API profile_image, but only if non-empty
-          const apiProfileImage = userData.profile_image && userData.profile_image.trim() !== '' 
+          // Prioritize API image URL over localStorage for cross-device sync
+          // Check both image_url and profile_image fields from API
+          const apiImageUrl = userData.image_url && userData.image_url.trim() !== '' && !userData.image_url.startsWith('data:')
+            ? userData.image_url 
+            : null;
+          const apiProfileImage = userData.profile_image && userData.profile_image.trim() !== '' && !userData.profile_image.startsWith('data:')
             ? userData.profile_image 
             : null;
-          const validStoredAvatar = storedAvatar && storedAvatar.trim() !== '' 
+          
+          // Use API URL first (for cross-device sync), then fallback to localStorage
+          const apiAvatar = apiImageUrl || apiProfileImage;
+          const storedAvatar = typeof window !== 'undefined' ? window.localStorage.getItem('userAvatarUrl') : null;
+          const validStoredAvatar = storedAvatar && storedAvatar.trim() !== '' && !storedAvatar.startsWith('data:')
             ? storedAvatar 
             : null;
-          const avatarValue = validStoredAvatar || apiProfileImage || '';
+          
+          // Prioritize API response (for cross-device sync)
+          const avatarValue = apiAvatar || validStoredAvatar || '';
           
           setAvatar(avatarValue);
           setIsActive(userData.is_active !== undefined ? userData.is_active : true);
@@ -80,13 +88,14 @@ const DashboardSettings = () => {
           };
           setInitialData(next);
           
-          // Also update localStorage for header display (only if we have a valid avatar)
+          // Update localStorage with API data (for offline/header display)
           if (typeof window !== 'undefined') {
             window.localStorage.setItem('userName', next.name);
-            if (avatarValue && avatarValue.trim() !== '') {
+            if (avatarValue && avatarValue.trim() !== '' && !avatarValue.startsWith('data:')) {
+              // Only store URLs in localStorage, not base64 data URLs
               window.localStorage.setItem('userAvatarUrl', avatarValue);
             } else {
-              // Remove avatar from localStorage if it's empty
+              // Remove avatar from localStorage if it's empty or base64
               window.localStorage.removeItem('userAvatarUrl');
             }
           }
@@ -159,13 +168,108 @@ const DashboardSettings = () => {
     fetchUserData();
   }, []);
 
-  const handleAvatarChange = (file) => {
+  // Helper function to compress/resize image
+  const compressImage = (file, maxWidth = 800, maxHeight = 800, quality = 0.7) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          
+          // Calculate new dimensions
+          if (width > height) {
+            if (width > maxWidth) {
+              height = (height * maxWidth) / width;
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = (width * maxHeight) / height;
+              height = maxHeight;
+            }
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                resolve(blob);
+              } else {
+                reject(new Error('Failed to compress image'));
+              }
+            },
+            file.type || 'image/jpeg',
+            quality
+          );
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleAvatarChange = async (file) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setAvatar(String(reader.result || ''));
-    };
-    reader.readAsDataURL(file);
+    
+    // Reset error state
+    setAvatarError(false);
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      showError('Please select a valid image file');
+      return;
+    }
+    
+    // Validate file size (max 2MB as per hint)
+    const maxSize = 2 * 1024 * 1024; // 2MB
+    if (file.size > maxSize) {
+      showError('Image size should be less than 2MB');
+      return;
+    }
+    
+    try {
+      // Compress the image to reduce size
+      const compressedFile = await compressImage(file);
+      setAvatarFile(compressedFile);
+      
+      // Create preview using data URL
+      const reader = new FileReader();
+      reader.onerror = () => {
+        showError('Failed to read image file');
+        setAvatarError(true);
+      };
+      reader.onload = () => {
+        const result = reader.result;
+        if (result) {
+          setAvatar(String(result));
+          setAvatarError(false);
+        }
+      };
+      reader.readAsDataURL(compressedFile);
+    } catch (error) {
+      console.error('Error compressing image:', error);
+      // Fallback to original file if compression fails
+      setAvatarFile(file);
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result;
+        if (result) {
+          setAvatar(String(result));
+          setAvatarError(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleReset = () => {
@@ -173,6 +277,8 @@ const DashboardSettings = () => {
     setEmail(initialData.email || '');
     setPhone(initialData.phone || '');
     setAvatar(initialData.avatar || '');
+    setAvatarFile(null);
+    setAvatarError(false);
   };
 
   const handleSubmit = async (e) => {
@@ -204,36 +310,121 @@ const DashboardSettings = () => {
     // Try to update via API if we have the required data
     if (currentUserId && currentRoleId) {
       try {
-        // Send the avatar as image_url (can be a URL or data URL)
-        // Backend expects image_url field for profile image
-        const imageUrl = avatar || '';
+        // Prepare user data
+        // If we have a file, send it directly in updateUser (it will use FormData)
+        // If we have a URL (not data URL), send it in image_url
+        const isDataUrl = avatar && avatar.startsWith('data:image/');
+        const imageUrlValue = isDataUrl ? '' : (avatar || '');
+
+        // If we have a file, convert it to base64 (compressed) for JSON payload
+        // Otherwise use the existing URL
+        let profileImageBase64 = '';
+        if (avatarFile) {
+          try {
+            // Convert compressed file to base64
+            profileImageBase64 = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onerror = reject;
+              reader.onload = () => resolve(reader.result);
+              reader.readAsDataURL(avatarFile);
+            });
+          } catch (error) {
+            console.error('Error converting file to base64:', error);
+            showError('Failed to process image');
+            setLoading(false);
+            return;
+          }
+        }
 
         const userData = {
           name: userName.trim(),
           email: email.trim() || '',
           phone: phone.trim() || '',
-          profile_image: '', // Legacy field, kept empty
+          profile_image: profileImageBase64, // Send compressed base64 if file exists
           is_active: isActive,
-          image_url: imageUrl,
+          image_url: imageUrlValue, // Send URL if it's a regular URL (not data URL)
           role_id: currentRoleId,
+          profileImageFile: null, // Don't use FormData, send as base64 in JSON
         };
 
-        await updateUser(currentUserId, userData);
+        console.log('Updating user with data:', { 
+          ...userData, 
+          profileImageFile: avatarFile ? `File: ${avatarFile.name}` : null,
+          image_url: imageUrlValue || ''
+        });
         
-        // Save to localStorage after successful API update
+        const response = await updateUser(currentUserId, userData);
+        console.log('Update user response:', response);
+        
+        // Extract image URL from response - backend should return the stored image URL
+        let updatedImageUrl = null;
+        
+        // Check various response formats
+        if (response?.data?.image_url && !response.data.image_url.startsWith('data:')) {
+          updatedImageUrl = response.data.image_url;
+        } else if (response?.data?.profile_image && !response.data.profile_image.startsWith('data:')) {
+          updatedImageUrl = response.data.profile_image;
+        } else if (response?.image_url && !response.image_url.startsWith('data:')) {
+          updatedImageUrl = response.image_url;
+        } else if (response?.profile_image && !response.profile_image.startsWith('data:')) {
+          updatedImageUrl = response.profile_image;
+        } else if (response?.data?.user?.image_url && !response.data.user.image_url.startsWith('data:')) {
+          updatedImageUrl = response.data.user.image_url;
+        } else if (response?.data?.user?.profile_image && !response.data.user.profile_image.startsWith('data:')) {
+          updatedImageUrl = response.data.user.profile_image;
+        }
+        
+        // If we got a URL from API, use it (this ensures cross-device sync)
+        if (updatedImageUrl && updatedImageUrl.trim() !== '') {
+          setAvatar(updatedImageUrl);
+          setAvatarFile(null); // Clear file since it's uploaded
+          console.log('Profile image URL from API:', updatedImageUrl);
+        } else if (avatarFile) {
+          // If we uploaded a file but didn't get a URL back, refetch user data
+          console.log('No image URL in response, refetching user data...');
+          try {
+            const usersResponse = await getUsers();
+            let usersArray = [];
+            if (Array.isArray(usersResponse)) {
+              usersArray = usersResponse;
+            } else if (usersResponse?.data) {
+              usersArray = Array.isArray(usersResponse.data) ? usersResponse.data : [];
+            }
+            
+            const updatedUser = usersArray.find(u => (u.user_id || u.id) === currentUserId);
+            if (updatedUser) {
+              const fetchedImageUrl = updatedUser.image_url || updatedUser.profile_image;
+              if (fetchedImageUrl && !fetchedImageUrl.startsWith('data:') && fetchedImageUrl.trim() !== '') {
+                setAvatar(fetchedImageUrl);
+                console.log('Fetched image URL after update:', fetchedImageUrl);
+              }
+            }
+          } catch (refetchError) {
+            console.warn('Failed to refetch user data:', refetchError);
+          }
+          setAvatarFile(null);
+        }
+        
+        // Save to localStorage after successful API update (use URL, not base64)
+        if (updatedImageUrl && !updatedImageUrl.startsWith('data:')) {
+          if (typeof window !== 'undefined') {
+            window.localStorage.setItem('userAvatarUrl', updatedImageUrl);
+          }
+        }
         saveToLocalStorage();
         
         // Notify others
         window.dispatchEvent(new Event('authChange'));
         showSuccess('Profile updated successfully');
       } catch (error) {
-        console.warn('API update failed, saving to localStorage only:', error.message);
+        console.error('API update failed:', error);
+        const errorMessage = error?.message || error?.toString() || 'Unknown error';
         // Still save to localStorage even if API fails
         saveToLocalStorage();
         
         // Notify others
         window.dispatchEvent(new Event('authChange'));
-        showSuccess('Profile saved locally (API unavailable)');
+        showError(`API update failed: ${errorMessage}. Profile saved locally.`);
       }
     } else {
       // No API credentials, just save to localStorage
@@ -271,13 +462,46 @@ const DashboardSettings = () => {
             <div className="settings-grid">
               <aside className="settings-sidebar">
                 <div className="settings-avatar__preview settings-avatar__preview--lg">
-                  {avatar ? <img src={avatar} alt="Avatar" /> : <span>No Image</span>}
+                  {avatar && !avatarError ? (
+                    <img 
+                      src={avatar} 
+                      alt="Avatar" 
+                      onError={() => {
+                        console.error('Failed to load avatar image');
+                        setAvatarError(true);
+                      }}
+                      onLoad={() => {
+                        setAvatarError(false);
+                      }}
+                    />
+                  ) : avatarError ? (
+                    <span style={{ color: '#ef4444', fontSize: '12px' }}>Failed to load image</span>
+                  ) : (
+                    <span>No Image</span>
+                  )}
                 </div>
                 <div className="settings-avatar__actions">
-                  <input id="avatar-input" type="file" accept="image/*" className="hidden-input" onChange={(e) => handleAvatarChange(e.target.files?.[0])} />
+                  <input 
+                    id="avatar-input" 
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden-input" 
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      handleAvatarChange(file);
+                      // Reset input to allow selecting the same file again
+                      if (e.target) {
+                        e.target.value = '';
+                      }
+                    }} 
+                  />
                   <Button type="button" onClick={() => document.getElementById('avatar-input').click()} size="sm">Change Photo</Button>
                   {avatar && (
-                    <Button type="button" variant="ghost" size="sm" onClick={() => setAvatar('')}>Remove</Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => {
+                      setAvatar('');
+                      setAvatarFile(null);
+                      setAvatarError(false);
+                    }}>Remove</Button>
                   )}
                   <div className="settings-hint">JPG, PNG up to ~2MB recommended.</div>
                 </div>

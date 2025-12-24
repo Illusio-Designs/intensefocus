@@ -198,9 +198,9 @@ const Dashboard = () => {
 
         <div className="dash-row">
           <div className="dash-card tall equal">
-            <div className="chart-header" style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8}}>
-              <h4 style={{color: '#000000', fontSize: '16px', fontWeight: '700'}}>Sales & Revenue</h4>
-              <select className="ui-select ui-pill chart-period-select" value={period} onChange={(e)=>setPeriod(e.target.value)} style={{height:32, padding:'0px 12px'}}>
+            <div className="chart-header" style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6}}>
+              <h4 style={{color: '#000000', fontSize: '14px', fontWeight: '700'}}>Sales & Revenue</h4>
+              <select className="ui-select ui-pill chart-period-select" value={period} onChange={(e)=>setPeriod(e.target.value)} style={{height:28, padding:'0px 10px', fontSize:'12px'}}>
                 <option>Monthly</option>
                 <option>Weekly</option>
                 <option>Yearly</option>
@@ -219,10 +219,10 @@ const Dashboard = () => {
               { label: 'Oct', sales: 38, revenue: 31 },
               { label: 'Nov', sales: 29, revenue: 24 },
               { label: 'Dec', sales: 44, revenue: 36 },
-            ]), [])} height={260} />
+            ]), [])} height={220} />
           </div>
           <div className="dash-card side equal">
-            <h4 style={{color: '#000000', fontSize: '16px', fontWeight: '700'}}>Quick Actions</h4>
+            <h4 style={{color: '#000000', fontSize: '14px', fontWeight: '700'}}>Quick Actions</h4>
             <div className="btn-col">
               <button className="ui-btn ui-btn--primary">Add New Product</button>
               <button className="ui-btn ui-btn--primary">Create Bulk Order</button>
@@ -270,43 +270,43 @@ const Dashboard = () => {
 
         <div className="dash-row">
           <div className="dash-card" style={{gridColumn:'span 12'}}>
-            <h4 style={{color: '#000000', fontSize: '16px', fontWeight: '700'}}>Order Overview</h4>
+            <h4 style={{color: '#000000', fontSize: '14px', fontWeight: '700', marginBottom:'10px'}}>Order Overview</h4>
             <div className="ui-table__scroll">
               <table style={{width:'100%', borderCollapse:'separate', borderSpacing:0}}>
                 <thead>
                   <tr>
                     {['ORDER ID','CLIENT NAME','PRODUCT','QTY','STATUS','VALUE','ACTION'].map((h)=> (
-                      <th key={h} style={{textAlign:'left', padding:'14px 0', fontSize:12, color:'#000', borderBottom:'1px solid #E0E0E0'}}>{h}</th>
+                      <th key={h} style={{textAlign:'left', padding:'10px 0', fontSize:11, color:'#000', borderBottom:'1px solid #E0E0E0', fontWeight:'600'}}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan="7" style={{padding:'20px', textAlign:'center', color:'#6b7280'}}>
+                      <td colSpan="7" style={{padding:'16px', textAlign:'center', color:'#6b7280', fontSize:'13px'}}>
                         Loading orders...
                       </td>
                     </tr>
                   ) : recentOrders.length === 0 ? (
                     <tr>
-                      <td colSpan="7" style={{padding:'20px', textAlign:'center', color:'#6b7280'}}>
+                      <td colSpan="7" style={{padding:'16px', textAlign:'center', color:'#6b7280', fontSize:'13px'}}>
                         No orders found
                       </td>
                     </tr>
                   ) : (
                     recentOrders.map((r,i)=> (
                       <tr key={i}>
-                        <td style={{padding:'14px 0'}}>{r.id}</td>
-                        <td style={{padding:'14px 0'}}>{r.client}</td>
-                        <td style={{padding:'14px 0', color:'#6b7280'}}>{r.product}</td>
-                        <td style={{padding:'14px 0'}}>{r.qty}</td>
-                        <td style={{padding:'14px 0'}}>
+                        <td style={{padding:'10px 0', fontSize:'13px'}}>{r.id}</td>
+                        <td style={{padding:'10px 0', fontSize:'13px'}}>{r.client}</td>
+                        <td style={{padding:'10px 0', color:'#6b7280', fontSize:'13px'}}>{r.product}</td>
+                        <td style={{padding:'10px 0', fontSize:'13px'}}>{r.qty}</td>
+                        <td style={{padding:'10px 0'}}>
                           <StatusBadge status={r.status.toLowerCase().replace(/\s+/g, '-')}>
                             {r.status}
                           </StatusBadge>
                         </td>
-                        <td style={{padding:'14px 0'}}>{r.value}</td>
-                        <td style={{padding:'14px 0'}}>
+                        <td style={{padding:'10px 0', fontSize:'13px'}}>{r.value}</td>
+                        <td style={{padding:'10px 0'}}>
                           <RowActions onView={()=>console.log('view', r)} />
                         </td>
                       </tr>

@@ -260,7 +260,6 @@ const DashboardEvents = () => {
               itemName="Event"
               loading={loading}
             />
-            {error && <div style={{ padding: 12, color: 'red', marginTop: 12 }}>{error}</div>}
           </div>
         </div>
       </div>

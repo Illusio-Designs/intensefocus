@@ -1,10 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useState, useEffect } from 'react';
 import '../styles/components/DashboardSidebar.css';
 import { FiUsers, FiSliders, FiInbox, FiCalendar } from 'react-icons/fi';
 import { getUserRole } from '../services/authService';
 import { filterMenuItemsByRole } from '../utils/rolePermissions';
 
 const DashboardSidebar = ({ onPageChange, currentPage, isCollapsed, onToggleCollapse }) => {
+  const [tooltipState, setTooltipState] = useState({ show: false, text: '', top: 0 });
   const sidebarIcons = {
     dashboard: '/images/icons/Dashboard.webp',
     'dashboard-products': '/images/icons/Products.webp',
@@ -74,6 +75,21 @@ const DashboardSidebar = ({ onPageChange, currentPage, isCollapsed, onToggleColl
                   e.preventDefault();
                   onPageChange(item.id);
                 }}
+                onMouseEnter={(e) => {
+                  if (isCollapsed) {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setTooltipState({
+                      show: true,
+                      text: item.text,
+                      top: rect.top + rect.height / 2
+                    });
+                  }
+                }}
+                onMouseLeave={() => {
+                  if (isCollapsed) {
+                    setTooltipState({ show: false, text: '', top: 0 });
+                  }
+                }}
                 aria-label={item.text}
               >
                 <span className="sidebar-icon">
@@ -84,16 +100,23 @@ const DashboardSidebar = ({ onPageChange, currentPage, isCollapsed, onToggleColl
                   )}
                 </span>
                 {!isCollapsed && <span className="sidebar-text">{item.text}</span>}
-                <span className="sidebar-tooltip">{item.text}</span>
+                {isCollapsed && tooltipState.show && tooltipState.text === item.text && (
+                  <span 
+                    className="sidebar-tooltip sidebar-tooltip--fixed"
+                    style={{ top: `${tooltipState.top}px` }}
+                  >
+                    {item.text}
+                  </span>
+                )}
               </a>
             </li>
           ))}
         </ul>
       </nav>
       <div className="dashboard-sidebar-footer">
-        <button className="sidebar-toggle" onClick={onToggleCollapse} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'none', border: 'none', cursor: 'pointer', width: '100%', justifyContent: isCollapsed ? 'center' : 'start' }}>
-          <img src="/images/icons/hideshow.webp" alt="Toggle Sidebar" style={{ width: 20, height: 20, transform: isCollapsed ? 'rotate(180deg)' : 'none', transition: 'transform 0.25s' }} />
-          {!isCollapsed && <span>Hide Sidebar</span>}
+        <button className="sidebar-toggle" onClick={onToggleCollapse} style={{ display: 'flex', alignItems: 'center', gap: isCollapsed ? 0 : 8, background: 'none', border: 'none', cursor: 'pointer', width: '100%', justifyContent: isCollapsed ? 'center' : 'start' }}>
+          <img src="/images/icons/hideshow.webp" alt="Toggle Sidebar" style={{ width: 18, height: 18, transform: isCollapsed ? 'rotate(180deg)' : 'none', transition: 'transform 0.25s' }} />
+          {!isCollapsed && <span style={{ fontSize: '12px' }}>Hide Sidebar</span>}
         </button>
       </div>
     </aside>
