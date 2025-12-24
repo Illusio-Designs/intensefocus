@@ -56,23 +56,24 @@ const DashboardSettings = () => {
           setEmail(userData.email || '');
           setPhone(userData.phone || userData.phoneNumber || '');
           
-          // Prioritize API image URL over localStorage for cross-device sync
+          // Prioritize API image over localStorage for cross-device sync
+          // Accept both URLs and base64 data URLs from API (backend stores base64)
           // Check both image_url and profile_image fields from API
-          const apiImageUrl = userData.image_url && userData.image_url.trim() !== '' && !userData.image_url.startsWith('data:')
+          const apiImageUrl = userData.image_url && userData.image_url.trim() !== ''
             ? userData.image_url 
             : null;
-          const apiProfileImage = userData.profile_image && userData.profile_image.trim() !== '' && !userData.profile_image.startsWith('data:')
+          const apiProfileImage = userData.profile_image && userData.profile_image.trim() !== ''
             ? userData.profile_image 
             : null;
           
-          // Use API URL first (for cross-device sync), then fallback to localStorage
+          // Use API response first (for cross-device sync) - accept base64 from API
           const apiAvatar = apiImageUrl || apiProfileImage;
           const storedAvatar = typeof window !== 'undefined' ? window.localStorage.getItem('userAvatarUrl') : null;
-          const validStoredAvatar = storedAvatar && storedAvatar.trim() !== '' && !storedAvatar.startsWith('data:')
+          const validStoredAvatar = storedAvatar && storedAvatar.trim() !== ''
             ? storedAvatar 
             : null;
           
-          // Prioritize API response (for cross-device sync)
+          // Prioritize API response (for cross-device sync) - can be URL or base64
           const avatarValue = apiAvatar || validStoredAvatar || '';
           
           setAvatar(avatarValue);
@@ -89,13 +90,14 @@ const DashboardSettings = () => {
           setInitialData(next);
           
           // Update localStorage with API data (for offline/header display)
+          // Store base64 from API if that's what we got (for cross-device sync)
           if (typeof window !== 'undefined') {
             window.localStorage.setItem('userName', next.name);
-            if (avatarValue && avatarValue.trim() !== '' && !avatarValue.startsWith('data:')) {
-              // Only store URLs in localStorage, not base64 data URLs
+            if (avatarValue && avatarValue.trim() !== '') {
+              // Store whatever we got from API (URL or base64) for display
               window.localStorage.setItem('userAvatarUrl', avatarValue);
             } else {
-              // Remove avatar from localStorage if it's empty or base64
+              // Remove avatar from localStorage if it's empty
               window.localStorage.removeItem('userAvatarUrl');
             }
           }
@@ -374,14 +376,14 @@ const DashboardSettings = () => {
           updatedImageUrl = response.data.user.profile_image;
         }
         
-        // If we got a URL from API, use it (this ensures cross-device sync)
+        // If we got image from API (URL or base64), use it (this ensures cross-device sync)
         if (updatedImageUrl && updatedImageUrl.trim() !== '') {
           setAvatar(updatedImageUrl);
           setAvatarFile(null); // Clear file since it's uploaded
-          console.log('Profile image URL from API:', updatedImageUrl);
+          console.log('Profile image from API:', updatedImageUrl.substring(0, 50) + '...');
         } else if (avatarFile) {
-          // If we uploaded a file but didn't get a URL back, refetch user data
-          console.log('No image URL in response, refetching user data...');
+          // If we uploaded a file but didn't get image back, refetch user data
+          console.log('No image in response, refetching user data...');
           try {
             const usersResponse = await getUsers();
             let usersArray = [];
@@ -393,10 +395,10 @@ const DashboardSettings = () => {
             
             const updatedUser = usersArray.find(u => (u.user_id || u.id) === currentUserId);
             if (updatedUser) {
-              const fetchedImageUrl = updatedUser.image_url || updatedUser.profile_image;
-              if (fetchedImageUrl && !fetchedImageUrl.startsWith('data:') && fetchedImageUrl.trim() !== '') {
-                setAvatar(fetchedImageUrl);
-                console.log('Fetched image URL after update:', fetchedImageUrl);
+              const fetchedImage = updatedUser.image_url || updatedUser.profile_image;
+              if (fetchedImage && fetchedImage.trim() !== '') {
+                setAvatar(fetchedImage);
+                console.log('Fetched image after update:', fetchedImage.substring(0, 50) + '...');
               }
             }
           } catch (refetchError) {
@@ -405,8 +407,8 @@ const DashboardSettings = () => {
           setAvatarFile(null);
         }
         
-        // Save to localStorage after successful API update (use URL, not base64)
-        if (updatedImageUrl && !updatedImageUrl.startsWith('data:')) {
+        // Save to localStorage after successful API update (store whatever API returned)
+        if (updatedImageUrl && updatedImageUrl.trim() !== '') {
           if (typeof window !== 'undefined') {
             window.localStorage.setItem('userAvatarUrl', updatedImageUrl);
           }
