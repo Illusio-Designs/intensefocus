@@ -5,6 +5,8 @@ import { getSharedViewMode, setSharedViewMode as updateSharedViewMode, registerV
 
 const Breadcrumb = ({ currentPage, onPageChange }) => {
   const [viewMode, setViewMode] = useState(getSharedViewMode());
+  const [modelNo, setModelNo] = useState(null);
+  const [fromHome, setFromHome] = useState(false);
   
   useEffect(() => {
     registerViewModeSetter((mode) => {
@@ -13,11 +15,27 @@ const Breadcrumb = ({ currentPage, onPageChange }) => {
     // Sync initial state
     setViewMode(getSharedViewMode());
   }, [currentPage]);
+
+  // Get model_no from URL and check if coming from home
+  useEffect(() => {
+    if (currentPage === 'product-detail' && typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const modelNoParam = urlParams.get('model_no');
+      const fromHomeParam = urlParams.get('fromHome');
+      
+      setModelNo(modelNoParam);
+      setFromHome(fromHomeParam === 'true');
+    } else {
+      setModelNo(null);
+      setFromHome(false);
+    }
+  }, [currentPage]);
   
   const handleViewModeChange = (mode) => {
     setViewMode(mode);
     updateSharedViewMode(mode);
   };
+  
   // Define breadcrumb paths for each page
   const getBreadcrumbPath = (page) => {
     const breadcrumbMap = {
@@ -46,11 +64,21 @@ const Breadcrumb = ({ currentPage, onPageChange }) => {
         { id: 'products', text: 'Shop' },
         { id: 'cart', text: 'Cart', isLast: true }
       ],
-      'product-detail': [
-        { id: 'home', text: 'Home' },
-        { id: 'products', text: 'Shop' },
-        { id: 'product-detail', text: 'Anti-Fog Safety Goggles', isLast: true }
-      ]
+      'product-detail': (() => {
+        // If coming from home page, show: Home > Model No
+        if (fromHome) {
+          return [
+            { id: 'home', text: 'Home' },
+            { id: 'product-detail', text: modelNo || 'Product Detail', isLast: true }
+          ];
+        }
+        // If coming from products page, show: Home > Shop > Model No
+        return [
+          { id: 'home', text: 'Home' },
+          { id: 'products', text: 'Shop' },
+          { id: 'product-detail', text: modelNo || 'Product Detail', isLast: true }
+        ];
+      })()
     };
 
     return breadcrumbMap[page] || [];

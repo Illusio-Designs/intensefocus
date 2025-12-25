@@ -70,6 +70,7 @@
   border-radius: 6px;
   background: #fff;
   font-size: 14px;
+  color: #000000;
 }
 
 /* Ensure modal form inputs always have 6px border radius */
@@ -137,7 +138,7 @@
 }
 
 .ui-dropdown-custom__value {
-  color: #181265;
+  color: #000000;
   font-size: 14px;
   font-weight: 400;
   flex: 1;
@@ -891,6 +892,7 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 input[type="number"] {
   -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 /* Select as pill with chevron */

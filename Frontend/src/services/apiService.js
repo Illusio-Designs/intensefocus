@@ -3196,6 +3196,41 @@ export const updateProduct = async (productId, productData) => {
 };
 
 /**
+ * Get product models by model number
+ * @param {string} modelNo - Model number (e.g., "PROD003")
+ * @returns {Promise<Array>} Array of product model objects
+ */
+export const getProductModels = async (modelNo) => {
+  try {
+    const response = await apiRequest('/products/product-models', {
+      method: 'POST',
+      body: {
+        model_no: modelNo,
+      },
+      includeAuth: true,
+    });
+    
+    if (Array.isArray(response)) {
+      return response;
+    }
+    if (response && Array.isArray(response.data)) {
+      return response.data;
+    }
+    return [];
+  } catch (error) {
+    const errorMessage = (error.message || '').toLowerCase();
+    const errorText = (error.errorData?.error || error.errorData?.message || '').toLowerCase();
+    
+    if (errorMessage.includes('not found') ||
+        errorText.includes('not found') ||
+        error.statusCode === 404) {
+      return [];
+    }
+    throw error;
+  }
+};
+
+/**
  * Delete product
  * @param {string} productId - Product ID (UUID)
  * @returns {Promise<Object>} Response with message

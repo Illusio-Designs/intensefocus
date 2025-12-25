@@ -2738,16 +2738,16 @@ const DashboardProducts = () => {
           </div>
           <div className="form-group form-group--full">
             <label className="ui-label">Status *</label>
-            <select
-              className="ui-input"
+            <DropdownSelector
+              options={[
+                { value: 'draft', label: 'Draft' },
+                { value: 'active', label: 'Active' },
+                { value: 'inactive', label: 'Inactive' }
+              ]}
               value={formData.status}
-              onChange={(e) => handleInputChange('status', e.target.value)}
-              required
-            >
-              <option value="draft">Draft</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
+              onChange={(value) => handleInputChange('status', value)}
+              placeholder="Select status"
+            />
         </div>
         </form>
       </Modal>
@@ -2958,16 +2958,16 @@ const DashboardProducts = () => {
           </div>
           <div className="form-group form-group--full">
             <label className="ui-label">Status *</label>
-            <select
-              className="ui-input"
+            <DropdownSelector
+              options={[
+                { value: 'draft', label: 'Draft' },
+                { value: 'active', label: 'Active' },
+                { value: 'inactive', label: 'Inactive' }
+              ]}
               value={formData.status}
-              onChange={(e) => handleInputChange('status', e.target.value)}
-              required
-            >
-              <option value="draft">Draft</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
+              onChange={(value) => handleInputChange('status', value)}
+              placeholder="Select status"
+            />
           </div>
         </form>
       </Modal>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import '../styles/pages/Home.css';
 import ProductCard from '../components/ProductCard';
 import { getFeaturedProducts, getCollections } from '../services/apiService';
+import { isLoggedIn } from '../services/authService';
 
 const Home = ({ onPageChange }) => {
   const [activeFilter, setActiveFilter] = useState('ALL');
@@ -15,11 +16,28 @@ const Home = ({ onPageChange }) => {
     setActiveFilter(filterId);
   };
 
-  const handleViewMore = (productId) => {
+  const handleViewMore = (productId, modelNo) => {
+    // Check authentication before redirecting
+    if (!isLoggedIn()) {
+      // Get current URL to use as return URL, add fromHome=true to indicate coming from home
+      const returnUrl = `/product-detail?id=${productId}${modelNo ? `&model_no=${encodeURIComponent(modelNo)}` : ''}&fromHome=true`;
+      if (typeof window !== 'undefined') {
+        window.location.href = `/login?returnUrl=${encodeURIComponent(returnUrl)}`;
+      }
+      return;
+    }
+    
+    // User is authenticated, proceed with navigation
+    // Add fromHome=true to indicate coming from home page
     if (onPageChange) {
-      onPageChange('product-detail', productId);
+      // For onPageChange, we need to pass the full URL with query params
+      if (typeof window !== 'undefined') {
+        const url = `/product-detail?id=${productId}${modelNo ? `&model_no=${encodeURIComponent(modelNo)}` : ''}&fromHome=true`;
+        window.location.href = url;
+      }
     } else if (typeof window !== 'undefined') {
-      window.location.href = `/product-detail?id=${productId}`;
+      const url = `/product-detail?id=${productId}${modelNo ? `&model_no=${encodeURIComponent(modelNo)}` : ''}&fromHome=true`;
+      window.location.href = url;
     }
   };
 

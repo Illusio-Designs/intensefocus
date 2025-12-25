@@ -19,7 +19,8 @@ const ProductCard = ({
 
   const handleViewMoreClick = () => {
     if (onViewMore) {
-      onViewMore(productId);
+      // Pass both productId and model_no (productName is model_no)
+      onViewMore(productId, productName);
     }
   };
 

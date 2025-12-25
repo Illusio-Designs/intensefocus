@@ -777,15 +777,16 @@ const DashboardTray = () => {
           </div>
           <div className="form-group">
             <label className="ui-label">Status</label>
-            <select
-              className="ui-select"
+            <DropdownSelector
+              options={[
+                { value: TrayStatus.AVAILABLE, label: 'AVAILABLE' },
+                { value: TrayStatus.ASSIGNED, label: 'ASSIGNED' },
+                { value: TrayStatus.CLOSED, label: 'CLOSED' }
+              ]}
               value={form.tray_status}
-              onChange={(e) => setForm((p) => ({ ...p, tray_status: e.target.value }))}
-            >
-              <option value={TrayStatus.AVAILABLE}>AVAILABLE</option>
-              <option value={TrayStatus.ASSIGNED}>ASSIGNED</option>
-              <option value={TrayStatus.CLOSED}>CLOSED</option>
-            </select>
+              onChange={(value) => setForm((p) => ({ ...p, tray_status: value }))}
+              placeholder="Select status"
+            />
           </div>
         </div>
       </Modal>
@@ -811,15 +812,16 @@ const DashboardTray = () => {
           </div>
           <div className="form-group">
             <label className="ui-label">Status</label>
-            <select
-              className="ui-select"
+            <DropdownSelector
+              options={[
+                { value: TrayStatus.AVAILABLE, label: 'AVAILABLE' },
+                { value: TrayStatus.ASSIGNED, label: 'ASSIGNED' },
+                { value: TrayStatus.CLOSED, label: 'CLOSED' }
+              ]}
               value={form.tray_status}
-              onChange={(e) => setForm((p) => ({ ...p, tray_status: e.target.value }))}
-            >
-              <option value={TrayStatus.AVAILABLE}>AVAILABLE</option>
-              <option value={TrayStatus.ASSIGNED}>ASSIGNED</option>
-              <option value={TrayStatus.CLOSED}>CLOSED</option>
-            </select>
+              onChange={(value) => setForm((p) => ({ ...p, tray_status: value }))}
+              placeholder="Select status"
+            />
           </div>
         </div>
       </Modal>
@@ -862,16 +864,17 @@ const DashboardTray = () => {
                 </div>
                 <div className="form-group">
                   <label className="ui-label">Status</label>
-                  <select
-                    className="ui-select"
+                  <DropdownSelector
+                    options={[
+                      { value: TrayProductStatus.ALLOTED, label: 'Alloted' },
+                      { value: TrayProductStatus.PRIORITY_BOOKED, label: 'Priority Booked' },
+                      { value: TrayProductStatus.PARTIALLY_BOOKED, label: 'Partially Booked' },
+                      { value: TrayProductStatus.RETURNED, label: 'Returned' }
+                    ]}
                     value={editProductStatus}
-                    onChange={(e) => setEditProductStatus(e.target.value)}
-                  >
-                    <option value={TrayProductStatus.ALLOTED}>Alloted</option>
-                    <option value={TrayProductStatus.PRIORITY_BOOKED}>Priority Booked</option>
-                    <option value={TrayProductStatus.PARTIALLY_BOOKED}>Partially Booked</option>
-                    <option value={TrayProductStatus.RETURNED}>Returned</option>
-                  </select>
+                    onChange={(value) => setEditProductStatus(value)}
+                    placeholder="Select status"
+                  />
                 </div>
               </>
             );

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import "../styles/pages/ProductDetail.css";
 import { addToCart } from "../services/cartService";
 import { showAddToCartSuccess } from "../services/notificationService";
+import { getProductModels, getProducts } from "../services/apiService";
 
 // Shared state for viewMode to communicate with Breadcrumb
 let sharedViewMode = "list";
@@ -17,15 +18,23 @@ export const registerViewModeSetter = (setter) => {
 };
 
 const ProductDetail = ({ productId: propProductId = null }) => {
-  // Get productId from URL if not provided as prop (for direct navigation)
+  // Get productId and model_no from URL if not provided as prop (for direct navigation)
   const [productId, setProductId] = useState(() => {
     if (propProductId) return propProductId;
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
       const id = urlParams.get("id");
-      return id ? parseInt(id) : 1;
+      // product_id can be UUID (string) or number
+      return id || null;
     }
-    return 1;
+    return null;
+  });
+  const [modelNo, setModelNo] = useState(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get("model_no") || null;
+    }
+    return null;
   });
   const [viewMode, setViewMode] = useState(() => {
     const mode = sharedViewMode || "list";
@@ -34,6 +43,9 @@ const ProductDetail = ({ productId: propProductId = null }) => {
   const [selectedVariation, setSelectedVariation] = useState(0);
   const [quantities, setQuantities] = useState({});
   const [editingQuantities, setEditingQuantities] = useState({});
+  const [productVariations, setProductVariations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // Register setter and sync with shared state
   useEffect(() => {
@@ -103,120 +115,139 @@ const ProductDetail = ({ productId: propProductId = null }) => {
     );
   };
 
-  // Mock product data with variations
-  // In real app, this would come from API based on productId
-  const productVariations = [
-    {
-      id: 1,
-      name: "Anti-Fog Safety Goggles",
-      brand: "Pepe Jeans",
-      model: "Anti-Fog Safety",
-      type: "Sunglass",
-      gender: "Man",
-      shape: "Aviator",
-      frameColour: "M/Black",
-      frameMaterial: "Tr90 With Metal",
-      lenseColour: "Black Gradient",
-      lenseMaterial: "Polycarbonate",
-      size: "56-12-143",
-      mrp: "₹5,058",
-      whp: "₹2,090",
-      qty: "Full Quantity",
-      image: "/images/products/spac1.webp",
-    },
-    {
-      id: 2,
-      name: "Anti-Fog Safety Goggles",
-      brand: "Pepe Jeans",
-      model: "Anti-Fog Safety",
-      type: "Sunglass",
-      gender: "Man",
-      shape: "Aviator",
-      frameColour: "M/Black",
-      frameMaterial: "Tr90 With Metal",
-      lenseColour: "Orange Gradient",
-      lenseMaterial: "Polycarbonate",
-      size: "56-12-143",
-      mrp: "₹5,058",
-      whp: "₹2,090",
-      qty: "Full Quantity",
-      image: "/images/products/spac2.webp",
-    },
-    {
-      id: 3,
-      name: "Anti-Fog Safety Goggles",
-      brand: "Pepe Jeans",
-      model: "Anti-Fog Safety",
-      type: "Sunglass",
-      gender: "Man",
-      shape: "Aviator",
-      frameColour: "M/Black",
-      frameMaterial: "Tr90 With Metal",
-      lenseColour: "Charcoal",
-      lenseMaterial: "Polycarbonate",
-      size: "56-12-143",
-      mrp: "₹5,058",
-      whp: "₹2,090",
-      qty: "Full Quantity",
-      image: "/images/products/spac3.webp",
-    },
-    {
-      id: 4,
-      name: "Anti-Fog Safety Goggles",
-      brand: "Pepe Jeans",
-      model: "Anti-Fog Safety",
-      type: "Sunglass",
-      gender: "Man",
-      shape: "Aviator",
-      frameColour: "M/Black",
-      frameMaterial: "Tr90 With Metal",
-      lenseColour: "Brown Gradient",
-      lenseMaterial: "Polycarbonate",
-      size: "56-12-143",
-      mrp: "₹5,058",
-      whp: "₹2,090",
-      qty: "Full Quantity",
-      image: "/images/products/spac4.webp",
-    },
-    // {
-    //   id: 5,
-    //   name: 'Anti-Fog Safety Goggles',
-    //   brand: 'Pepe Jeans',
-    //   model: 'Anti-Fog Safety',
-    //   type: 'Sunglass',
-    //   gender: 'Man',
-    //   shape: 'Aviator',
-    //   frameColour: 'M/Black',
-    //   frameMaterial: 'Tr90 With Metal',
-    //   lenseColour: 'Grey',
-    //   lenseMaterial: 'Polycarbonate',
-    //   size: '56-12-143',
-    //   mrp: '₹5,058',
-    //   whp: '₹2,090',
-    //   qty: 'Full Quantity',
-    //   image: '/images/products/spac5.webp'
-    // },
-    // {
-    //   id: 6,
-    //   name: 'Anti-Fog Safety Goggles',
-    //   brand: 'Pepe Jeans',
-    //   model: 'Anti-Fog Safety',
-    //   type: 'Sunglass',
-    //   gender: 'Man',
-    //   shape: 'Aviator',
-    //   frameColour: 'M/Black',
-    //   frameMaterial: 'Tr90 With Metal',
-    //   lenseColour: 'Blue',
-    //   lenseMaterial: 'Polycarbonate',
-    //   size: '56-12-143',
-    //   mrp: '₹5,058',
-    //   whp: '₹2,090',
-    //   qty: 'Full Quantity',
-    //   image: '/images/products/spac6.webp'
-    // }
-  ];
+  // Fetch product models when model_no is available
+  useEffect(() => {
+    const fetchProductModels = async () => {
+      if (!modelNo) {
+        // If no model_no, try to get it from productId by fetching products
+        if (productId) {
+          try {
+            setLoading(true);
+            // Fetch products to find the one with matching product_id
+            const products = await getProducts(1, 100, null);
+            const product = products.find(p => {
+              // Handle both UUID string and number IDs
+              const pId = p.product_id || p.id;
+              return String(pId) === String(productId);
+            });
+            if (product && product.model_no) {
+              setModelNo(product.model_no);
+              // Fetch product models with the found model_no
+              const models = await getProductModels(product.model_no);
+              transformProductModels(models);
+            } else {
+              setError('Product not found');
+              setLoading(false);
+            }
+          } catch (err) {
+            console.error('Error fetching product:', err);
+            setError('Failed to load product');
+            setLoading(false);
+          }
+        } else {
+          setLoading(false);
+        }
+        return;
+      }
 
-  const currentProduct = productVariations[selectedVariation];
+      try {
+        setLoading(true);
+        setError(null);
+        const models = await getProductModels(modelNo);
+        transformProductModels(models);
+      } catch (err) {
+        console.error('Error fetching product models:', err);
+        setError('Failed to load product models');
+        setLoading(false);
+      }
+    };
+
+    fetchProductModels();
+  }, [modelNo, productId]);
+
+  // Transform API response to match component's expected format
+  const transformProductModels = (models) => {
+    if (!models || models.length === 0) {
+      setProductVariations([]);
+      setLoading(false);
+      return;
+    }
+
+    const transformed = models.map((model, index) => {
+      // Helper to get image URL
+      const getImageUrl = (imageUrls) => {
+        if (!imageUrls) return '/images/products/spac1.webp';
+        
+        // If it's already an array, get first image
+        if (Array.isArray(imageUrls)) {
+          if (imageUrls.length > 0) {
+            const img = imageUrls[0];
+            if (typeof img === 'string') {
+              // Extract filename and construct URL
+              const filename = img.split('/').pop()?.split('?')[0];
+              return filename ? `https://stallion.nishree.com/uploads/products/${filename}` : '/images/products/spac1.webp';
+            }
+          }
+          return '/images/products/spac1.webp';
+        }
+        
+        // If it's a string, try to parse as JSON
+        if (typeof imageUrls === 'string') {
+          try {
+            const parsed = JSON.parse(imageUrls);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              const img = parsed[0];
+              const filename = img.split('/').pop()?.split('?')[0];
+              return filename ? `https://stallion.nishree.com/uploads/products/${filename}` : '/images/products/spac1.webp';
+            }
+          } catch (e) {
+            // If parsing fails, treat as filename
+            const filename = imageUrls.split('/').pop()?.split('?')[0];
+            return filename ? `https://stallion.nishree.com/uploads/products/${filename}` : '/images/products/spac1.webp';
+          }
+        }
+        
+        return '/images/products/spac1.webp';
+      };
+
+      // Format price with currency
+      const formatPrice = (price) => {
+        if (!price) return '₹0';
+        const numPrice = typeof price === 'string' ? parseFloat(price) : price;
+        return `₹${numPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      };
+
+      // Format quantity
+      const formatQty = (qty) => {
+        if (qty === null || qty === undefined) return '0';
+        return qty.toString();
+      };
+
+      return {
+        id: model.product_id || model.id || index + 1,
+        name: model.model_no || 'Safety Goggles',
+        brand: model.brand_name || 'Brand',
+        model: model.model_no || 'Model',
+        type: 'Sunglass', // Default, can be enhanced with lookup
+        gender: `Gender ${model.gender_id || ''}`, // Can be enhanced with lookup
+        shape: `Shape ${model.shape_id || ''}`, // Can be enhanced with lookup
+        frameColour: `Frame Color ${model.frame_color_id || ''}`, // Can be enhanced with lookup
+        frameMaterial: `Frame Material ${model.frame_material_id || ''}`, // Can be enhanced with lookup
+        lenseColour: `Lens Color ${model.lens_color_id || ''}`, // Can be enhanced with lookup
+        lenseMaterial: `Lens Material ${model.lens_material_id || ''}`, // Can be enhanced with lookup
+        size: model.size_mm || 'N/A',
+        mrp: formatPrice(model.mrp),
+        whp: formatPrice(model.whp),
+        qty: formatQty(model.total_qty || model.warehouse_qty || 0),
+        image: getImageUrl(model.image_urls),
+      };
+    });
+
+    setProductVariations(transformed);
+    setLoading(false);
+  };
+
+  const currentProduct = productVariations[selectedVariation] || null;
   const totalVariations = productVariations.length;
 
   // Update display variation based on selected variation
@@ -288,6 +319,42 @@ const ProductDetail = ({ productId: propProductId = null }) => {
   const visibleVariations = getVisibleVariations();
   const displayVariation = getDisplayVariation();
   const needsSlider = viewMode === "grid" && needsSliderArrows; // Only need slider arrows for >3 variations
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="product-detail-page">
+        <div style={{ padding: '40px', textAlign: 'center' }}>
+          <div className="white-loader-container">
+            <div className="white-loader"></div>
+          </div>
+          <p>Loading product details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="product-detail-page">
+        <div style={{ padding: '40px', textAlign: 'center', color: 'red' }}>
+          <p>Error: {error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show empty state
+  if (productVariations.length === 0) {
+    return (
+      <div className="product-detail-page">
+        <div style={{ padding: '40px', textAlign: 'center' }}>
+          <p>No product variations found.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="product-detail-page">

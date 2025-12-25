@@ -4,6 +4,7 @@ import StatusBadge from '../components/ui/StatusBadge';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 import RowActions from '../components/ui/RowActions';
+import DropdownSelector from '../components/ui/DropdownSelector';
 import { 
   getOrders, 
   createOrder, 
@@ -50,6 +51,7 @@ const mapUITabToApiStatus = (tab) => {
 
 const DashboardOrders = () => {
   const [editRow, setEditRow] = useState(null);
+  const [editStatus, setEditStatus] = useState('PENDING');
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('All');
   const [dateRange, setDateRange] = useState('Feb 24, 2023 - Mar 15, 2023');
@@ -681,7 +683,10 @@ const DashboardOrders = () => {
     { key: 'action', label: 'ACTION', render: (_v, row) => (
       <RowActions 
         onView={() => console.log('view', row)} 
-        onEdit={() => setEditRow(row)} 
+        onEdit={() => {
+          setEditRow(row);
+          setEditStatus(row?.status || 'PENDING');
+        }} 
         onDownload={() => console.log('download', row)} 
         onDelete={() => handleDelete(row)} 
       />
@@ -766,15 +771,19 @@ const DashboardOrders = () => {
       </div>
 
       {/* Edit Order Status Modal */}
-      <Modal open={!!editRow} onClose={() => setEditRow(null)} title="Edit Order Status" footer={(
+      <Modal open={!!editRow} onClose={() => {
+        setEditRow(null);
+        setEditStatus('PENDING');
+      }} title="Edit Order Status" footer={(
         <>
-          <Button variant="secondary" onClick={() => setEditRow(null)} disabled={loading}>Cancel</Button>
+          <Button variant="secondary" onClick={() => {
+            setEditRow(null);
+            setEditStatus('PENDING');
+          }} disabled={loading}>Cancel</Button>
           <Button 
             onClick={() => {
-              const selectElement = document.getElementById('edit-order-status');
-              const newStatus = selectElement?.value;
-              if (newStatus && editRow) {
-                handleUpdateStatus(editRow, newStatus);
+              if (editStatus && editRow) {
+                handleUpdateStatus(editRow, editStatus);
               }
             }} 
             disabled={loading}
@@ -802,19 +811,20 @@ const DashboardOrders = () => {
           </div>
           <div className="form-group">
             <label className="ui-label">Status</label>
-            <select 
-              id="edit-order-status"
-              className="ui-select" 
-              defaultValue={editRow?.status || 'PENDING'}
-            >
-              <option value="PENDING">PENDING</option>
-              <option value="PROCESSING">PROCESSING</option>
-              <option value="HOLD BY TREY">HOLD BY TREY</option>
-              <option value="PARTIALLY DISPATCH">PARTIALLY DISPATCH</option>
-              <option value="DISPATCH">DISPATCH</option>
-              <option value="COMPLETED">COMPLETED</option>
-              <option value="CANCEL">CANCEL</option>
-            </select>
+            <DropdownSelector
+              options={[
+                { value: 'PENDING', label: 'PENDING' },
+                { value: 'PROCESSING', label: 'PROCESSING' },
+                { value: 'HOLD BY TREY', label: 'HOLD BY TREY' },
+                { value: 'PARTIALLY DISPATCH', label: 'PARTIALLY DISPATCH' },
+                { value: 'DISPATCH', label: 'DISPATCH' },
+                { value: 'COMPLETED', label: 'COMPLETED' },
+                { value: 'CANCEL', label: 'CANCEL' }
+              ]}
+              value={editStatus}
+              onChange={(value) => setEditStatus(value)}
+              placeholder="Select status"
+            />
           </div>
         </div>
       </Modal>

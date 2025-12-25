@@ -269,9 +269,12 @@ const Products = ({ onPageChange }) => {
 
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
 
-  const handleViewMore = (productId) => {
+  const handleViewMore = (productId, modelNo) => {
+    // Products page already requires authentication, so just navigate
+    // Add fromHome=false (or omit it) to indicate coming from products page
     if (typeof window !== 'undefined') {
-      window.location.href = `/product-detail?id=${productId}`;
+      const url = `/product-detail?id=${productId}${modelNo ? `&model_no=${encodeURIComponent(modelNo)}` : ''}`;
+      window.location.href = url;
     }
   };
 

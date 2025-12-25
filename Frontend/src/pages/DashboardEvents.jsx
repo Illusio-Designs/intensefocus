@@ -3,6 +3,7 @@ import TableWithControls from '../components/ui/TableWithControls';
 import Modal from '../components/ui/Modal';
 import RowActions from '../components/ui/RowActions';
 import StatusBadge from '../components/ui/StatusBadge';
+import DropdownSelector from '../components/ui/DropdownSelector';
 import {
   getEvents,
   createEvent,
@@ -323,15 +324,16 @@ const DashboardEvents = () => {
           </div>
           <div className="form-group">
             <label className="ui-label">Status</label>
-            <select
-              className="ui-select"
+            <DropdownSelector
+              options={[
+                { value: EventStatus.ACTIVE, label: 'Active' },
+                { value: EventStatus.COMPLETED, label: 'Completed' },
+                { value: EventStatus.CANCELLED, label: 'Cancelled' }
+              ]}
               value={form.event_status}
-              onChange={(e) => setForm((p) => ({ ...p, event_status: e.target.value }))}
-            >
-              <option value={EventStatus.ACTIVE}>Active</option>
-              <option value={EventStatus.COMPLETED}>Completed</option>
-              <option value={EventStatus.CANCELLED}>Cancelled</option>
-            </select>
+              onChange={(value) => setForm((p) => ({ ...p, event_status: value }))}
+              placeholder="Select status"
+            />
           </div>
         </div>
       </Modal>
@@ -394,15 +396,16 @@ const DashboardEvents = () => {
           </div>
           <div className="form-group">
             <label className="ui-label">Status</label>
-            <select
-              className="ui-select"
+            <DropdownSelector
+              options={[
+                { value: EventStatus.ACTIVE, label: 'Active' },
+                { value: EventStatus.COMPLETED, label: 'Completed' },
+                { value: EventStatus.CANCELLED, label: 'Cancelled' }
+              ]}
               value={form.event_status}
-              onChange={(e) => setForm((p) => ({ ...p, event_status: e.target.value }))}
-            >
-              <option value={EventStatus.ACTIVE}>Active</option>
-              <option value={EventStatus.COMPLETED}>Completed</option>
-              <option value={EventStatus.CANCELLED}>Cancelled</option>
-            </select>
+              onChange={(value) => setForm((p) => ({ ...p, event_status: value }))}
+              placeholder="Select status"
+            />
           </div>
         </div>
       </Modal>
