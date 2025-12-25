@@ -871,7 +871,7 @@ const DashboardProducts = () => {
         warehouse_qty: parseInt(product.warehouse_qty) || 0,
         tray_qty: parseInt(product.tray_qty) || 0,
         total_qty: parseInt(product.total_qty) || 0,
-        status: product.status || 'draft',
+        status: 'active', // Update status to active when image is attached
         image_urls: updatedImageUrls, // Update image_urls array
       };
 
@@ -1004,7 +1004,7 @@ const DashboardProducts = () => {
         warehouse_qty: parseInt(product.warehouse_qty) || 0,
         tray_qty: parseInt(product.tray_qty) || 0,
         total_qty: parseInt(product.total_qty) || 0,
-        status: product.status || 'draft',
+        status: 'active', // Update status to active when images are attached
         image_urls: updatedImageUrls, // Update image_urls array with all images
       };
 
@@ -1511,6 +1511,16 @@ const DashboardProducts = () => {
           return false;
         }
         
+        // Exclude if image type is 'assigned' (most reliable check)
+        if (img.type === 'assigned') {
+          return false; // This image is assigned
+        }
+        
+        // Exclude if image has an assignedProduct
+        if (img.assignedProduct || img.productId || img.productData) {
+          return false; // This image is assigned to a product
+        }
+        
         // Exclude if this image is assigned to any product
         if (productImageUrls.has(imageUrl)) {
           return false; // This image is assigned
@@ -1945,8 +1955,40 @@ const DashboardProducts = () => {
       // Log full response for debugging
       console.log('Image upload response:', response);
       
-      // If upload successful and uploaded to a specific product, refresh to get updated image_urls
+      // If upload successful and uploaded to a specific product, update status to active and refresh
       if (targetProductId) {
+        // Find the product to update its status
+        const productToUpdate = products.find(p => 
+          (p.id || p.product_id) == targetProductId
+        ) || targetProduct?.data || targetProduct;
+        
+        if (productToUpdate) {
+          // Update product status to active when image is uploaded
+          const updateData = {
+            model_no: productToUpdate.model_no || '',
+            gender_id: parseInt(productToUpdate.gender_id) || 0,
+            color_code_id: parseInt(productToUpdate.color_code_id) || 0,
+            shape_id: parseInt(productToUpdate.shape_id) || 0,
+            lens_color_id: parseInt(productToUpdate.lens_color_id) || 0,
+            frame_color_id: parseInt(productToUpdate.frame_color_id) || 0,
+            frame_type_id: parseInt(productToUpdate.frame_type_id) || 0,
+            lens_material_id: parseInt(productToUpdate.lens_material_id) || 0,
+            frame_material_id: parseInt(productToUpdate.frame_material_id) || 0,
+            mrp: parseFloat(productToUpdate.mrp) || 0,
+            whp: parseFloat(productToUpdate.whp) || 0,
+            size_mm: productToUpdate.size_mm || '',
+            brand_id: productToUpdate.brand_id || '',
+            collection_id: productToUpdate.collection_id || '',
+            warehouse_qty: parseInt(productToUpdate.warehouse_qty) || 0,
+            tray_qty: parseInt(productToUpdate.tray_qty) || 0,
+            total_qty: parseInt(productToUpdate.total_qty) || 0,
+            status: 'active', // Update status to active when image is uploaded
+            image_urls: productToUpdate.image_urls || [] // Keep existing image_urls
+          };
+          
+          await updateProduct(targetProductId, updateData);
+        }
+        
         await fetchProductsWithoutLoading();
         await fetchRelatedData();
       }
