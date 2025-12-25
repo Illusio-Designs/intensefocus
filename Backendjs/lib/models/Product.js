@@ -42,7 +42,7 @@ const Product = sequelize.define('Product', {
     model_no: {
         type: DataTypes.STRING(255),
         allowNull: false,
-        unique: true
+        unique: false
     },
     gender_id: {
         type: DataTypes.INTEGER,

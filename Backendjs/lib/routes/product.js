@@ -16,6 +16,8 @@ router.post('/bulk-upload',
     authenticateToken,
     productFileUpload,
     parseProductFile,
+    productController.bulkProductUpload
 );
+router.post('/product-models', authenticateToken, productController.getProductModels);
 
 module.exports = router;

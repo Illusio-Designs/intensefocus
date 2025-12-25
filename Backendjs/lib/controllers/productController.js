@@ -118,6 +118,10 @@ class ProductController {
             if (!collection) {
                 return res.status(404).json({ error: 'Collection not found' });
             }
+            const existingProduct = await Product.findOne({ where: { model_no: model_no, color_code_id: color_code_id } });
+            if (existingProduct) {
+                return res.status(400).json({ error: 'Product already exists' });
+            }
             const product = await Product.create({
                 model_no,
                 gender_id,
@@ -154,6 +158,7 @@ class ProductController {
             });
             res.status(200).json(product);
         } catch (error) {
+            console.log(error);
             res.status(500).json({ error: error.message });
         }
     }
@@ -215,6 +220,7 @@ class ProductController {
             });
             res.status(200).json({ message: 'Product updated successfully' });
         } catch (error) {
+            console.log(error);
             res.status(500).json({ error: error.message });
         }
     }
@@ -572,6 +578,22 @@ class ProductController {
             };
         } catch (error) {
             return { success: false, message: error.message };
+        }
+    }
+
+    async getProductModels(req, res) {
+        try {
+            const { model_no } = req.body;
+            if (!model_no) {
+                return res.status(400).json({ error: 'Model number is required' });
+            }
+            const products = await Product.findAll({ where: { model_no: model_no } });
+            if (!products || products.length === 0) {
+                return res.status(404).json({ error: 'Products not found' });
+            }
+            res.status(200).json(products);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
         }
     }
 }

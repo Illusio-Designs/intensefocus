@@ -385,6 +385,15 @@ class DatabaseManager {
                         const tableName = model.tableName || model.name.toLowerCase() + 's';
                         const tableExists = await this.checkTableExists(tableName);
 
+                        // Clean up orphaned foreign key records before syncing
+                        if (tableExists) {
+                            if (modelName === 'TrayProducts') {
+                                await this.cleanupOrphanedRecords('tray_product', 'product_id', 'product', 'product_id');
+                            } else if (modelName === 'OrderOperation') {
+                                await this.cleanupOrphanedRecords('order_operation', 'product_id', 'product', 'product_id');
+                            }
+                        }
+
                         if (!tableExists) {
                             console.log(`📦 Creating table from model: ${tableName}`);
                             await model.sync({ alter: true });
@@ -449,6 +458,49 @@ class DatabaseManager {
             if (!currentColumns.includes(columnName)) {
                 await sequelize.getQueryInterface().addColumn(tableName, columnName, columnDef);
             }
+        }
+    }
+
+    /**
+     * Clean up orphaned foreign key records
+     * Removes records from child table that reference non-existent records in parent table
+     * @param {string} childTable - The table with the foreign key
+     * @param {string} childColumn - The foreign key column in child table
+     * @param {string} parentTable - The referenced table
+     * @param {string} parentColumn - The primary key column in parent table
+     */
+    static async cleanupOrphanedRecords(childTable, childColumn, parentTable, parentColumn) {
+        try {
+            const childTableExists = await this.checkTableExists(childTable);
+            const parentTableExists = await this.checkTableExists(parentTable);
+
+            if (!childTableExists || !parentTableExists) {
+                return;
+            }
+
+            // Find and delete orphaned records using proper MySQL syntax with backticks
+            const [orphanedRecords] = await sequelize.query(`
+                SELECT tp.\`${childColumn}\`
+                FROM \`${childTable}\` tp
+                LEFT JOIN \`${parentTable}\` p ON tp.\`${childColumn}\` = p.\`${parentColumn}\`
+                WHERE p.\`${parentColumn}\` IS NULL
+            `);
+
+            if (orphanedRecords && orphanedRecords.length > 0) {
+                const orphanedIds = orphanedRecords.map(record => record[childColumn]);
+                // Use Sequelize's query with proper array handling for MySQL
+                const placeholders = orphanedIds.map(() => '?').join(',');
+                await sequelize.query(`
+                    DELETE FROM \`${childTable}\`
+                    WHERE \`${childColumn}\` IN (${placeholders})
+                `, {
+                    replacements: orphanedIds
+                });
+                console.log(`🧹 Cleaned up ${orphanedRecords.length} orphaned records from ${childTable}`);
+            }
+        } catch (error) {
+            // If cleanup fails, log but don't throw - allow sync to continue
+            console.log(`⚠️ Warning cleaning up orphaned records in ${childTable}:`, error.message);
         }
     }
 }
