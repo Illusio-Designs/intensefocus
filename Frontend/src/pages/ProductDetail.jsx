@@ -36,6 +36,33 @@ const ProductDetail = ({ productId: propProductId = null }) => {
     }
     return null;
   });
+
+  // Update modelNo and productId when URL changes (e.g., after login redirect)
+  useEffect(() => {
+    const checkUrlParams = () => {
+      if (typeof window !== "undefined") {
+        const urlParams = new URLSearchParams(window.location.search);
+        const id = urlParams.get("id");
+        const modelNoParam = urlParams.get("model_no");
+        
+        if (id && id !== productId) {
+          setProductId(id);
+        }
+        if (modelNoParam && modelNoParam !== modelNo) {
+          setModelNo(modelNoParam);
+        }
+      }
+    };
+    
+    // Check immediately
+    checkUrlParams();
+    
+    // Also listen for popstate events (back/forward navigation)
+    if (typeof window !== "undefined") {
+      window.addEventListener('popstate', checkUrlParams);
+      return () => window.removeEventListener('popstate', checkUrlParams);
+    }
+  }, [productId, modelNo]);
   const [viewMode, setViewMode] = useState(() => {
     const mode = sharedViewMode || "list";
     return mode;
@@ -118,17 +145,37 @@ const ProductDetail = ({ productId: propProductId = null }) => {
   // Fetch product models when model_no is available
   useEffect(() => {
     const fetchProductModels = async () => {
-      if (!modelNo) {
+      // Re-read URL params in case they changed (e.g., after login redirect)
+      let currentModelNo = modelNo;
+      let currentProductId = productId;
+      
+      if (typeof window !== "undefined") {
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlModelNo = urlParams.get("model_no");
+        const urlProductId = urlParams.get("id");
+        
+        if (urlModelNo && urlModelNo !== currentModelNo) {
+          currentModelNo = urlModelNo;
+          setModelNo(urlModelNo);
+        }
+        if (urlProductId && urlProductId !== currentProductId) {
+          currentProductId = urlProductId;
+          setProductId(urlProductId);
+        }
+      }
+      
+      if (!currentModelNo) {
         // If no model_no, try to get it from productId by fetching products
-        if (productId) {
+        if (currentProductId) {
           try {
             setLoading(true);
+            setError(null);
             // Fetch products to find the one with matching product_id
             const products = await getProducts(1, 100, null);
             const product = products.find(p => {
               // Handle both UUID string and number IDs
               const pId = p.product_id || p.id;
-              return String(pId) === String(productId);
+              return String(pId) === String(currentProductId);
             });
             if (product && product.model_no) {
               setModelNo(product.model_no);
@@ -153,7 +200,7 @@ const ProductDetail = ({ productId: propProductId = null }) => {
       try {
         setLoading(true);
         setError(null);
-        const models = await getProductModels(modelNo);
+        const models = await getProductModels(currentModelNo);
         transformProductModels(models);
       } catch (err) {
         console.error('Error fetching product models:', err);

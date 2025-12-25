@@ -437,9 +437,18 @@ const Login = ({ onPageChange }) => {
                   const queryString = pathParts[1] || '';
                   const searchParams = new URLSearchParams(queryString);
                   const productId = searchParams.get('id');
+                  const modelNo = searchParams.get('model_no');
+                  const fromHome = searchParams.get('fromHome');
                   
-                  if (onPageChange) {
-                    // Use onPageChange for navigation
+                  // If there are query parameters (like model_no, fromHome), use window.location.href to preserve them
+                  // Otherwise, use onPageChange for cleaner navigation
+                  if (queryString && (modelNo || fromHome || productId)) {
+                    // Preserve all query parameters by using window.location.href
+                    if (typeof window !== 'undefined') {
+                      window.location.href = returnUrl;
+                    }
+                  } else if (onPageChange) {
+                    // Use onPageChange for navigation when no special query params
                     onPageChange(page, productId ? parseInt(productId) : null);
                   } else if (typeof window !== 'undefined') {
                     // Fallback to window.location
@@ -520,9 +529,18 @@ const Login = ({ onPageChange }) => {
                   const queryString = pathParts[1] || '';
                   const searchParams = new URLSearchParams(queryString);
                   const productId = searchParams.get('id');
+                  const modelNo = searchParams.get('model_no');
+                  const fromHome = searchParams.get('fromHome');
                   
-                  if (onPageChange) {
-                    // Use onPageChange for navigation
+                  // If there are query parameters (like model_no, fromHome), use window.location.href to preserve them
+                  // Otherwise, use onPageChange for cleaner navigation
+                  if (queryString && (modelNo || fromHome || productId)) {
+                    // Preserve all query parameters by using window.location.href
+                    if (typeof window !== 'undefined') {
+                      window.location.href = returnUrl;
+                    }
+                  } else if (onPageChange) {
+                    // Use onPageChange for navigation when no special query params
                     onPageChange(page, productId ? parseInt(productId) : null);
                   } else if (typeof window !== 'undefined') {
                     // Fallback to window.location
