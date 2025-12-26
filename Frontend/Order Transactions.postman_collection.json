@@ -1,0 +1,550 @@
+{
+	"info": {
+		"_postman_id": "188aba95-5d6b-485d-8776-61a099bb81cb",
+		"name": "Order Transactions",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "48027432"
+	},
+	"item": [
+		{
+			"name": "getOrders",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/orders/",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"orders",
+						""
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "404",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/orders/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"orders",
+								""
+							]
+						}
+					},
+					"status": "Not Found",
+					"code": 404,
+					"_postman_previewlanguage": null,
+					"header": [
+						{
+							"key": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"key": "Vary",
+							"value": "Origin"
+						},
+						{
+							"key": "Access-Control-Allow-Credentials",
+							"value": "true"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json; charset=utf-8"
+						},
+						{
+							"key": "Content-Length",
+							"value": "28"
+						},
+						{
+							"key": "ETag",
+							"value": "W/\"1c-dpJNNXk+TbGC1LTIRlO81nyxTNs\""
+						},
+						{
+							"key": "Date",
+							"value": "Mon, 15 Dec 2025 10:03:12 GMT"
+						},
+						{
+							"key": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"key": "Keep-Alive",
+							"value": "timeout=5"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"error\": \"Orders not found\"\n}"
+				}
+			]
+		},
+		{
+			"name": "create Event Order",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"order_date\": \"2025-12-15T00:00:00\",\n    \"order_type\": \"event_order\",\n    \"party_id\": \"85814355-9284-43ef-ab52-7b002e8f7c4b\",\n    \"zone_id\": \"28c263a3-e392-4e57-a424-e4ab89e4a3ce\",\n    \"salesman_id\": \"6b25baba-b913-48ab-af79-854ea2008a13\",\n    \"order_items\": [\n        {\n            \"product_id\": \"ddab230e-7c8d-4b01-8998-caa6929e0f1d\",\n            \"quantity\": 10,\n            \"price\": 100\n        }\n    ],\n    \"order_notes\": \"Event order\",\n    \"event_id\": \"f581eff5-998e-4f7e-b8d7-026337316613\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/orders/",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"orders",
+						""
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "200",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"order_date\": \"2025-12-15T00:00:00\",\n    \"order_type\": \"event_order\",\n    \"party_id\": \"85814355-9284-43ef-ab52-7b002e8f7c4b\",\n    \"zone_id\": \"28c263a3-e392-4e57-a424-e4ab89e4a3ce\",\n    \"salesman_id\": \"6b25baba-b913-48ab-af79-854ea2008a13\",\n    \"order_items\": [\n        {\n            \"product_id\": \"ddab230e-7c8d-4b01-8998-caa6929e0f1d\",\n            \"quantity\": 10,\n            \"price\": 100\n        }\n    ],\n    \"order_notes\": \"Event order\",\n    \"event_id\": \"f581eff5-998e-4f7e-b8d7-026337316613\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/orders/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"orders",
+								""
+							]
+						}
+					},
+					"status": "Created",
+					"code": 201,
+					"_postman_previewlanguage": null,
+					"header": [
+						{
+							"key": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"key": "Access-Control-Allow-Credentials",
+							"value": "true"
+						},
+						{
+							"key": "Access-Control-Allow-Methods",
+							"value": "GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD"
+						},
+						{
+							"key": "Access-Control-Allow-Headers",
+							"value": "*"
+						},
+						{
+							"key": "Access-Control-Expose-Headers",
+							"value": "Content-Range, X-Content-Range"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json; charset=utf-8"
+						},
+						{
+							"key": "Content-Length",
+							"value": "603"
+						},
+						{
+							"key": "ETag",
+							"value": "W/\"25b-BVvVzezlFQxWE+D9nLwvG1nzuqk\""
+						},
+						{
+							"key": "Date",
+							"value": "Fri, 26 Dec 2025 13:20:39 GMT"
+						},
+						{
+							"key": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"key": "Keep-Alive",
+							"value": "timeout=5"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"created_at\": \"2025-12-26T13:20:39.625Z\",\n    \"updated_at\": \"2025-12-26T13:20:39.625Z\",\n    \"order_id\": \"1534ad16-6cb2-482f-882b-ca6c2106bfcb\",\n    \"order_number\": \"ORDVVTJNJ6\",\n    \"order_date\": \"2025-12-14T18:30:00.000Z\",\n    \"order_type\": \"event_order\",\n    \"party_id\": \"85814355-9284-43ef-ab52-7b002e8f7c4b\",\n    \"distributor_id\": \"bd33cb6d-3e9b-4588-b4da-907253e397e0\",\n    \"salesman_id\": \"6b25baba-b913-48ab-af79-854ea2008a13\",\n    \"order_total\": 1000,\n    \"order_items\": [\n        {\n            \"product_id\": \"ddab230e-7c8d-4b01-8998-caa6929e0f1d\",\n            \"quantity\": 10,\n            \"price\": 100\n        }\n    ],\n    \"order_notes\": \"Event order\",\n    \"order_status\": \"pending\",\n    \"event_id\": \"f581eff5-998e-4f7e-b8d7-026337316613\"\n}"
+				}
+			]
+		},
+		{
+			"name": "create PARTY_ORDER",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"order_date\": \"2025-12-15T00:00:00\",\n    \"order_type\": \"party_order\",\n    \"party_id\": \"85814355-9284-43ef-ab52-7b002e8f7c4b\",\n    \"zone_id\": \"28c263a3-e392-4e57-a424-e4ab89e4a3ce\",\n    \"salesman_id\": \"6b25baba-b913-48ab-af79-854ea2008a13\",\n    \"order_items\": [\n        {\n            \"product_id\": \"ddab230e-7c8d-4b01-8998-caa6929e0f1d\",\n            \"quantity\": 5,\n            \"price\": 100\n        }\n    ],\n    \"order_notes\": \"Party order\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/orders/",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"orders",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "create DISTRIBUTOR_ORDER",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"order_date\": \"2025-12-15T00:00:00\",\n    \"order_type\": \"party_order\",\n    \"distributor_id\": \"bd33cb6d-3e9b-4588-b4da-907253e397e0\",\n    \"order_items\": [\n        {\n            \"product_id\": \"822a9e2f-9203-4746-9785-f60acda0bd66\",\n            \"quantity\": 5,\n            \"price\": 100\n        }\n    ],\n    \"order_notes\": \"Party order\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/orders/",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"orders",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "create WHATSAPP_ORDER",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"order_date\": \"2025-12-15T00:00:00\",\n    \"order_type\": \"event_order\",\n    \"party_id\": \"85814355-9284-43ef-ab52-7b002e8f7c4b\",\n    \"distributor_id\": \"bd33cb6d-3e9b-4588-b4da-907253e397e0\",\n    \"salesman_id\": \"8def167a-09e6-431c-9a83-312557a6b8a2\",\n    \"order_items\": [\n        {\n            \"product_id\": \"822a9e2f-9203-4746-9785-f60acda0bd66\",\n            \"quantity\": 10,\n            \"price\": 100\n        }\n    ],\n    \"order_notes\": \"Event order\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/orders/",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"orders",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "deleteOrder",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "DELETE",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": ""
+				},
+				"url": {
+					"raw": "{{baseUrl}}/orders/df5c9609-5669-4f02-be87-79e892fb0fc0",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"orders",
+						"df5c9609-5669-4f02-be87-79e892fb0fc0"
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "200",
+					"originalRequest": {
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "{{baseUrl}}/orders/df5c9609-5669-4f02-be87-79e892fb0fc0",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"orders",
+								"df5c9609-5669-4f02-be87-79e892fb0fc0"
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": null,
+					"header": [
+						{
+							"key": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"key": "Vary",
+							"value": "Origin"
+						},
+						{
+							"key": "Access-Control-Allow-Credentials",
+							"value": "true"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json; charset=utf-8"
+						},
+						{
+							"key": "Content-Length",
+							"value": "40"
+						},
+						{
+							"key": "ETag",
+							"value": "W/\"28-44+JLRWSatTeIeuVYDYOdZPIRuM\""
+						},
+						{
+							"key": "Date",
+							"value": "Mon, 15 Dec 2025 11:16:06 GMT"
+						},
+						{
+							"key": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"key": "Keep-Alive",
+							"value": "timeout=5"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"message\": \"Order deleted successfully\"\n}"
+				}
+			]
+		},
+		{
+			"name": "updateOrderStatus",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"order_status\": \"processed\" // cancelled, dispatched, partially_dispatched, hold_by_tray, completed\n    // \"courier_name\":\"\" required if order_status is dispatched or partially_dispatched\n    // \"courier_tracking_number\":\"\" required if order_status is dispatched or partially_dispatched\n    // \"partial_dispatch_qty\": 10 required if order_status is partially_dispatched\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/orders/df5c9609-5669-4f02-be87-79e892fb0fc0",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"orders",
+						"df5c9609-5669-4f02-be87-79e892fb0fc0"
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "200",
+					"originalRequest": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"order_status\": \"processed\" // cancelled, dispatched, partially_dispatched, hold_by_tray, completed\n    // \"courier_name\":\"\" required if order_status is dispatched or partially_dispatched\n    // \"courier_tracking_number\":\"\" required if order_status is dispatched or partially_dispatched\n    // \"partial_dispatch_qty\": 10 required if order_status is partially_dispatched\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/orders/df5c9609-5669-4f02-be87-79e892fb0fc0",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"orders",
+								"df5c9609-5669-4f02-be87-79e892fb0fc0"
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": null,
+					"header": [
+						{
+							"key": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"key": "Vary",
+							"value": "Origin"
+						},
+						{
+							"key": "Access-Control-Allow-Credentials",
+							"value": "true"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json; charset=utf-8"
+						},
+						{
+							"key": "Content-Length",
+							"value": "689"
+						},
+						{
+							"key": "ETag",
+							"value": "W/\"2b1-THUR5GgLr4Zjpzvsl5ccoSNO/A4\""
+						},
+						{
+							"key": "Date",
+							"value": "Mon, 15 Dec 2025 11:13:36 GMT"
+						},
+						{
+							"key": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"key": "Keep-Alive",
+							"value": "timeout=5"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"order_id\": \"df5c9609-5669-4f02-be87-79e892fb0fc0\",\n    \"order_number\": \"ORDC0STT8W\",\n    \"order_date\": \"2025-12-14T18:30:00.000Z\",\n    \"order_type\": \"event_order\",\n    \"party_id\": \"85814355-9284-43ef-ab52-7b002e8f7c4b\",\n    \"distributor_id\": \"bd33cb6d-3e9b-4588-b4da-907253e397e0\",\n    \"salesman_id\": \"8def167a-09e6-431c-9a83-312557a6b8a2\",\n    \"event_id\": \"6834a7c2-48d7-463b-91e5-f243ae5a376d\",\n    \"order_status\": \"processed\",\n    \"order_total\": \"1000.00\",\n    \"order_items\": [\n        {\n            \"price\": 100,\n            \"quantity\": 10,\n            \"product_id\": \"822a9e2f-9203-4746-9785-f60acda0bd66\"\n        }\n    ],\n    \"order_notes\": \"Event order\",\n    \"courier_name\": null,\n    \"courier_tracking_number\": null,\n    \"partial_dispatch_qty\": null,\n    \"created_at\": \"2025-12-15T11:13:17.000Z\",\n    \"updated_at\": \"2025-12-15T11:13:36.574Z\"\n}"
+				}
+			]
+		}
+	]
+}

@@ -3,7 +3,6 @@ import TableWithControls from '../components/ui/TableWithControls';
 import Modal from '../components/ui/Modal';
 import RowActions from '../components/ui/RowActions';
 import StatusBadge from '../components/ui/StatusBadge';
-import DropdownSelector from '../components/ui/DropdownSelector';
 import {
   getEvents,
   createEvent,
@@ -43,42 +42,53 @@ const DashboardEvents = () => {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ 
     event_name: '', 
-    event_date: new Date().toISOString().split('T')[0],
-    latitude: '',
-    longitude: '',
-    event_status: EventStatus.ACTIVE 
+    start_date: new Date().toISOString().split('T')[0],
+    end_date: new Date().toISOString().split('T')[0],
+    event_location: ''
   });
   const [error, setError] = useState(null);
 
   const columns = useMemo(() => ([
     { key: 'event_name', label: 'EVENT NAME' },
     { 
-      key: 'event_date', 
-      label: 'EVENT DATE',
+      key: 'start_date', 
+      label: 'START DATE',
       render: (_v, row) => {
-        if (!row.event_date) return 'N/A';
+        if (!row.start_date) return 'N/A';
         try {
-          const date = new Date(row.event_date);
+          const date = new Date(row.start_date);
           return date.toLocaleDateString('en-IN', { 
             year: 'numeric', 
             month: 'short', 
             day: 'numeric' 
           });
         } catch (e) {
-          return row.event_date;
+          return row.start_date;
         }
       }
     },
     { 
-      key: 'location', 
+      key: 'end_date', 
+      label: 'END DATE',
+      render: (_v, row) => {
+        if (!row.end_date) return 'N/A';
+        try {
+          const date = new Date(row.end_date);
+          return date.toLocaleDateString('en-IN', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric' 
+          });
+        } catch (e) {
+          return row.end_date;
+        }
+      }
+    },
+    { 
+      key: 'event_location', 
       label: 'LOCATION',
       render: (_v, row) => {
-        const lat = row.latitude;
-        const lng = row.longitude;
-        if (lat && lng) {
-          return `${parseFloat(lat).toFixed(4)}, ${parseFloat(lng).toFixed(4)}`;
-        }
-        return 'N/A';
+        return row.event_location || 'N/A';
       }
     },
     { 
@@ -124,10 +134,9 @@ const DashboardEvents = () => {
 
   const resetForm = () => setForm({ 
     event_name: '', 
-    event_date: new Date().toISOString().split('T')[0],
-    latitude: '',
-    longitude: '',
-    event_status: EventStatus.ACTIVE 
+    start_date: new Date().toISOString().split('T')[0],
+    end_date: new Date().toISOString().split('T')[0],
+    event_location: ''
   });
 
   const handleSubmitNew = async () => {
@@ -135,12 +144,20 @@ const DashboardEvents = () => {
       setError('Event name is required');
       return;
     }
-    if (!form.event_date) {
-      setError('Event date is required');
+    if (!form.start_date) {
+      setError('Start date is required');
       return;
     }
-    if (!form.latitude || !form.longitude) {
-      setError('Latitude and longitude are required');
+    if (!form.end_date) {
+      setError('End date is required');
+      return;
+    }
+    if (!form.event_location.trim()) {
+      setError('Event location is required');
+      return;
+    }
+    if (new Date(form.start_date) > new Date(form.end_date)) {
+      setError('End date must be after start date');
       return;
     }
     
@@ -149,10 +166,9 @@ const DashboardEvents = () => {
     try {
       const eventData = {
         event_name: form.event_name.trim(),
-        event_date: new Date(form.event_date).toISOString(),
-        latitude: parseFloat(form.latitude),
-        longitude: parseFloat(form.longitude),
-        event_status: form.event_status,
+        start_date: `${form.start_date}T00:00:00`,
+        end_date: `${form.end_date}T00:00:00`,
+        event_location: form.event_location.trim(),
       };
       await createEvent(eventData);
       showSuccess('Event created successfully');
@@ -170,13 +186,13 @@ const DashboardEvents = () => {
 
   const openEdit = (row) => {
     setEditRow(row);
-    const eventDate = row.event_date ? new Date(row.event_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+    const startDate = row.start_date ? new Date(row.start_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+    const endDate = row.end_date ? new Date(row.end_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
     setForm({
       event_name: row.event_name || '',
-      event_date: eventDate,
-      latitude: row.latitude?.toString() || '',
-      longitude: row.longitude?.toString() || '',
-      event_status: row.event_status || EventStatus.ACTIVE,
+      start_date: startDate,
+      end_date: endDate,
+      event_location: row.event_location || '',
     });
   };
 
@@ -187,12 +203,20 @@ const DashboardEvents = () => {
       setError('Event name is required');
       return;
     }
-    if (!form.event_date) {
-      setError('Event date is required');
+    if (!form.start_date) {
+      setError('Start date is required');
       return;
     }
-    if (!form.latitude || !form.longitude) {
-      setError('Latitude and longitude are required');
+    if (!form.end_date) {
+      setError('End date is required');
+      return;
+    }
+    if (!form.event_location.trim()) {
+      setError('Event location is required');
+      return;
+    }
+    if (new Date(form.start_date) > new Date(form.end_date)) {
+      setError('End date must be after start date');
       return;
     }
     
@@ -201,10 +225,9 @@ const DashboardEvents = () => {
     try {
       const eventData = {
         event_name: form.event_name.trim(),
-        event_date: new Date(form.event_date).toISOString(),
-        latitude: parseFloat(form.latitude),
-        longitude: parseFloat(form.longitude),
-        event_status: form.event_status,
+        start_date: `${form.start_date}T00:00:00`,
+        end_date: `${form.end_date}T00:00:00`,
+        event_location: form.event_location.trim(),
       };
       await updateEvent(eventId, eventData);
       showSuccess('Event updated successfully');
@@ -292,47 +315,30 @@ const DashboardEvents = () => {
             />
           </div>
           <div className="form-group">
-            <label className="ui-label">Event Date <span style={{ color: 'red' }}>*</span></label>
+            <label className="ui-label">Start Date <span style={{ color: 'red' }}>*</span></label>
             <input
               type="date"
               className="ui-input"
-              value={form.event_date}
-              onChange={(e) => setForm((p) => ({ ...p, event_date: e.target.value }))}
+              value={form.start_date}
+              onChange={(e) => setForm((p) => ({ ...p, start_date: e.target.value }))}
             />
           </div>
           <div className="form-group">
-            <label className="ui-label">Latitude <span style={{ color: 'red' }}>*</span></label>
+            <label className="ui-label">End Date <span style={{ color: 'red' }}>*</span></label>
             <input
-              type="number"
-              step="any"
+              type="date"
               className="ui-input"
-              placeholder="Enter latitude"
-              value={form.latitude}
-              onChange={(e) => setForm((p) => ({ ...p, latitude: e.target.value }))}
+              value={form.end_date}
+              onChange={(e) => setForm((p) => ({ ...p, end_date: e.target.value }))}
             />
           </div>
           <div className="form-group">
-            <label className="ui-label">Longitude <span style={{ color: 'red' }}>*</span></label>
+            <label className="ui-label">Event Location <span style={{ color: 'red' }}>*</span></label>
             <input
-              type="number"
-              step="any"
               className="ui-input"
-              placeholder="Enter longitude"
-              value={form.longitude}
-              onChange={(e) => setForm((p) => ({ ...p, longitude: e.target.value }))}
-            />
-          </div>
-          <div className="form-group">
-            <label className="ui-label">Status</label>
-            <DropdownSelector
-              options={[
-                { value: EventStatus.ACTIVE, label: 'Active' },
-                { value: EventStatus.COMPLETED, label: 'Completed' },
-                { value: EventStatus.CANCELLED, label: 'Cancelled' }
-              ]}
-              value={form.event_status}
-              onChange={(value) => setForm((p) => ({ ...p, event_status: value }))}
-              placeholder="Select status"
+              placeholder="Enter event location"
+              value={form.event_location}
+              onChange={(e) => setForm((p) => ({ ...p, event_location: e.target.value }))}
             />
           </div>
         </div>
@@ -364,47 +370,30 @@ const DashboardEvents = () => {
             />
           </div>
           <div className="form-group">
-            <label className="ui-label">Event Date <span style={{ color: 'red' }}>*</span></label>
+            <label className="ui-label">Start Date <span style={{ color: 'red' }}>*</span></label>
             <input
               type="date"
               className="ui-input"
-              value={form.event_date}
-              onChange={(e) => setForm((p) => ({ ...p, event_date: e.target.value }))}
+              value={form.start_date}
+              onChange={(e) => setForm((p) => ({ ...p, start_date: e.target.value }))}
             />
           </div>
           <div className="form-group">
-            <label className="ui-label">Latitude <span style={{ color: 'red' }}>*</span></label>
+            <label className="ui-label">End Date <span style={{ color: 'red' }}>*</span></label>
             <input
-              type="number"
-              step="any"
+              type="date"
               className="ui-input"
-              placeholder="Enter latitude"
-              value={form.latitude}
-              onChange={(e) => setForm((p) => ({ ...p, latitude: e.target.value }))}
+              value={form.end_date}
+              onChange={(e) => setForm((p) => ({ ...p, end_date: e.target.value }))}
             />
           </div>
           <div className="form-group">
-            <label className="ui-label">Longitude <span style={{ color: 'red' }}>*</span></label>
+            <label className="ui-label">Event Location <span style={{ color: 'red' }}>*</span></label>
             <input
-              type="number"
-              step="any"
               className="ui-input"
-              placeholder="Enter longitude"
-              value={form.longitude}
-              onChange={(e) => setForm((p) => ({ ...p, longitude: e.target.value }))}
-            />
-          </div>
-          <div className="form-group">
-            <label className="ui-label">Status</label>
-            <DropdownSelector
-              options={[
-                { value: EventStatus.ACTIVE, label: 'Active' },
-                { value: EventStatus.COMPLETED, label: 'Completed' },
-                { value: EventStatus.CANCELLED, label: 'Cancelled' }
-              ]}
-              value={form.event_status}
-              onChange={(value) => setForm((p) => ({ ...p, event_status: value }))}
-              placeholder="Select status"
+              placeholder="Enter event location"
+              value={form.event_location}
+              onChange={(e) => setForm((p) => ({ ...p, event_location: e.target.value }))}
             />
           </div>
         </div>

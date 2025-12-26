@@ -3649,17 +3649,16 @@ export const getEvents = async () => {
  * Create a new event
  * @param {Object} eventData - Event data
  * @param {string} eventData.event_name - Event name
- * @param {number} eventData.latitude - Latitude coordinate
- * @param {number} eventData.longitude - Longitude coordinate
- * @param {string} eventData.event_date - Event date (ISO string)
- * @param {string} eventData.event_status - Event status (e.g., "active", "completed")
+ * @param {string} eventData.start_date - Event start date (ISO string)
+ * @param {string} eventData.end_date - Event end date (ISO string)
+ * @param {string} eventData.event_location - Event location
  * @returns {Promise<Object>} Created event object
  */
 export const createEvent = async (eventData) => {
-  const { event_name, latitude, longitude, event_date, event_status } = eventData;
+  const { event_name, start_date, end_date, event_location } = eventData;
   return apiRequest('/events/', {
     method: 'POST',
-    body: { event_name, latitude, longitude, event_date, event_status },
+    body: { event_name, start_date, end_date, event_location },
     includeAuth: true,
   });
 };
@@ -3669,17 +3668,16 @@ export const createEvent = async (eventData) => {
  * @param {string} eventId - Event ID (UUID)
  * @param {Object} eventData - Updated event data
  * @param {string} eventData.event_name - Event name
- * @param {number} eventData.latitude - Latitude coordinate
- * @param {number} eventData.longitude - Longitude coordinate
- * @param {string} eventData.event_date - Event date (ISO string)
- * @param {string} eventData.event_status - Event status (e.g., "active", "completed")
+ * @param {string} eventData.start_date - Event start date (ISO string)
+ * @param {string} eventData.end_date - Event end date (ISO string)
+ * @param {string} eventData.event_location - Event location
  * @returns {Promise<Object>} Response with message
  */
 export const updateEvent = async (eventId, eventData) => {
-  const { event_name, latitude, longitude, event_date, event_status } = eventData;
+  const { event_name, start_date, end_date, event_location } = eventData;
   return apiRequest(`/events/${eventId}`, {
     method: 'PUT',
-    body: { event_name, latitude, longitude, event_date, event_status },
+    body: { event_name, start_date, end_date, event_location },
     includeAuth: true,
   });
 };

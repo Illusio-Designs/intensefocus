@@ -1,0 +1,615 @@
+{
+	"info": {
+		"_postman_id": "7103ee6a-3a06-4423-bfcd-f6a9d18a256a",
+		"name": "Party",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "48027432"
+	},
+	"item": [
+		{
+			"name": "getParties",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/parties/",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"parties",
+						""
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "404",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/parties/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"parties",
+								""
+							]
+						}
+					},
+					"status": "Not Found",
+					"code": 404,
+					"_postman_previewlanguage": null,
+					"header": [
+						{
+							"key": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"key": "Vary",
+							"value": "Origin"
+						},
+						{
+							"key": "Access-Control-Allow-Credentials",
+							"value": "true"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json; charset=utf-8"
+						},
+						{
+							"key": "Content-Length",
+							"value": "29"
+						},
+						{
+							"key": "ETag",
+							"value": "W/\"1d-Gq0LwixNbx2VFwy6o28906LYD4Q\""
+						},
+						{
+							"key": "Date",
+							"value": "Sat, 29 Nov 2025 06:22:08 GMT"
+						},
+						{
+							"key": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"key": "Keep-Alive",
+							"value": "timeout=5"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"error\": \"Parties not found\"\n}"
+				},
+				{
+					"name": "200",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/parties/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"parties",
+								""
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": null,
+					"header": [
+						{
+							"key": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"key": "Vary",
+							"value": "Origin"
+						},
+						{
+							"key": "Access-Control-Allow-Credentials",
+							"value": "true"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json; charset=utf-8"
+						},
+						{
+							"key": "Content-Length",
+							"value": "612"
+						},
+						{
+							"key": "ETag",
+							"value": "W/\"264-IMTWTtKH6Wqleqf5GgCQhqp1sC8\""
+						},
+						{
+							"key": "Date",
+							"value": "Sat, 29 Nov 2025 06:31:33 GMT"
+						},
+						{
+							"key": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"key": "Keep-Alive",
+							"value": "timeout=5"
+						}
+					],
+					"cookie": [],
+					"body": "[\n    {\n        \"party_id\": \"f39f10d0-08eb-4635-8cc1-9839bb722565\",\n        \"party_name\": \"Hardik\",\n        \"trade_name\": \"ABC Enterprise\",\n        \"contact_person\": \"Harsh\",\n        \"email\": \"hsdhameliya88@gmail.com\",\n        \"phone\": \"+917600032916\",\n        \"address\": \"Katargam,Surat, Gujarat\",\n        \"country_id\": \"e7629de1-7836-44f3-b3af-0b427d12f8b2\",\n        \"state_id\": \"fd41c6b2-c849-4c2c-9295-8bc4dce8fce1\",\n        \"city_id\": \"97660d4e-6c3e-436e-a6f1-9b8133bddbc8\",\n        \"zone_id\": \"28c263a3-e392-4e57-a424-e4ab89e4a3ce\",\n        \"pincode\": \"395004\",\n        \"gstin\": \"\",\n        \"pan\": \"\",\n        \"is_active\": true,\n        \"created_by\": \"ea37d621-03ff-44f8-b140-e8840f5e123d\",\n        \"created_at\": \"2025-11-29T06:31:24.000Z\",\n        \"updated_at\": \"2025-11-29T06:31:24.000Z\"\n    }\n]"
+				}
+			]
+		},
+		{
+			"name": "createParty",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"party_name\": \"Hardik\",\n    \"trade_name\": \"ABC Enterprise\",\n    \"contact_person\": \"Harsh\",\n    \"email\": \"hsdhameliya88@gmail.com\",\n    \"phone\": \"+917600032916\",\n    \"address\": \"Katargam,Surat, Gujarat\",\n    \"country_id\": \"e7629de1-7836-44f3-b3af-0b427d12f8b2\",\n    \"state_id\": \"fd41c6b2-c849-4c2c-9295-8bc4dce8fce1\",\n    \"city_id\": \"97660d4e-6c3e-436e-a6f1-9b8133bddbc8\",\n    \"zone_id\": \"28c263a3-e392-4e57-a424-e4ab89e4a3ce\",\n    \"pincode\": \"395004\",\n    \"gstin\": \"\",\n    \"pan\": \"\",\n    \"credit_days\":30,\n    \"prefered_courier\":\"DHL\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/parties/",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"parties",
+						""
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "200",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"party_name\": \"Hardik\",\n    \"trade_name\": \"ABC Enterprise\",\n    \"contact_person\": \"Harsh\",\n    \"email\": \"hsdhameliya88@gmail.com\",\n    \"phone\": \"+917600032916\",\n    \"address\": \"Katargam,Surat, Gujarat\",\n    \"country_id\": \"e7629de1-7836-44f3-b3af-0b427d12f8b2\",\n    \"state_id\": \"fd41c6b2-c849-4c2c-9295-8bc4dce8fce1\",\n    \"city_id\": \"97660d4e-6c3e-436e-a6f1-9b8133bddbc8\",\n    \"zone_id\": \"28c263a3-e392-4e57-a424-e4ab89e4a3ce\",\n    \"pincode\": \"395004\",\n    \"gstin\": \"\",\n    \"pan\": \"\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/parties/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"parties",
+								""
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": null,
+					"header": [
+						{
+							"key": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"key": "Vary",
+							"value": "Origin"
+						},
+						{
+							"key": "Access-Control-Allow-Credentials",
+							"value": "true"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json; charset=utf-8"
+						},
+						{
+							"key": "Content-Length",
+							"value": "610"
+						},
+						{
+							"key": "ETag",
+							"value": "W/\"262-xzIHImmr1vAk689AbjqB1AmFGXc\""
+						},
+						{
+							"key": "Date",
+							"value": "Sat, 29 Nov 2025 06:31:24 GMT"
+						},
+						{
+							"key": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"key": "Keep-Alive",
+							"value": "timeout=5"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"created_at\": \"2025-11-29T06:31:24.566Z\",\n    \"updated_at\": \"2025-11-29T06:31:24.566Z\",\n    \"party_id\": \"f39f10d0-08eb-4635-8cc1-9839bb722565\",\n    \"party_name\": \"Hardik\",\n    \"trade_name\": \"ABC Enterprise\",\n    \"contact_person\": \"Harsh\",\n    \"email\": \"hsdhameliya88@gmail.com\",\n    \"phone\": \"+917600032916\",\n    \"address\": \"Katargam,Surat, Gujarat\",\n    \"country_id\": \"e7629de1-7836-44f3-b3af-0b427d12f8b2\",\n    \"state_id\": \"fd41c6b2-c849-4c2c-9295-8bc4dce8fce1\",\n    \"city_id\": \"97660d4e-6c3e-436e-a6f1-9b8133bddbc8\",\n    \"zone_id\": \"28c263a3-e392-4e57-a424-e4ab89e4a3ce\",\n    \"pincode\": \"395004\",\n    \"gstin\": \"\",\n    \"pan\": \"\",\n    \"created_by\": \"ea37d621-03ff-44f8-b140-e8840f5e123d\",\n    \"is_active\": true\n}"
+				}
+			]
+		},
+		{
+			"name": "deleteParty",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "DELETE",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": ""
+				},
+				"url": {
+					"raw": "{{baseUrl}}/parties/f39f10d0-08eb-4635-8cc1-9839bb722565",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"parties",
+						"f39f10d0-08eb-4635-8cc1-9839bb722565"
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "200",
+					"originalRequest": {
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "{{baseUrl}}/parties/f39f10d0-08eb-4635-8cc1-9839bb722565",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"parties",
+								"f39f10d0-08eb-4635-8cc1-9839bb722565"
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": null,
+					"header": [
+						{
+							"key": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"key": "Vary",
+							"value": "Origin"
+						},
+						{
+							"key": "Access-Control-Allow-Credentials",
+							"value": "true"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json; charset=utf-8"
+						},
+						{
+							"key": "Content-Length",
+							"value": "40"
+						},
+						{
+							"key": "ETag",
+							"value": "W/\"28-R9lJo6EMGAj5fG8Kn4ro8j4M7hY\""
+						},
+						{
+							"key": "Date",
+							"value": "Sat, 29 Nov 2025 06:34:07 GMT"
+						},
+						{
+							"key": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"key": "Keep-Alive",
+							"value": "timeout=5"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"message\": \"Party deleted successfully\"\n}"
+				}
+			]
+		},
+		{
+			"name": "updateParty",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"party_name\": \"Hardik\",\n    \"trade_name\": \"ABC Enterprise\",\n    \"contact_person\": \"Harsh\",\n    \"email\": \"hsdhameliya88@gmail.com\",\n    \"phone\": \"+917600032916\",\n    \"address\": \"Katargam,Surat, Gujarat\",\n    \"country_id\": \"e7629de1-7836-44f3-b3af-0b427d12f8b2\",\n    \"state_id\": \"fd41c6b2-c849-4c2c-9295-8bc4dce8fce1\",\n    \"city_id\": \"97660d4e-6c3e-436e-a6f1-9b8133bddbc8\",\n    \"zone_id\": \"28c263a3-e392-4e57-a424-e4ab89e4a3ce\",\n    \"pincode\": \"395004\",\n    \"gstin\": \"FSQOF9827RZRUTI\",\n    \"pan\": \"FSQOF9827R\",\n    \"credit_days\": 60,\n    \"prefered_courier\": \"DEHLIVERY\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/parties/f39f10d0-08eb-4635-8cc1-9839bb722565",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"parties",
+						"f39f10d0-08eb-4635-8cc1-9839bb722565"
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "200",
+					"originalRequest": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"party_name\": \"Hardik\",\n    \"trade_name\": \"ABC Enterprise\",\n    \"contact_person\": \"Harsh\",\n    \"email\": \"hsdhameliya88@gmail.com\",\n    \"phone\": \"+917600032916\",\n    \"address\": \"Katargam,Surat, Gujarat\",\n    \"country_id\": \"e7629de1-7836-44f3-b3af-0b427d12f8b2\",\n    \"state_id\": \"fd41c6b2-c849-4c2c-9295-8bc4dce8fce1\",\n    \"city_id\": \"97660d4e-6c3e-436e-a6f1-9b8133bddbc8\",\n    \"zone_id\": \"28c263a3-e392-4e57-a424-e4ab89e4a3ce\",\n    \"pincode\": \"395004\",\n    \"gstin\": \"FSQOF9827RZRUTI\",\n    \"pan\": \"FSQOF9827R\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/parties/f39f10d0-08eb-4635-8cc1-9839bb722565",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"parties",
+								"f39f10d0-08eb-4635-8cc1-9839bb722565"
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": null,
+					"header": [
+						{
+							"key": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"key": "Vary",
+							"value": "Origin"
+						},
+						{
+							"key": "Access-Control-Allow-Credentials",
+							"value": "true"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json; charset=utf-8"
+						},
+						{
+							"key": "Content-Length",
+							"value": "40"
+						},
+						{
+							"key": "ETag",
+							"value": "W/\"28-ilGHZeGt65+OkYFJfgvx1yrJpUU\""
+						},
+						{
+							"key": "Date",
+							"value": "Sat, 29 Nov 2025 06:33:53 GMT"
+						},
+						{
+							"key": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"key": "Keep-Alive",
+							"value": "timeout=5"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"message\": \"Party updated successfully\"\n}"
+				}
+			]
+		},
+		{
+			"name": "getPartiesByZoneId",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"zone_id\":\"28c263a3-e392-4e57-a424-e4ab89e4a3ce\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/parties/byZoneId",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"parties",
+						"byZoneId"
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "200",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"zone_id\":\"28c263a3-e392-4e57-a424-e4ab89e4a3ce\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/parties/byZoneId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"parties",
+								"byZoneId"
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": null,
+					"header": [
+						{
+							"key": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"key": "Access-Control-Allow-Credentials",
+							"value": "true"
+						},
+						{
+							"key": "Access-Control-Allow-Methods",
+							"value": "GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD"
+						},
+						{
+							"key": "Access-Control-Allow-Headers",
+							"value": "*"
+						},
+						{
+							"key": "Access-Control-Expose-Headers",
+							"value": "Content-Range, X-Content-Range"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json; charset=utf-8"
+						},
+						{
+							"key": "Content-Length",
+							"value": "1305"
+						},
+						{
+							"key": "ETag",
+							"value": "W/\"519-mteBQMy2/Gu4+ZVVlh8OpwRc0C4\""
+						},
+						{
+							"key": "Date",
+							"value": "Fri, 26 Dec 2025 13:10:11 GMT"
+						},
+						{
+							"key": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"key": "Keep-Alive",
+							"value": "timeout=5"
+						}
+					],
+					"cookie": [],
+					"body": "[\n    {\n        \"party_id\": \"1ac0914a-c822-40b8-9370-6f188dfbf1e1\",\n        \"party_name\": \"Hardik\",\n        \"trade_name\": \"ABC Enterprise\",\n        \"contact_person\": \"Harsh\",\n        \"email\": \"hsdhameliya88@gmail.com\",\n        \"phone\": \"+917600032916\",\n        \"address\": \"Katargam,Surat, Gujarat\",\n        \"country_id\": \"e7629de1-7836-44f3-b3af-0b427d12f8b2\",\n        \"state_id\": \"fd41c6b2-c849-4c2c-9295-8bc4dce8fce1\",\n        \"city_id\": \"97660d4e-6c3e-436e-a6f1-9b8133bddbc8\",\n        \"zone_id\": \"28c263a3-e392-4e57-a424-e4ab89e4a3ce\",\n        \"pincode\": \"395004\",\n        \"gstin\": \"\",\n        \"pan\": \"\",\n        \"is_active\": true,\n        \"created_by\": \"ea37d621-03ff-44f8-b140-e8840f5e123d\",\n        \"created_at\": \"2025-12-20T06:03:49.000Z\",\n        \"updated_at\": \"2025-12-20T06:03:49.000Z\",\n        \"credit_days\": 30,\n        \"prefered_courier\": \"DHL\"\n    },\n    {\n        \"party_id\": \"85814355-9284-43ef-ab52-7b002e8f7c4b\",\n        \"party_name\": \"Hardik\",\n        \"trade_name\": \"ABC Enterprise\",\n        \"contact_person\": \"Harsh\",\n        \"email\": \"hsdhameliya88@gmail.com\",\n        \"phone\": \"+917600032916\",\n        \"address\": \"Katargam,Surat, Gujarat\",\n        \"country_id\": \"e7629de1-7836-44f3-b3af-0b427d12f8b2\",\n        \"state_id\": \"fd41c6b2-c849-4c2c-9295-8bc4dce8fce1\",\n        \"city_id\": \"97660d4e-6c3e-436e-a6f1-9b8133bddbc8\",\n        \"zone_id\": \"28c263a3-e392-4e57-a424-e4ab89e4a3ce\",\n        \"pincode\": \"395004\",\n        \"gstin\": \"\",\n        \"pan\": \"\",\n        \"is_active\": true,\n        \"created_by\": \"ea37d621-03ff-44f8-b140-e8840f5e123d\",\n        \"created_at\": \"2025-12-15T10:15:37.000Z\",\n        \"updated_at\": \"2025-12-15T10:15:37.000Z\",\n        \"credit_days\": 0,\n        \"prefered_courier\": null\n    }\n]"
+				}
+			]
+		}
+	]
+}

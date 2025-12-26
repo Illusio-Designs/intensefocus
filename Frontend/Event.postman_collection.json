@@ -1,0 +1,516 @@
+{
+	"info": {
+		"_postman_id": "272a20f8-502b-468a-baed-1ab8e2ec26ea",
+		"name": "Event",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "48027432"
+	},
+	"item": [
+		{
+			"name": "getEvents",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/events/",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"events",
+						""
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "404",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/events/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"events",
+								""
+							]
+						}
+					},
+					"status": "Not Found",
+					"code": 404,
+					"_postman_previewlanguage": null,
+					"header": [
+						{
+							"key": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"key": "Vary",
+							"value": "Origin"
+						},
+						{
+							"key": "Access-Control-Allow-Credentials",
+							"value": "true"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json; charset=utf-8"
+						},
+						{
+							"key": "Content-Length",
+							"value": "28"
+						},
+						{
+							"key": "ETag",
+							"value": "W/\"1c-W3do2fkccdX1Ah27fhNumYRJSb8\""
+						},
+						{
+							"key": "Date",
+							"value": "Mon, 15 Dec 2025 09:58:50 GMT"
+						},
+						{
+							"key": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"key": "Keep-Alive",
+							"value": "timeout=5"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"error\": \"Events not found\"\n}"
+				},
+				{
+					"name": "200",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/events/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"events",
+								""
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": null,
+					"header": [
+						{
+							"key": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"key": "Vary",
+							"value": "Origin"
+						},
+						{
+							"key": "Access-Control-Allow-Credentials",
+							"value": "true"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json; charset=utf-8"
+						},
+						{
+							"key": "Content-Length",
+							"value": "273"
+						},
+						{
+							"key": "ETag",
+							"value": "W/\"111-drBhkhpHNM78c5CUXR2C1Kecyfk\""
+						},
+						{
+							"key": "Date",
+							"value": "Mon, 15 Dec 2025 10:00:16 GMT"
+						},
+						{
+							"key": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"key": "Keep-Alive",
+							"value": "timeout=5"
+						}
+					],
+					"cookie": [],
+					"body": "[\n    {\n        \"event_id\": \"b39e056d-7982-473e-8dea-a94328d57d64\",\n        \"event_name\": \"Christmas\",\n        \"latitude\": \"76.66000000\",\n        \"longitude\": \"22.73000000\",\n        \"event_date\": \"2025-12-14T18:30:00.000Z\",\n        \"event_status\": \"active\",\n        \"created_at\": \"2025-12-15T10:00:04.000Z\",\n        \"updated_at\": \"2025-12-15T10:00:04.000Z\"\n    }\n]"
+				}
+			]
+		},
+		{
+			"name": "createEvent",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"event_name\": \"New Year\",\n    \"start_date\": \"2025-12-30T00:00:00\",\n    \"end_date\": \"2025-12-31T00:00:00\",\n    \"event_location\":\"Rajkot\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/events/",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"events",
+						""
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "200",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"event_name\": \"New Year\",\n    \"start_date\": \"2025-12-30T00:00:00\",\n    \"end_date\": \"2025-12-31T00:00:00\",\n    \"event_location\":\"Rajkot\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/events/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"events",
+								""
+							]
+						}
+					},
+					"status": "Created",
+					"code": 201,
+					"_postman_previewlanguage": null,
+					"header": [
+						{
+							"key": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"key": "Access-Control-Allow-Credentials",
+							"value": "true"
+						},
+						{
+							"key": "Access-Control-Allow-Methods",
+							"value": "GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD"
+						},
+						{
+							"key": "Access-Control-Allow-Headers",
+							"value": "*"
+						},
+						{
+							"key": "Access-Control-Expose-Headers",
+							"value": "Content-Range, X-Content-Range"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json; charset=utf-8"
+						},
+						{
+							"key": "Content-Length",
+							"value": "285"
+						},
+						{
+							"key": "ETag",
+							"value": "W/\"11d-/dq5Lw3c0gb16UdFY8o/hJfhFdA\""
+						},
+						{
+							"key": "Date",
+							"value": "Fri, 26 Dec 2025 13:23:38 GMT"
+						},
+						{
+							"key": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"key": "Keep-Alive",
+							"value": "timeout=5"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"event_id\": \"36a35bce-b24c-48ee-909f-2a6f3697e43d\",\n    \"event_name\": \"New Year\",\n    \"start_date\": \"2025-12-29T18:30:00.000Z\",\n    \"end_date\": \"2025-12-30T18:30:00.000Z\",\n    \"event_status\": \"upcoming\",\n    \"event_location\": \"Rajkot\",\n    \"updated_at\": \"2025-12-26T13:23:38.284Z\",\n    \"created_at\": \"2025-12-26T13:23:38.284Z\"\n}"
+				}
+			]
+		},
+		{
+			"name": "deleteEvent",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "DELETE",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": ""
+				},
+				"url": {
+					"raw": "{{baseUrl}}/events/b39e056d-7982-473e-8dea-a94328d57d64",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"events",
+						"b39e056d-7982-473e-8dea-a94328d57d64"
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "200",
+					"originalRequest": {
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "{{baseUrl}}/events/b39e056d-7982-473e-8dea-a94328d57d64",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"events",
+								"b39e056d-7982-473e-8dea-a94328d57d64"
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": null,
+					"header": [
+						{
+							"key": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"key": "Vary",
+							"value": "Origin"
+						},
+						{
+							"key": "Access-Control-Allow-Credentials",
+							"value": "true"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json; charset=utf-8"
+						},
+						{
+							"key": "Content-Length",
+							"value": "40"
+						},
+						{
+							"key": "ETag",
+							"value": "W/\"28-wRdTlJ5aU6ll9KPBiGmQileIzOM\""
+						},
+						{
+							"key": "Date",
+							"value": "Mon, 15 Dec 2025 10:01:19 GMT"
+						},
+						{
+							"key": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"key": "Keep-Alive",
+							"value": "timeout=5"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"message\": \"Event deleted successfully\"\n}"
+				}
+			]
+		},
+		{
+			"name": "updateEvent",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"event_name\": \"New Year's Eve\",\n    \"start_date\": \"2025-12-29T00:00:00\",\n    \"end_date\": \"2025-12-30T00:00:00\",\n    \"event_location\": \"Ahmedabad\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/events/f581eff5-998e-4f7e-b8d7-026337316613",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"events",
+						"f581eff5-998e-4f7e-b8d7-026337316613"
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "200",
+					"originalRequest": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"event_name\": \"New Year's Eve\",\n    \"start_date\": \"2025-12-29T00:00:00\",\n    \"end_date\": \"2025-12-30T00:00:00\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/events/f581eff5-998e-4f7e-b8d7-026337316613",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"events",
+								"f581eff5-998e-4f7e-b8d7-026337316613"
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": null,
+					"header": [
+						{
+							"key": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"key": "Access-Control-Allow-Credentials",
+							"value": "true"
+						},
+						{
+							"key": "Access-Control-Allow-Methods",
+							"value": "GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD"
+						},
+						{
+							"key": "Access-Control-Allow-Headers",
+							"value": "*"
+						},
+						{
+							"key": "Access-Control-Expose-Headers",
+							"value": "Content-Range, X-Content-Range"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json; charset=utf-8"
+						},
+						{
+							"key": "Content-Length",
+							"value": "40"
+						},
+						{
+							"key": "ETag",
+							"value": "W/\"28-4kjI2rY/tp8xIZNTa7sW1f/2GP8\""
+						},
+						{
+							"key": "Date",
+							"value": "Fri, 26 Dec 2025 13:13:46 GMT"
+						},
+						{
+							"key": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"key": "Keep-Alive",
+							"value": "timeout=5"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"message\": \"Event updated successfully\"\n}"
+				}
+			]
+		}
+	]
+}
