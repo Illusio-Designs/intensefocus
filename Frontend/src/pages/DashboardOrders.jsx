@@ -15,7 +15,8 @@ import {
   getSalesmen,
   getEvents,
   getProducts,
-  getCountries
+  getCountries,
+  getPartyById
 } from '../services/apiService';
 import { showSuccess, showError } from '../services/notificationService';
 import { getUserRole, getUser } from '../services/authService';
@@ -58,6 +59,7 @@ const DashboardOrders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [partyNamesMap, setPartyNamesMap] = useState({}); // Map of party_id -> party_name
   const userRole = getUserRole();
   const user = getUser();
   const isAdmin = userRole === 'admin';
@@ -132,6 +134,35 @@ const DashboardOrders = () => {
       // Admin sees all orders (no filtering)
       
       setOrders(allOrders);
+      
+      // Fetch party names for orders that don't have party_name
+      const uniquePartyIds = [...new Set(allOrders
+        .filter(order => order.party_id && !order.party?.party_name && !order.party_name)
+        .map(order => order.party_id)
+      )];
+      
+      if (uniquePartyIds.length > 0) {
+        // Fetch party names in parallel
+        const partyNamePromises = uniquePartyIds.map(async (partyId) => {
+          try {
+            const partyData = await getPartyById(partyId);
+            return {
+              partyId,
+              partyName: partyData?.party_name || partyData?.name || 'N/A'
+            };
+          } catch (err) {
+            console.error(`Failed to fetch party ${partyId}:`, err);
+            return { partyId, partyName: 'N/A' };
+          }
+        });
+        
+        const partyNames = await Promise.all(partyNamePromises);
+        const newPartyNamesMap = { ...partyNamesMap };
+        partyNames.forEach(({ partyId, partyName }) => {
+          newPartyNamesMap[partyId] = partyName;
+        });
+        setPartyNamesMap(newPartyNamesMap);
+      }
     } catch (err) {
       const message = err?.response?.data?.message || err?.message || 'Failed to fetch orders';
       const errorMessage = (message || '').toLowerCase();
@@ -344,6 +375,34 @@ const DashboardOrders = () => {
     }
   }, [selectedCountry, fetchSalesmenForCountry]);
 
+  // Helper function to parse order_items (can be JSON string or array)
+  const parseOrderItems = (orderItems) => {
+    if (!orderItems) return [];
+    
+    // If it's already an array, return it
+    if (Array.isArray(orderItems)) {
+      return orderItems;
+    }
+    
+    // If it's a JSON string, parse it
+    if (typeof orderItems === 'string') {
+      try {
+        const parsed = JSON.parse(orderItems);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        console.error('Failed to parse order_items JSON:', e);
+        return [];
+      }
+    }
+    
+    // If it's an object, try to get values
+    if (typeof orderItems === 'object') {
+      return Object.values(orderItems);
+    }
+    
+    return [];
+  };
+
   // Transform orders data to table rows
   const rows = useMemo(() => {
     if (!orders || orders.length === 0) return [];
@@ -351,59 +410,57 @@ const DashboardOrders = () => {
     const tableRows = [];
     orders.forEach(order => {
       const orderId = order.order_id || order.id;
-      const partyName = order.party?.party_name || order.party_name || 'N/A';
+      const orderNumber = order.order_number || `#${orderId?.toString().slice(-6) || 'N/A'}`;
+      // Get party name from order object, or from partyNamesMap if not available
+      const partyName = order.party?.party_name || 
+                       order.party_name || 
+                       (order.party_id ? partyNamesMap[order.party_id] : null) || 
+                       'N/A';
       const orderStatus = mapApiStatusToUI(order.order_status);
       
-      // Ensure orderItems is always an array
-      let orderItems = order.order_items;
-      if (!Array.isArray(orderItems)) {
-        // If it's not an array, try to convert it or default to empty array
-        if (orderItems && typeof orderItems === 'object') {
-          // If it's an object, try to get values or wrap in array
-          orderItems = Object.values(orderItems);
+      // Parse order_items (can be JSON string or array)
+      const orderItems = parseOrderItems(order.order_items);
+
+      // Format order type for display
+      const formatOrderType = (type) => {
+        if (!type) return 'N/A';
+        return type
+          .split('_')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
+      };
+      const orderTypeDisplay = formatOrderType(order.order_type);
+
+      // Calculate totals for the order
+      const totalQuantity = orderItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
+      const totalValue = parseFloat(order.order_total || order.total_value || order.total_amount || 0);
+      
+      // Display product information
+      let productDisplay = 'No items';
+      if (orderItems.length > 0) {
+        if (orderItems.length === 1) {
+          productDisplay = orderItems[0].product?.model_no || orderItems[0].product_name || 'Unknown Product';
         } else {
-          orderItems = [];
+          productDisplay = `${orderItems.length} items`;
         }
       }
 
-      if (orderItems.length === 0) {
-        // If no items, create a single row for the order
-        const totalValue = order.total_value || order.total_amount || 0;
-        tableRows.push({
-          id: orderId,
-          orderId: `#${orderId?.toString().slice(-6) || 'N/A'}`,
-          client: partyName,
-          product: 'No items',
-          qty: 0,
-          status: orderStatus,
-          value: `₹${totalValue.toLocaleString('en-IN')}`,
-          originalOrder: order
-        });
-      } else {
-        // Create a row for each order item
-        orderItems.forEach((item, index) => {
-          const productName = item.product?.model_no || item.product_name || 'Unknown Product';
-          const quantity = item.quantity || 0;
-          const price = item.price || 0;
-          const itemValue = quantity * price;
-
-          tableRows.push({
-            id: `${orderId}-${index}`,
-            orderId: `#${orderId?.toString().slice(-6) || 'N/A'}`,
-            client: partyName,
-            product: productName,
-            qty: quantity,
-            status: orderStatus,
-            value: `₹${itemValue.toLocaleString('en-IN')}`,
-            originalOrder: order,
-            orderItem: item
-          });
-        });
-      }
+      // Create a single row for the order
+      tableRows.push({
+        id: orderId,
+        orderId: orderNumber,
+        orderType: orderTypeDisplay,
+        client: partyName,
+        product: productDisplay,
+        qty: totalQuantity,
+        status: orderStatus,
+        value: `₹${totalValue.toLocaleString('en-IN')}`,
+        originalOrder: order
+      });
     });
 
     return tableRows;
-  }, [orders]);
+  }, [orders, partyNamesMap]);
 
   // Filter rows by active tab
   const filteredRowsByTab = useMemo(() => {
@@ -675,7 +732,8 @@ const DashboardOrders = () => {
 
   const columns = useMemo(() => ([
     { key: 'orderId', label: 'ORDER ID' },
-    { key: 'client', label: 'CLIENT NAME' },
+    { key: 'orderType', label: 'ORDER TYPE' },
+    { key: 'client', label: 'PARTY NAME' },
     { key: 'product', label: 'PRODUCT' },
     { key: 'qty', label: 'QTY' },
     { key: 'status', label: 'STATUS', render: (v) => <StatusBadge status={String(v).toLowerCase().replace(/\s+/g, '-')}>{v}</StatusBadge> },

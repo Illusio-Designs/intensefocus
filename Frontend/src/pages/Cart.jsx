@@ -19,6 +19,7 @@ import {
   getParties,
   getEvents,
   getCountries,
+  getPartyById,
 } from "../services/apiService";
 
 const Cart = ({ onPageChange = null }) => {
@@ -247,13 +248,37 @@ const Cart = ({ onPageChange = null }) => {
       }
 
       // Set party_id
-      if (isParty && user?.party_id) {
-        orderData.party_id = user.party_id;
+      if (isParty) {
+        // For party users, try multiple possible fields for party_id
+        orderData.party_id = user?.party_id || user?.partyId || user?.id || null;
+        if (!orderData.party_id) {
+          showError('Party ID not found. Please contact support.');
+          setLoading(false);
+          return;
+        }
+        
+        // Fetch party details to get distributor_id from party table
+        try {
+          const partyData = await getPartyById(orderData.party_id);
+          // Extract distributor_id from party object (try multiple possible field names)
+          const partyDistributorId = partyData?.distributor_id || partyData?.distributorId || partyData?.distributor?.distributor_id || partyData?.distributor?.id || null;
+          if (partyDistributorId) {
+            orderData.distributor_id = partyDistributorId;
+          }
+        } catch (partyError) {
+          console.error('Failed to fetch party details:', partyError);
+          // Continue without distributor_id if fetch fails
+        }
       } else if (selectedParty) {
         orderData.party_id = selectedParty;
       }
 
-      // Set distributor_id
+      // Set user_id (logged-in person's ID)
+      if (user?.id || user?.user_id) {
+        orderData.user_id = user.id || user.user_id;
+      }
+
+      // Set distributor_id (only for distributor role, not for party - party gets it from party table above)
       if (isDistributor && user?.distributor_id) {
         orderData.distributor_id = user.distributor_id;
       }

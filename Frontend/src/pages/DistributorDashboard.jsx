@@ -100,7 +100,7 @@ const DistributorDashboard = () => {
               <table style={{width:'100%', borderCollapse:'separate', borderSpacing:0}}>
                 <thead>
                   <tr>
-                    {['ORDER ID','CLIENT NAME','PRODUCT','QTY','STATUS','VALUE','ACTION'].map((h)=> (
+                    {['ORDER ID','ORDER TYPE','PARTY NAME','PRODUCT','QTY','STATUS','VALUE','ACTION'].map((h)=> (
                       <th key={h} style={{textAlign:'left', padding:'14px 0', fontSize:12, color:'#000', borderBottom:'1px solid #E0E0E0'}}>{h}</th>
                     ))}
                   </tr>
@@ -108,56 +108,77 @@ const DistributorDashboard = () => {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan="7" style={{padding:'20px', textAlign:'center'}}>Loading orders...</td>
+                      <td colSpan="8" style={{padding:'20px', textAlign:'center'}}>Loading orders...</td>
                     </tr>
                   ) : orders.length === 0 ? (
                     <tr>
-                      <td colSpan="7" style={{padding:'20px', textAlign:'center'}}>No orders found</td>
+                      <td colSpan="8" style={{padding:'20px', textAlign:'center'}}>No orders found</td>
                     </tr>
                   ) : (
                     orders.slice(0, 10).map((order, index) => {
                       const orderId = order.order_id || order.id;
-                      const partyName = order.party?.party_name || order.party_name || 'N/A';
+                      const orderNumber = order.order_number || `#${orderId?.toString().slice(-6) || 'N/A'}`;
+                      // Get party name from order object, try multiple possible field names
+                      const partyName = order.party?.party_name || 
+                                       order.party_name || 
+                                       order.party?.name ||
+                                       (order.party_id ? `Party ${order.party_id.slice(0, 8)}...` : 'N/A');
                       const orderStatus = mapApiStatusToUI(order.order_status);
-                      const orderItems = Array.isArray(order.order_items) ? order.order_items : [];
                       
-                      if (orderItems.length === 0) {
-                        const totalValue = order.total_value || order.total_amount || 0;
-                        return (
-                          <tr key={orderId || index}>
-                            <td style={{padding:'14px 0'}}>#{orderId?.toString().slice(-6) || 'N/A'}</td>
-                            <td style={{padding:'14px 0'}}>{partyName}</td>
-                            <td style={{padding:'14px 0', color:'#6b7280'}}>No items</td>
-                            <td style={{padding:'14px 0'}}>0</td>
-                            <td style={{padding:'14px 0'}}><StatusBadge status={orderStatus.toLowerCase().replace(/\s+/g, '-')}>{orderStatus}</StatusBadge></td>
-                            <td style={{padding:'14px 0'}}>₹{totalValue.toLocaleString('en-IN')}</td>
-                            <td style={{padding:'14px 0'}}>
-                              <RowActions onView={()=>console.log('view', order)} />
-                            </td>
-                          </tr>
-                        );
+                      // Format order type for display
+                      const formatOrderType = (type) => {
+                        if (!type) return 'N/A';
+                        return type
+                          .split('_')
+                          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                          .join(' ');
+                      };
+                      const orderTypeDisplay = formatOrderType(order.order_type);
+                      
+                      // Parse order_items (can be JSON string or array)
+                      let orderItems = [];
+                      if (order.order_items) {
+                        if (Array.isArray(order.order_items)) {
+                          orderItems = order.order_items;
+                        } else if (typeof order.order_items === 'string') {
+                          try {
+                            orderItems = JSON.parse(order.order_items);
+                            if (!Array.isArray(orderItems)) orderItems = [];
+                          } catch (e) {
+                            console.error('Failed to parse order_items JSON:', e);
+                            orderItems = [];
+                          }
+                        }
                       }
                       
-                      return orderItems.map((item, itemIndex) => {
-                        const productName = item.product?.model_no || item.product_name || 'Unknown Product';
-                        const quantity = item.quantity || 0;
-                        const price = item.price || 0;
-                        const itemValue = quantity * price;
-                        
-                        return (
-                          <tr key={`${orderId}-${itemIndex}`}>
-                            <td style={{padding:'14px 0'}}>#{orderId?.toString().slice(-6) || 'N/A'}</td>
-                            <td style={{padding:'14px 0'}}>{partyName}</td>
-                            <td style={{padding:'14px 0', color:'#6b7280'}}>{productName}</td>
-                            <td style={{padding:'14px 0'}}>{quantity}</td>
-                            <td style={{padding:'14px 0'}}><StatusBadge status={orderStatus.toLowerCase().replace(/\s+/g, '-')}>{orderStatus}</StatusBadge></td>
-                            <td style={{padding:'14px 0'}}>₹{itemValue.toLocaleString('en-IN')}</td>
-                            <td style={{padding:'14px 0'}}>
-                              <RowActions onView={()=>console.log('view', order)} />
-                            </td>
-                          </tr>
-                        );
-                      });
+                      // Calculate totals for the order
+                      const totalQuantity = orderItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                      const totalValue = parseFloat(order.order_total || order.total_value || order.total_amount || 0);
+                      
+                      // Display product information
+                      let productDisplay = 'No items';
+                      if (orderItems.length > 0) {
+                        if (orderItems.length === 1) {
+                          productDisplay = orderItems[0].product?.model_no || orderItems[0].product_name || 'Unknown Product';
+                        } else {
+                          productDisplay = `${orderItems.length} items`;
+                        }
+                      }
+                      
+                      return (
+                        <tr key={orderId || index}>
+                          <td style={{padding:'14px 0'}}>{orderNumber}</td>
+                          <td style={{padding:'14px 0'}}>{orderTypeDisplay}</td>
+                          <td style={{padding:'14px 0'}}>{partyName}</td>
+                          <td style={{padding:'14px 0', color:'#6b7280'}}>{productDisplay}</td>
+                          <td style={{padding:'14px 0'}}>{totalQuantity}</td>
+                          <td style={{padding:'14px 0'}}><StatusBadge status={orderStatus.toLowerCase().replace(/\s+/g, '-')}>{orderStatus}</StatusBadge></td>
+                          <td style={{padding:'14px 0'}}>₹{totalValue.toLocaleString('en-IN')}</td>
+                          <td style={{padding:'14px 0'}}>
+                            <RowActions onView={()=>console.log('view', order)} />
+                          </td>
+                        </tr>
+                      );
                     })
                   )}
                 </tbody>

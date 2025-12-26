@@ -1428,6 +1428,21 @@ export const getParties = async (countryId) => {
 };
 
 /**
+ * Get party by ID
+ * @param {string} partyId - Party ID (UUID)
+ * @returns {Promise<Object>} Party object
+ */
+export const getPartyById = async (partyId) => {
+  if (!partyId || typeof partyId !== 'string' || partyId.trim() === '') {
+    throw new Error('Invalid party ID provided');
+  }
+  return apiRequest(`/parties/${partyId.trim()}`, {
+    method: 'GET',
+    includeAuth: true,
+  });
+};
+
+/**
  * Create party
  * @param {Object} partyData - Party data
  * @param {string} partyData.party_name - Party name
@@ -3681,6 +3696,7 @@ export const getOrders = async () => {
  * @param {string} [orderData.distributor_id] - Distributor ID (UUID) - required for event_order, party_order, distributor_order, visit_order, whatsapp_order
  * @param {string} [orderData.salesman_id] - Salesman ID (UUID) - required for event_order, visit_order, whatsapp_order
  * @param {string} [orderData.event_id] - Event ID (UUID) - required for event_order
+ * @param {string} [orderData.user_id] - User ID (UUID) - logged-in person's ID
  * @param {Array<Object>} orderData.order_items - Array of order items
  * @param {string} orderData.order_items[].product_id - Product ID (UUID)
  * @param {number} orderData.order_items[].quantity - Quantity
@@ -3696,6 +3712,7 @@ export const createOrder = async (orderData) => {
     distributor_id,
     salesman_id,
     event_id,
+    user_id,
     order_items,
     order_notes,
   } = orderData;
@@ -3710,9 +3727,10 @@ export const createOrder = async (orderData) => {
   if (distributor_id) body.distributor_id = distributor_id;
   if (salesman_id) body.salesman_id = salesman_id;
   if (event_id) body.event_id = event_id;
+  if (user_id) body.user_id = user_id;
   if (order_notes) body.order_notes = order_notes;
 
-  return apiRequest('/orders/', {
+  return apiRequest('/orders/create', {
     method: 'POST',
     body,
     includeAuth: true,

@@ -143,16 +143,48 @@ const Dashboard = () => {
       .slice(0, 5)
       .map(order => {
         const orderId = order.order_id || order.id;
-        const partyName = order.party?.party_name || order.party_name || 'N/A';
-        const orderItems = Array.isArray(order.order_items) ? order.order_items : [];
+        const orderNumber = order.order_number || `#${orderId?.toString().slice(-6) || 'N/A'}`;
+        // Get party name from order object, try multiple possible field names
+        const partyName = order.party?.party_name || 
+                         order.party_name || 
+                         order.party?.name ||
+                         (order.party_id ? `Party ${order.party_id.slice(0, 8)}...` : 'N/A');
+        
+        // Parse order_items (can be JSON string or array)
+        let orderItems = [];
+        if (order.order_items) {
+          if (Array.isArray(order.order_items)) {
+            orderItems = order.order_items;
+          } else if (typeof order.order_items === 'string') {
+            try {
+              orderItems = JSON.parse(order.order_items);
+              if (!Array.isArray(orderItems)) orderItems = [];
+            } catch (e) {
+              console.error('Failed to parse order_items JSON:', e);
+              orderItems = [];
+            }
+          }
+        }
+        
         const firstItem = orderItems[0] || {};
         const productName = firstItem.product?.model_no || firstItem.product_name || 'N/A';
         const quantity = orderItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
         const status = order.order_status?.toUpperCase() || 'PENDING';
-        const value = order.total_value || order.total_amount || 0;
+        const value = parseFloat(order.order_total || order.total_value || order.total_amount || 0);
+        
+        // Format order type for display
+        const formatOrderType = (type) => {
+          if (!type) return 'N/A';
+          return type
+            .split('_')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+        };
+        const orderTypeDisplay = formatOrderType(order.order_type);
         
         return {
-          id: `#${orderId?.toString().slice(-6) || 'N/A'}`,
+          id: orderNumber,
+          orderType: orderTypeDisplay,
           client: partyName,
           product: productName,
           qty: quantity,
@@ -275,7 +307,7 @@ const Dashboard = () => {
               <table style={{width:'100%', borderCollapse:'separate', borderSpacing:0}}>
                 <thead>
                   <tr>
-                    {['ORDER ID','CLIENT NAME','PRODUCT','QTY','STATUS','VALUE','ACTION'].map((h)=> (
+                    {['ORDER ID','ORDER TYPE','PARTY NAME','PRODUCT','QTY','STATUS','VALUE','ACTION'].map((h)=> (
                       <th key={h} style={{textAlign:'left', padding:'10px 0', fontSize:11, color:'#000', borderBottom:'1px solid #E0E0E0', fontWeight:'600'}}>{h}</th>
                     ))}
                   </tr>
@@ -283,13 +315,13 @@ const Dashboard = () => {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan="7" style={{padding:'16px', textAlign:'center', color:'#6b7280', fontSize:'13px'}}>
+                      <td colSpan="8" style={{padding:'16px', textAlign:'center', color:'#6b7280', fontSize:'13px'}}>
                         Loading orders...
                       </td>
                     </tr>
                   ) : recentOrders.length === 0 ? (
                     <tr>
-                      <td colSpan="7" style={{padding:'16px', textAlign:'center', color:'#6b7280', fontSize:'13px'}}>
+                      <td colSpan="8" style={{padding:'16px', textAlign:'center', color:'#6b7280', fontSize:'13px'}}>
                         No orders found
                       </td>
                     </tr>
@@ -297,6 +329,7 @@ const Dashboard = () => {
                     recentOrders.map((r,i)=> (
                       <tr key={i}>
                         <td style={{padding:'10px 0', fontSize:'13px'}}>{r.id}</td>
+                        <td style={{padding:'10px 0', fontSize:'13px'}}>{r.orderType}</td>
                         <td style={{padding:'10px 0', fontSize:'13px'}}>{r.client}</td>
                         <td style={{padding:'10px 0', color:'#6b7280', fontSize:'13px'}}>{r.product}</td>
                         <td style={{padding:'10px 0', fontSize:'13px'}}>{r.qty}</td>
