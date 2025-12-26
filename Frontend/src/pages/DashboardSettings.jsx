@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Button from '../components/ui/Button';
+import PhoneInput from 'react-phone-input-2';
+import 'react-phone-input-2/lib/style.css';
 import { showSuccess, showError } from '../services/notificationService';
 import { updateUser, getUsers } from '../services/apiService';
 import { getUser } from '../services/authService';
@@ -599,12 +601,19 @@ const DashboardSettings = () => {
                 </div>
                 <div className="form-group">
                   <label className="ui-label">Phone Number</label>
-                  <input 
-                    className="ui-input" 
-                    type="tel" 
-                    value={phone} 
-                    onChange={(e) => setPhone(e.target.value)} 
-                    placeholder="+91-XXXXXXXXXX"
+                  <PhoneInput
+                    country={'in'}
+                    value={phone}
+                    onChange={setPhone}
+                    inputProps={{
+                      placeholder: 'Enter your phone number',
+                    }}
+                    containerClass="phone-input-container"
+                    inputClass="phone-input-field"
+                    buttonClass="phone-input-button"
+                    dropdownClass="phone-input-dropdown"
+                    disableDropdown={false}
+                    disableCountryGuess={false}
                   />
                 </div>
 

@@ -100,7 +100,31 @@ const Cart = ({ onPageChange = null }) => {
     }
     try {
       const partiesData = await getParties(countryId);
-      setParties(Array.isArray(partiesData) ? partiesData : []);
+      let filteredParties = Array.isArray(partiesData) ? partiesData : [];
+      
+      // Filter parties by distributor's zone if user is a distributor
+      if (isDistributor && user) {
+        // Get distributor's zone_id from user object
+        const distributorZoneId = user?.zone_id || 
+                                  user?.zone_preference || 
+                                  user?.distributor?.zone_id || 
+                                  user?.distributor?.zoneId ||
+                                  null;
+        
+        if (distributorZoneId) {
+          const beforeFilter = filteredParties.length;
+          filteredParties = filteredParties.filter(party => {
+            const partyZoneId = party?.zone_id || party?.zoneId;
+            if (!partyZoneId) return false;
+            return String(partyZoneId).trim() === String(distributorZoneId).trim();
+          });
+          console.log('[Cart] Filtered parties by distributor zone:', distributorZoneId, 'Before:', beforeFilter, 'After:', filteredParties.length);
+        } else {
+          console.warn('[Cart] Distributor zone_id not found in user object, showing all parties for country');
+        }
+      }
+      
+      setParties(filteredParties);
     } catch (err) {
       console.error('Failed to fetch parties:', err);
       setParties([]);
@@ -198,10 +222,8 @@ const Cart = ({ onPageChange = null }) => {
     }
 
     // Validation based on role
-    if (isDistributor && !selectedParty) {
-      showError('Please select a party');
-      return;
-    }
+    // Note: For distributor orders, party selection is optional (not required by backend)
+    // Distributors can place orders without selecting a party
 
     if (isSalesman) {
       if (!orderType) {
@@ -257,6 +279,19 @@ const Cart = ({ onPageChange = null }) => {
         console.log('[Cart] user.partyId:', user?.partyId);
         console.log('[Cart] user.party:', user?.party);
         console.log('[Cart] user.id:', user?.id);
+      }
+      
+      // Debug: Log distributor user object
+      if (isDistributor) {
+        console.log('[Cart] Distributor user object:', user);
+        console.log('[Cart] Available user fields:', Object.keys(user || {}));
+        console.log('[Cart] user.distributor_id:', user?.distributor_id);
+        console.log('[Cart] user.distributorId:', user?.distributorId);
+        console.log('[Cart] user.distributor:', user?.distributor);
+        console.log('[Cart] user.id:', user?.id);
+        console.log('[Cart] user.zone_id:', user?.zone_id);
+        console.log('[Cart] user.zone_preference:', user?.zone_preference);
+        console.log('[Cart] user.distributor?.zone_id:', user?.distributor?.zone_id);
       }
 
       // Set party_id and distributor_id for party users
@@ -499,96 +534,114 @@ const Cart = ({ onPageChange = null }) => {
       } else if (selectedParty) {
         orderData.party_id = selectedParty;
         
-        // Fetch party data to get distributor_id
-        try {
-          const partyData = await getPartyById(selectedParty);
-          
-          if (partyData) {
-            // Get distributor_id from party data first
-            const partyDistributorId = partyData?.distributor_id || 
-                                 partyData?.distributorId || 
-                                 partyData?.distributor?.distributor_id || 
-                                 partyData?.distributor?.id ||
-                                 null;
+        // For salesman orders, fetch party data to get distributor_id
+        // For distributor orders, distributor_id comes from logged-in user (handled below)
+        if (isSalesman) {
+          try {
+            const partyData = await getPartyById(selectedParty);
             
-            // Fetch all distributors to get distributor_id
-            if (partyDistributorId) {
-              try {
-                console.log('[Cart] Fetching all distributors for selected party...');
-                // Fetch countries if not already available
-                let countriesList = countries;
-                if (!countriesList || countriesList.length === 0) {
-                  countriesList = await getCountries();
-                  setCountries(countriesList);
-                }
-                
-                const allDistributorsMap = new Map(); // Use Map to avoid duplicates
-                
-                // Fetch distributors for all countries
-                for (const country of countriesList) {
-                  try {
-                    const countryId = country.id || country.country_id;
-                    if (!countryId) continue;
-                    
-                    const distributorsData = await getDistributors(countryId);
-                    
-                    // Add all distributors to map (keyed by distributor_id to avoid duplicates)
-                    if (Array.isArray(distributorsData)) {
-                      distributorsData.forEach(d => {
-                        if (d) {
-                          const dId = d.distributor_id || d.id;
-                          if (dId && !allDistributorsMap.has(dId)) {
-                            allDistributorsMap.set(dId, d);
-                          }
-                        }
-                      });
-                    }
-                  } catch (err) {
-                    console.warn(`[Cart] Failed to fetch distributors for country ${country.id}:`, err);
+            if (partyData) {
+              // Get distributor_id from party data first
+              const partyDistributorId = partyData?.distributor_id || 
+                                   partyData?.distributorId || 
+                                   partyData?.distributor?.distributor_id || 
+                                   partyData?.distributor?.id ||
+                                   null;
+              
+              // Fetch all distributors to get distributor_id
+              if (partyDistributorId) {
+                try {
+                  console.log('[Cart] Fetching all distributors for selected party...');
+                  // Fetch countries if not already available
+                  let countriesList = countries;
+                  if (!countriesList || countriesList.length === 0) {
+                    countriesList = await getCountries();
+                    setCountries(countriesList);
                   }
-                }
-                
-                const allDistributors = Array.from(allDistributorsMap.values());
-                console.log(`[Cart] Collected ${allDistributors.length} unique distributors from all countries`);
-                
-                // Find distributor by ID from party data
-                const distributorData = allDistributors.find(d => {
-                  const dId = d.distributor_id || d.id;
-                  return dId && String(dId) === String(partyDistributorId);
-                });
-                
-                if (distributorData) {
-                  const distributorId = distributorData.distributor_id || distributorData.id || null;
-                  orderData.distributor_id = distributorId;
-                  console.log('[Cart] Found distributor_id from all distributors:', distributorId);
-                } else {
-                  // If not found, use the one from party data
-                  orderData.distributor_id = partyDistributorId;
-                  console.log('[Cart] Distributor not found in all distributors list, using party distributor_id:', partyDistributorId);
-                }
-              } catch (err) {
-                console.warn('[Cart] Failed to fetch all distributors:', err);
-                // Fallback to distributor_id from party data
-                if (partyDistributorId) {
-                  orderData.distributor_id = partyDistributorId;
-                  console.log('[Cart] Using distributor_id from party data:', partyDistributorId);
+                  
+                  const allDistributorsMap = new Map(); // Use Map to avoid duplicates
+                  
+                  // Fetch distributors for all countries
+                  for (const country of countriesList) {
+                    try {
+                      const countryId = country.id || country.country_id;
+                      if (!countryId) continue;
+                      
+                      const distributorsData = await getDistributors(countryId);
+                      
+                      // Add all distributors to map (keyed by distributor_id to avoid duplicates)
+                      if (Array.isArray(distributorsData)) {
+                        distributorsData.forEach(d => {
+                          if (d) {
+                            const dId = d.distributor_id || d.id;
+                            if (dId && !allDistributorsMap.has(dId)) {
+                              allDistributorsMap.set(dId, d);
+                            }
+                          }
+                        });
+                      }
+                    } catch (err) {
+                      console.warn(`[Cart] Failed to fetch distributors for country ${country.id}:`, err);
+                    }
+                  }
+                  
+                  const allDistributors = Array.from(allDistributorsMap.values());
+                  console.log(`[Cart] Collected ${allDistributors.length} unique distributors from all countries`);
+                  
+                  // Find distributor by ID from party data
+                  const distributorData = allDistributors.find(d => {
+                    const dId = d.distributor_id || d.id;
+                    return dId && String(dId) === String(partyDistributorId);
+                  });
+                  
+                  if (distributorData) {
+                    const distributorId = distributorData.distributor_id || distributorData.id || null;
+                    orderData.distributor_id = distributorId;
+                    console.log('[Cart] Found distributor_id from all distributors:', distributorId);
+                  } else {
+                    // If not found, use the one from party data
+                    orderData.distributor_id = partyDistributorId;
+                    console.log('[Cart] Distributor not found in all distributors list, using party distributor_id:', partyDistributorId);
+                  }
+                } catch (err) {
+                  console.warn('[Cart] Failed to fetch all distributors:', err);
+                  // Fallback to distributor_id from party data
+                  if (partyDistributorId) {
+                    orderData.distributor_id = partyDistributorId;
+                    console.log('[Cart] Using distributor_id from party data:', partyDistributorId);
+                  }
                 }
               }
             }
+          } catch (err) {
+            console.warn('[Cart] Failed to fetch party data for distributor_id:', err);
+            // Continue without distributor_id - not critical
           }
-        } catch (err) {
-          console.warn('[Cart] Failed to fetch party data for distributor_id:', err);
-          // Continue without distributor_id - not critical
         }
+        // For distributor orders, party_id is set above, but distributor_id will be set from logged-in user below
       }
 
-      // Set distributor_id for distributor role (from user object) if not already set
-      if (isDistributor && !orderData.distributor_id) {
-        orderData.distributor_id = user?.distributor_id || 
+      // Set distributor_id for distributor role (from user object)
+      // For distributor orders, distributor_id MUST come from the logged-in distributor user
+      if (isDistributor) {
+        const userDistributorId = user?.distributor_id || 
                                    user?.distributorId || 
                                    user?.distributor?.distributor_id || 
                                    user?.distributor?.id ||
+                                   user?.id || // Sometimes user.id is the distributor_id
                                    null;
+        
+        if (userDistributorId) {
+          // Always use the distributor_id from the logged-in user for distributor orders
+          // Don't let party selection override this
+          orderData.distributor_id = userDistributorId;
+          console.log('[Cart] Using distributor_id from logged-in distributor user:', userDistributorId);
+        } else {
+          console.error('[Cart] Distributor ID not found in user object:', user);
+          showError('Distributor ID is required. Please contact support.');
+          setLoading(false);
+          return;
+        }
       }
 
       // Set salesman_id

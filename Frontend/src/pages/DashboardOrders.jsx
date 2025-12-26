@@ -926,11 +926,27 @@ const DashboardOrders = () => {
                 {!isDistributor && <span style={{ color: 'red' }}>*</span>}
                 {isDistributor && <span style={{ color: '#666', fontSize: '12px' }}> (Default: Distributor Order)</span>}
               </label>
-              <select 
-                className="ui-select"
-                value={createFormData.order_type}
-                onChange={(e) => {
-                  const newOrderType = e.target.value;
+              <DropdownSelector
+                options={[
+                  { value: '', label: 'Select Order Type' },
+                  ...(isSalesman ? [
+                    { value: 'visit_order', label: 'Visit Order' },
+                    { value: 'whatsapp_order', label: 'WhatsApp Order' },
+                    { value: 'event_order', label: 'Event Order' }
+                  ] : isDistributor ? [
+                    { value: 'distributor_order', label: 'Distributor Order' },
+                    { value: 'party_order', label: 'Party Order' }
+                  ] : [
+                    { value: 'event_order', label: 'Event Order' },
+                    { value: 'party_order', label: 'Party Order' },
+                    { value: 'distributor_order', label: 'Distributor Order' },
+                    { value: 'visit_order', label: 'Visit Order' },
+                    { value: 'whatsapp_order', label: 'WhatsApp Order' }
+                  ])
+                ]}
+                value={createFormData.order_type || ''}
+                onChange={(value) => {
+                  const newOrderType = value;
                   setCreateFormData(prev => ({ 
                     ...prev, 
                     order_type: newOrderType,
@@ -944,51 +960,28 @@ const DashboardOrders = () => {
                     filterPartiesByZone(allParties, newOrderType);
                   }
                 }}
-                required={!isDistributor}
-              >
-                <option value="">Select Order Type</option>
-                {isSalesman ? (
-                  // Salesman can only create these 3 order types
-                  <>
-                    <option value="visit_order">Visit Order</option>
-                    <option value="whatsapp_order">WhatsApp Order</option>
-                    <option value="event_order">Event Order</option>
-                  </>
-                ) : isDistributor ? (
-                  // Distributor can create distributor_order or party_order
-                  <>
-                    <option value="distributor_order">Distributor Order</option>
-                    <option value="party_order">Party Order</option>
-                  </>
-                ) : (
-                  // Other roles see all order types
-                  <>
-                    <option value="event_order">Event Order</option>
-                    <option value="party_order">Party Order</option>
-                    <option value="distributor_order">Distributor Order</option>
-                    <option value="visit_order">Visit Order</option>
-                    <option value="whatsapp_order">WhatsApp Order</option>
-                  </>
-                )}
-              </select>
+                placeholder="Select Order Type"
+                className="ui-dropdown-custom--full-width"
+              />
             </div>
           )}
 
           {/* Country Selection (for fetching parties, distributors, salesmen) */}
           <div className="form-group">
             <label className="ui-label">Country</label>
-            <select 
-              className="ui-select"
+            <DropdownSelector
+              options={[
+                { value: '', label: 'Select Country' },
+                ...countries.map(country => ({
+                  value: country.id || country.country_id,
+                  label: country.country_name || country.name
+                }))
+              ]}
               value={selectedCountry || ''}
-              onChange={(e) => setSelectedCountry(e.target.value || null)}
-            >
-              <option value="">Select Country</option>
-              {countries.map(country => (
-                <option key={country.id || country.country_id} value={country.id || country.country_id}>
-                  {country.country_name || country.name}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => setSelectedCountry(value || null)}
+              placeholder="Select Country"
+              className="ui-dropdown-custom--full-width"
+            />
           </div>
 
           {/* Party ID - Conditional */}
@@ -997,26 +990,20 @@ const DashboardOrders = () => {
               <label className="ui-label">
                 Party {isFieldRequired('party_id') && <span style={{ color: 'red' }}>*</span>}
               </label>
-              <select 
-                className="ui-select"
-                value={createFormData.party_id}
-                onChange={(e) => setCreateFormData(prev => ({ ...prev, party_id: e.target.value }))}
-                required={isFieldRequired('party_id')}
+              <DropdownSelector
+                options={[
+                  { value: '', label: 'Select Party' },
+                  ...(!selectedCountry ? [] : parties.length === 0 ? [] : parties.map(party => ({
+                    value: party.id || party.party_id,
+                    label: party.party_name
+                  })))
+                ]}
+                value={createFormData.party_id || ''}
+                onChange={(value) => setCreateFormData(prev => ({ ...prev, party_id: value || '' }))}
+                placeholder={!selectedCountry ? 'Please select a country first' : parties.length === 0 ? 'No parties found for this country' : 'Select Party'}
                 disabled={!selectedCountry}
-              >
-                <option value="">Select Party</option>
-                {!selectedCountry ? (
-                  <option value="" disabled>Please select a country first</option>
-                ) : parties.length === 0 ? (
-                  <option value="" disabled>No parties found for this country</option>
-                ) : (
-                  parties.map(party => (
-                    <option key={party.id || party.party_id} value={party.id || party.party_id}>
-                      {party.party_name}
-                    </option>
-                  ))
-                )}
-              </select>
+                className="ui-dropdown-custom--full-width"
+              />
               {!selectedCountry && (
                 <small style={{ color: '#666', fontSize: '12px' }}>Please select a country first</small>
               )}
@@ -1041,26 +1028,20 @@ const DashboardOrders = () => {
               <label className="ui-label">
                 Distributor {isFieldRequired('distributor_id') && <span style={{ color: 'red' }}>*</span>}
               </label>
-              <select 
-                className="ui-select"
-                value={createFormData.distributor_id}
-                onChange={(e) => setCreateFormData(prev => ({ ...prev, distributor_id: e.target.value }))}
-                required={isFieldRequired('distributor_id')}
+              <DropdownSelector
+                options={[
+                  { value: '', label: 'Select Distributor' },
+                  ...(!selectedCountry ? [] : distributors.length === 0 ? [] : distributors.map(distributor => ({
+                    value: distributor.id || distributor.distributor_id,
+                    label: distributor.distributor_name || distributor.name
+                  })))
+                ]}
+                value={createFormData.distributor_id || ''}
+                onChange={(value) => setCreateFormData(prev => ({ ...prev, distributor_id: value || '' }))}
+                placeholder={!selectedCountry ? 'Please select a country first' : distributors.length === 0 ? 'No distributors found for this country' : 'Select Distributor'}
                 disabled={!selectedCountry}
-              >
-                <option value="">Select Distributor</option>
-                {!selectedCountry ? (
-                  <option value="" disabled>Please select a country first</option>
-                ) : distributors.length === 0 ? (
-                  <option value="" disabled>No distributors found for this country</option>
-                ) : (
-                  distributors.map(distributor => (
-                    <option key={distributor.id || distributor.distributor_id} value={distributor.id || distributor.distributor_id}>
-                      {distributor.distributor_name || distributor.name}
-                    </option>
-                  ))
-                )}
-              </select>
+                className="ui-dropdown-custom--full-width"
+              />
               {!selectedCountry && (
                 <small style={{ color: '#666', fontSize: '12px' }}>Please select a country first</small>
               )}
@@ -1076,26 +1057,20 @@ const DashboardOrders = () => {
               <label className="ui-label">
                 Salesman {isFieldRequired('salesman_id') && <span style={{ color: 'red' }}>*</span>}
               </label>
-              <select 
-                className="ui-select"
-                value={createFormData.salesman_id}
-                onChange={(e) => setCreateFormData(prev => ({ ...prev, salesman_id: e.target.value }))}
-                required={isFieldRequired('salesman_id')}
+              <DropdownSelector
+                options={[
+                  { value: '', label: 'Select Salesman' },
+                  ...(!selectedCountry ? [] : salesmen.length === 0 ? [] : salesmen.map(salesman => ({
+                    value: salesman.id || salesman.salesman_id,
+                    label: salesman.salesman_name || salesman.name
+                  })))
+                ]}
+                value={createFormData.salesman_id || ''}
+                onChange={(value) => setCreateFormData(prev => ({ ...prev, salesman_id: value || '' }))}
+                placeholder={!selectedCountry ? 'Please select a country first' : salesmen.length === 0 ? 'No salesmen found for this country' : 'Select Salesman'}
                 disabled={!selectedCountry}
-              >
-                <option value="">Select Salesman</option>
-                {!selectedCountry ? (
-                  <option value="" disabled>Please select a country first</option>
-                ) : salesmen.length === 0 ? (
-                  <option value="" disabled>No salesmen found for this country</option>
-                ) : (
-                  salesmen.map(salesman => (
-                    <option key={salesman.id || salesman.salesman_id} value={salesman.id || salesman.salesman_id}>
-                      {salesman.salesman_name || salesman.name}
-                    </option>
-                  ))
-                )}
-              </select>
+                className="ui-dropdown-custom--full-width"
+              />
               {!selectedCountry && (
                 <small style={{ color: '#666', fontSize: '12px' }}>Please select a country first</small>
               )}
@@ -1111,23 +1086,19 @@ const DashboardOrders = () => {
               <label className="ui-label">
                 Event <span style={{ color: 'red' }}>*</span>
               </label>
-              <select 
-                className="ui-select"
-                value={createFormData.event_id}
-                onChange={(e) => setCreateFormData(prev => ({ ...prev, event_id: e.target.value }))}
-                required
-              >
-                <option value="">Select Event</option>
-                {events.length === 0 ? (
-                  <option value="" disabled>Loading events...</option>
-                ) : (
-                  events.map(event => (
-                    <option key={event.id || event.event_id} value={event.id || event.event_id}>
-                      {event.event_name} {event.event_date ? `(${new Date(event.event_date).toLocaleDateString()})` : ''}
-                    </option>
-                  ))
-                )}
-              </select>
+              <DropdownSelector
+                options={[
+                  { value: '', label: 'Select Event' },
+                  ...(events.length === 0 ? [] : events.map(event => ({
+                    value: event.id || event.event_id,
+                    label: `${event.event_name}${event.event_date ? ` (${new Date(event.event_date).toLocaleDateString()})` : ''}`
+                  })))
+                ]}
+                value={createFormData.event_id || ''}
+                onChange={(value) => setCreateFormData(prev => ({ ...prev, event_id: value || '' }))}
+                placeholder={events.length === 0 ? 'Loading events...' : 'Select Event'}
+                className="ui-dropdown-custom--full-width"
+              />
             </div>
           )}
 
@@ -1158,20 +1129,19 @@ const DashboardOrders = () => {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
                     <div>
                       <label style={{ fontSize: '12px', color: '#666', marginBottom: '4px', display: 'block' }}>Product</label>
-                      <select 
-                        className="ui-select"
-                        value={item.product_id}
-                        onChange={(e) => handleProductSelect(index, e.target.value)}
-                        required
-                      >
-                        <option value="">Select Product</option>
-                        {products.map(product => (
-                          <option key={product.id || product.product_id} value={product.id || product.product_id}>
-                            {product.model_no || product.product_name || product.name} 
-                            {product.price ? ` - ₹${product.price}` : ''}
-                          </option>
-                        ))}
-                      </select>
+                      <DropdownSelector
+                        options={[
+                          { value: '', label: 'Select Product' },
+                          ...products.map(product => ({
+                            value: product.id || product.product_id,
+                            label: `${product.model_no || product.product_name || product.name}${product.price ? ` - ₹${product.price}` : ''}`
+                          }))
+                        ]}
+                        value={item.product_id || ''}
+                        onChange={(value) => handleProductSelect(index, value)}
+                        placeholder="Select Product"
+                        className="ui-dropdown-custom--full-width"
+                      />
                     </div>
                     <div>
                       <label style={{ fontSize: '12px', color: '#666', marginBottom: '4px', display: 'block' }}>Quantity</label>

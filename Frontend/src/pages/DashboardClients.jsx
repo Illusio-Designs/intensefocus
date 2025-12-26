@@ -3,6 +3,8 @@ import TableWithControls from '../components/ui/TableWithControls';
 import Modal from '../components/ui/Modal';
 import RowActions from '../components/ui/RowActions';
 import DropdownSelector from '../components/ui/DropdownSelector';
+import PhoneInput from 'react-phone-input-2';
+import 'react-phone-input-2/lib/style.css';
 import {
   getParties,
   createParty,
@@ -1238,12 +1240,20 @@ const DashboardClients = () => {
           </div>
           <div className="form-group">
             <label className="ui-label">Phone *</label>
-            <input 
-              className="ui-input" 
-              placeholder="Phone"
+            <PhoneInput
+              country={'in'}
               value={formData.phone}
-              onChange={(e) => handleInputChange('phone', e.target.value)}
-              required
+              onChange={(value) => handleInputChange('phone', value)}
+              inputProps={{
+                required: true,
+                placeholder: 'Enter your phone number',
+              }}
+              containerClass="phone-input-container"
+              inputClass="phone-input-field"
+              buttonClass="phone-input-button"
+              dropdownClass="phone-input-dropdown"
+              disableDropdown={false}
+              disableCountryGuess={false}
             />
           </div>
           <div className="form-group">
@@ -1453,12 +1463,20 @@ const DashboardClients = () => {
           </div>
           <div className="form-group">
             <label className="ui-label">Phone *</label>
-            <input 
-              className="ui-input" 
-              placeholder="Phone"
+            <PhoneInput
+              country={'in'}
               value={formData.phone}
-              onChange={(e) => handleInputChange('phone', e.target.value)}
-              required
+              onChange={(value) => handleInputChange('phone', value)}
+              inputProps={{
+                required: true,
+                placeholder: 'Enter your phone number',
+              }}
+              containerClass="phone-input-container"
+              inputClass="phone-input-field"
+              buttonClass="phone-input-button"
+              dropdownClass="phone-input-dropdown"
+              disableDropdown={false}
+              disableCountryGuess={false}
             />
           </div>
           <div className="form-group">
