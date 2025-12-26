@@ -28,4 +28,10 @@ const OrderType = {
     VISIT_ORDER: 'visit_order',
     WHATSAPP_ORDER: 'whatsapp_order',
 };
-module.exports = { TrayStatus, TrayProductStatus, OrderStatus, OrderType };
+
+const EventStatus = {
+    UPCOMING: 'upcoming',
+    ONGOING: 'ongoing',
+    PAST: 'past',
+};
+module.exports = { TrayStatus, TrayProductStatus, OrderStatus, OrderType, EventStatus };

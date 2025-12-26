@@ -7,5 +7,6 @@ router.post('/get', authenticateToken, partyController.getParties);
 router.post('/', authenticateToken, partyController.createParty);
 router.put('/:id', authenticateToken, partyController.updateParty);
 router.delete('/:id', authenticateToken, partyController.deleteParty);
+router.post('/byZoneId', authenticateToken, partyController.getPartiesByZoneId);
 
 module.exports = router;

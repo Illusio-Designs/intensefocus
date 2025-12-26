@@ -9,6 +9,7 @@ const { TrayProductStatus, OrderStatus, OrderType } = require('../constants/enum
 const { generateUniqueOrderNumber } = require('../services/order_number_generator');
 const Event = require('../models/event');
 const OrderOperation = require('../models/OrderOperation');
+const Zone = require('../models/Zone');
 
 // Helper function to reverse an order operation (does not depend on controller instance)
 async function reverseOrderOperation(orderId) {
@@ -59,7 +60,9 @@ class OrderController {
     }
     async createOrder(req, res) {
         try {
-            const { order_date, order_type, order_items, order_notes, event_id, party_id, distributor_id, salesman_id } = req.body;
+            // latitude, logitude for visit order
+            const { order_date, order_type, order_items, order_notes, event_id, party_id, salesman_id, latitude, longitude, zone_id } = req.body;
+            let distributor_id = req.body.distributor_id;
             if (!order_date || !order_type || !order_items) {
                 return res.status(400).json({ error: 'order_date, order_type, order_items  are required' });
             }
@@ -71,12 +74,13 @@ class OrderController {
                 return res.status(400).json({ error: 'Invalid order type. Allowed types are: ' + Object.values(OrderType).join(', ') });
             }
             let isSalesmanRequired = false;
-            let isDistributorRequired = false;
+            let isDistributorRequired = false; // not required for event order
             let isPartyRequired = false;
+
             // if order type is event order, check if event id is provided
             if (order_type === OrderType.EVENT_ORDER) {
                 isSalesmanRequired = true;
-                isDistributorRequired = true;
+                isDistributorRequired = false;
                 isPartyRequired = true;
                 if (!event_id) {
                     return res.status(400).json({ error: 'Event ID is required for event orders' });
@@ -89,7 +93,7 @@ class OrderController {
             // if order type is party order, check if party id is provided
             else if (order_type === OrderType.PARTY_ORDER) {
                 isPartyRequired = true;
-                isDistributorRequired = true;
+                isDistributorRequired = false;
                 isSalesmanRequired = false;
                 if (!party_id) {
                     return res.status(400).json({ error: 'Party ID is required for party orders' });
@@ -108,8 +112,16 @@ class OrderController {
                     return res.status(400).json({ error: 'Distributor ID is required for distributor orders' });
                 }
             }
+            if (order_type === OrderType.VISIT_ORDER) {
+                if (!latitude || !longitude) {
+                    return res.status(400).json({ error: 'Latitude and longitude are required for visit orders' });
+                }
+                isDistributorRequired = false;
+                isPartyRequired = true;
+                isSalesmanRequired = true;
+            }
             else {
-                isDistributorRequired = true;
+                isDistributorRequired = false;
                 isPartyRequired = true;
                 isSalesmanRequired = true;
             }
@@ -122,6 +134,20 @@ class OrderController {
                 if (!distributor) {
                     return res.status(404).json({ error: 'Distributor not found' });
                 }
+            }
+            else {
+                if (!zone_id) {
+                    return res.status(400).json({ error: 'Zone ID is required for event orders' });
+                }
+                const zone = await Zone.findOne({ where: { id: zone_id } });
+                if (!zone) {
+                    return res.status(404).json({ error: 'Zone not found' });
+                }
+                const distributor = await Distributor.findOne({ where: { zone_id: zone_id } });
+                if (!distributor) {
+                    return res.status(404).json({ error: 'Distributor not found' });
+                }
+                distributor_id = distributor.distributor_id;
             }
             if (isPartyRequired) {
                 if (!party_id) {
@@ -173,6 +199,7 @@ class OrderController {
 
             let orderOperationData = {};
             const resolvedOrderItems = [];
+
             for (let i = 0; i < order_items.length; i++) {
                 const item = order_items[i];
                 const product = await Product.findOne({ where: { product_id: item.product_id } });
@@ -270,6 +297,8 @@ class OrderController {
                 updated_at: new Date(),
                 order_status: OrderStatus.PENDING,
                 event_id,
+                latitude,
+                longitude,
             });
             await OrderOperation.create({
                 order_id: order.order_id,

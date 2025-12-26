@@ -5,10 +5,10 @@ const { authenticateToken } = require('../middleware/auth');
 const { productFileUpload, productImageUpload } = require('../constants/multer');
 const parseProductFile = require('../middleware/product_parser');
 
-router.get('/', authenticateToken, productController.getProducts);
+router.post('/', authenticateToken, productController.getProducts);
 router.post('/featured', productController.getFeaturedProducts);
 router.get('/images/all', authenticateToken, productController.getAllUploadedImages);
-router.post('/', authenticateToken, productController.createProduct);
+router.post('/create', authenticateToken, productController.createProduct);
 router.put('/:id', authenticateToken, productController.updateProduct);
 router.delete('/:id', authenticateToken, productController.deleteProduct);
 router.post('/image-upload', authenticateToken, productImageUpload, productController.uploadProductImage);

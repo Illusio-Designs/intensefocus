@@ -12,6 +12,23 @@ class PartyController {
             res.status(500).json({ error: error.message });
         }
     }
+
+    async getPartiesByZoneId(req, res) {
+        try {
+            const { zone_id } = req.body;
+            if (!zone_id) {
+                return res.status(400).json({ error: 'Zone ID is required' });
+            }
+            const parties = await Party.findAll({ where: { zone_id: zone_id } });
+            if (!parties || parties.length === 0) {
+                return res.status(404).json({ error: 'Parties not found' });
+            }
+            res.status(200).json(parties);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    }
+
     async createParty(req, res) {
         try {
             const user = req.user;
@@ -62,7 +79,11 @@ class PartyController {
             const user = req.user;
             const { party_name, trade_name, contact_person, email,
                 phone, address, country_id, state_id, city_id, zone_id, pincode, gstin, pan, credit_days, prefered_courier } = req.body;
-            const party = await Party.update({
+            const party = await Party.findOne({ where: { party_id: id } });
+            if (!party) {
+                return res.status(404).json({ error: 'Party not found' });
+            }
+            await Party.update({
                 party_name: party_name || party.party_name,
                 trade_name: trade_name || party.trade_name,
                 contact_person: contact_person || party.contact_person,
@@ -81,9 +102,7 @@ class PartyController {
                 updated_at: new Date(),
                 updated_by: user.user_id
             }, { where: { party_id: id } });
-            if (!party) {
-                return res.status(404).json({ error: 'Party not found' });
-            }
+
             await AuditLog.create({
                 user_id: user.user_id,
                 action: 'update',

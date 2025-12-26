@@ -12,17 +12,17 @@ const Event = sequelize.define('Event', {
         type: DataTypes.STRING(255),
         allowNull: false
     },
-    latitude: {
-        type: DataTypes.DECIMAL(10, 8),
-        allowNull: false
-    },
-    longitude: {
-        type: DataTypes.DECIMAL(11, 8),
-        allowNull: false
-    },
-    event_date: {
+    start_date: {
         type: DataTypes.DATE,
         allowNull: false
+    },
+    end_date: {
+        type: DataTypes.DATE,
+        allowNull: false
+    },
+    event_location: {
+        type: DataTypes.STRING(255),
+        allowNull: true
     },
     event_status: {
         type: DataTypes.STRING(255),

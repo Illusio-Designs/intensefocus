@@ -1,6 +1,6 @@
 const AuditLog = require('../models/AuditLog');
 const Event = require('../models/event');
-
+const { EventStatus } = require('../constants/enums');
 class EventController {
     async getEvents(req, res) {
         try {
@@ -8,7 +8,22 @@ class EventController {
             if (!events || events.length === 0) {
                 return res.status(404).json({ error: 'Events not found' });
             }
-            res.status(200).json(events);
+            for (const event of events) {
+                let eventStatus;
+                const startDate = new Date(event.start_date);
+                const endDate = new Date(event.end_date);
+                if (startDate < new Date()) {
+                    eventStatus = EventStatus.PAST;
+                } else if (startDate > new Date() && endDate < new Date()) {
+                    eventStatus = EventStatus.ONGOING;
+                } else {
+                    eventStatus = EventStatus.UPCOMING;
+                }
+                event.event_status = eventStatus;
+                await event.save();
+            }
+            const updatedEvents = await Event.findAll();
+            res.status(200).json(updatedEvents);
         } catch (error) {
             res.status(500).json({ error: error.message });
         }
@@ -16,11 +31,32 @@ class EventController {
 
     async createEvent(req, res) {
         try {
-            const { event_name, latitude, longitude, event_date, event_status } = req.body;
-            if (!event_name || !latitude || !longitude || !event_date || !event_status) {
+            // no location
+            const { event_name, start_date, end_date, event_location } = req.body;
+            if (!event_name || !start_date || !end_date || !event_location) {
                 return res.status(400).json({ error: 'All fields are required' });
             }
-            const event = await Event.create({ event_name, latitude, longitude, event_date, event_status });
+            const startDate = new Date(start_date);
+            const endDate = new Date(end_date);
+            if (startDate > endDate) {
+                return res.status(400).json({ error: 'Start date must be before end date' });
+            }
+            let eventStatus;
+            if (startDate < new Date()) {
+                eventStatus = EventStatus.PAST;
+            } else if ((startDate > new Date() && endDate < new Date()) || startDate == new Date()) {
+                eventStatus = EventStatus.ONGOING;
+            } else {
+                eventStatus = EventStatus.UPCOMING;
+            }
+
+            const event = await Event.create({
+                event_name,
+                start_date: startDate,
+                end_date: endDate,
+                event_status: eventStatus,
+                event_location,
+            });
             await AuditLog.create({
                 user_id: req.user.user_id,
                 action: 'create',
@@ -48,14 +84,57 @@ class EventController {
             if (!event) {
                 return res.status(404).json({ error: 'Event not found' });
             }
-            const { event_name, latitude, longitude, event_date, event_status } = req.body;
+            const { event_name, start_date, end_date, event_location } = req.body;
+            let eventStatus;
+            if (start_date && end_date) {
+                const startDate = new Date(start_date);
+                const endDate = new Date(end_date);
+                if (startDate > endDate) {
+                    return res.status(400).json({ error: 'Start date must be before end date' });
+                }
+                if (startDate < new Date()) {
+                    eventStatus = EventStatus.PAST;
+                } else if ((startDate > new Date() && endDate < new Date()) || startDate == new Date()) {
+                    eventStatus = EventStatus.ONGOING;
+                } else {
+                    eventStatus = EventStatus.UPCOMING;
+                }
+            }
+            if (start_date && start_date != event.start_date) {
+                const startDate = new Date(start_date);
+                const endDate = new Date(event.end_date);
+                if (startDate > endDate) {
+                    return res.status(400).json({ error: 'Start date must be before end date' });
+                }
+                if (startDate < new Date()) {
+                    eventStatus = EventStatus.PAST;
+                } else if ((startDate > new Date() && endDate < new Date()) || startDate == new Date()) {
+                    eventStatus = EventStatus.ONGOING;
+                } else {
+                    eventStatus = EventStatus.UPCOMING;
+                }
+            }
+            if (end_date && end_date != event.end_date) {
+                const startDate = new Date(event.start_date);
+                const endDate = new Date(end_date);
+                if (startDate > endDate) {
+                    return res.status(400).json({ error: 'Start date must be before end date' });
+                }
+                if (endDate < new Date()) {
+                    eventStatus = EventStatus.PAST;
+                } else if ((startDate > new Date() && endDate < new Date()) || startDate == new Date()) {
+                    eventStatus = EventStatus.ONGOING;
+                } else {
+                    eventStatus = EventStatus.UPCOMING;
+                }
+            }
             const updatedEvent = await Event.update({
                 event_name: event_name || event.event_name,
-                latitude: latitude || event.latitude,
-                longitude: longitude || event.longitude,
-                event_date: event_date || event.event_date,
-                event_status: event_status || event.event_status,
+                start_date: start_date || event.start_date,
+                end_date: end_date || event.end_date,
+                event_location: event_location || event.event_location,
                 updated_at: new Date(),
+                event_status: eventStatus || event.event_status,
             }, { where: { event_id: id } });
             await AuditLog.create({
                 user_id: req.user.user_id,
