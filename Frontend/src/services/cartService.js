@@ -1,6 +1,34 @@
 // Cart Service - Shared state management for cart
+const CART_STORAGE_KEY = 'stallion_cart_items';
 let cartItems = [];
 let cartListeners = [];
+
+// Load cart items from localStorage
+const loadCartFromStorage = () => {
+  try {
+    const stored = localStorage.getItem(CART_STORAGE_KEY);
+    if (stored) {
+      cartItems = JSON.parse(stored);
+    } else {
+      cartItems = [];
+    }
+  } catch (error) {
+    console.error('Error loading cart from storage:', error);
+    cartItems = [];
+  }
+};
+
+// Save cart items to localStorage
+const saveCartToStorage = () => {
+  try {
+    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartItems));
+  } catch (error) {
+    console.error('Error saving cart to storage:', error);
+  }
+};
+
+// Initialize cart from storage
+loadCartFromStorage();
 
 // Get cart items
 export const getCartItems = () => cartItems;
@@ -22,12 +50,14 @@ export const addToCart = (product) => {
     cartItems.push({ ...product });
   }
   
+  saveCartToStorage();
   notifyListeners();
 };
 
 // Remove item from cart
 export const removeFromCart = (productId) => {
   cartItems = cartItems.filter(item => item.id !== productId);
+  saveCartToStorage();
   notifyListeners();
 };
 
@@ -38,6 +68,7 @@ export const updateCartQuantity = (productId, quantity) => {
     item.quantity = quantity;
     // Create a new array reference to trigger React re-render
     cartItems = [...cartItems];
+    saveCartToStorage();
     notifyListeners();
   }
 };
@@ -45,6 +76,7 @@ export const updateCartQuantity = (productId, quantity) => {
 // Clear cart
 export const clearCart = () => {
   cartItems = [];
+  saveCartToStorage();
   notifyListeners();
 };
 
