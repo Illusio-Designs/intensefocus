@@ -1306,105 +1306,21 @@ export const deleteDistributor = async (distributorId) => {
  * Get all parties
  * @returns {Promise<Array>} Array of party objects
  */
-export const getParties = async (countryId) => {
-  // Validate countryId
-  if (!countryId) {
-    console.warn('[getParties] No country ID provided');
-    return [];
-  }
-  
+export const getParties = async () => {
   try {
-    // Validate and clean countryId
-    const cleanCountryId = String(countryId).trim();
-    if (!cleanCountryId || cleanCountryId === 'undefined' || cleanCountryId === 'null') {
-      console.error('[getParties] Invalid country ID:', countryId);
-      return [];
-    }
-    
-    console.log('[getParties] ====== API CALL ======');
-    console.log('[getParties] Requested country_id:', cleanCountryId);
-    console.log('[getParties] Request body:', JSON.stringify({ country_id: cleanCountryId }));
-    
-    // Use POST to /parties/get with country_id in body (following pattern from getDistributors/getSalesmen)
-    const response = await apiRequest('/parties/get', {
-      method: 'POST',
-      body: { country_id: cleanCountryId },
+    const response = await apiRequest('/parties/', {
+      method: 'GET',
       includeAuth: true,
     });
     
-    console.log('[getParties] API response received:', response?.length || 0, 'parties');
-    if (response && response.length > 0) {
-      console.log('[getParties] Response country_ids:', response.map(p => ({
-        id: p.id || p.party_id,
-        name: p.party_name,
-        country_id: p.country_id
-      })));
-    }
-    
     // Ensure we always return an array
-    let partiesArray = [];
     if (Array.isArray(response)) {
-      partiesArray = response;
+      return response;
     } else if (response && Array.isArray(response.data)) {
-      partiesArray = response.data;
+      return response.data;
     }
     
-    // CRITICAL: Backend may return wrong data, so we MUST filter strictly by country_id
-    if (partiesArray.length > 0) {
-      console.log('[getParties] ====== FILTERING RESPONSE ======');
-      console.log('[getParties] Requested country_id:', cleanCountryId);
-      console.log('[getParties] Total parties received:', partiesArray.length);
-      
-      // Filter to ONLY include parties matching the requested country
-      const beforeFilter = partiesArray.length;
-      partiesArray = partiesArray.filter(p => {
-        if (!p) return false;
-        const partyCountryId = String(p.country_id || p.countryId || '').trim();
-        const matches = partyCountryId === cleanCountryId;
-        
-        if (!matches) {
-          console.warn('[getParties] ❌ REJECTING - country mismatch:', {
-            party_id: p.id || p.party_id,
-            party_name: p.party_name,
-            party_country_id: partyCountryId,
-            requested_country_id: cleanCountryId
-          });
-        }
-        return matches;
-      });
-      
-      const filteredOut = beforeFilter - partiesArray.length;
-      if (filteredOut > 0) {
-        console.warn('[getParties] ⚠️ FILTERED OUT', filteredOut, 'parties with wrong country_id');
-        console.warn('[getParties] Backend returned wrong data - this is a backend issue!');
-      }
-      
-      console.log('[getParties] ✅ Final count after filtering:', partiesArray.length, 'matching parties');
-      
-      // Log sample party to verify
-      if (partiesArray.length > 0) {
-        console.log('[getParties] Sample valid party:', {
-          id: partiesArray[0].id || partiesArray[0].party_id,
-          name: partiesArray[0].party_name,
-          country_id: partiesArray[0].country_id,
-          requested_country_id: cleanCountryId,
-          matches: String(partiesArray[0].country_id) === cleanCountryId
-        });
-      } else {
-        // Backend returned 200 with data, but after filtering by country_id, no matching parties found
-        console.log('[getParties] ====== NO PARTIES FOUND ======');
-        console.log('[getParties] ⚠️ IMPORTANT: Backend returned HTTP 200, but this country has NO parties');
-        console.log('[getParties] Requested country_id:', cleanCountryId);
-        console.log('[getParties] Backend returned', beforeFilter, 'parties, but NONE match the requested country');
-        console.log('[getParties] This is treated as "Parties not found" on the frontend');
-      }
-      console.log('[getParties] ====== END FILTERING ======');
-    } else {
-      // Backend returned empty array - no parties for this country
-      console.log('[getParties] ℹ️ Backend returned empty array - no parties for country:', cleanCountryId);
-    }
-    
-    return partiesArray;
+    return [];
   } catch (error) {
     // Handle "Parties not found" as a valid case (empty parties)
     const errorMessage = (error.message || '').toLowerCase();
@@ -1419,7 +1335,6 @@ export const getParties = async (countryId) => {
         errorText.includes('party not found') ||
         error.statusCode === 404) {
       // Return empty array for "not found" cases - this is a valid state
-      console.log('[getParties] No parties found for country, returning empty array');
       return [];
     }
     // Re-throw other errors
@@ -1550,6 +1465,7 @@ const getCityId = () => {
   
   // Build request body matching exact payload structure
   // All string fields as strings, UUIDs as strings when provided or null when empty
+  // credit_days should be a number
   const requestBody = {
     party_name: String(party_name || ''),
     trade_name: String(trade_name || ''),
@@ -1564,8 +1480,10 @@ const getCityId = () => {
     pincode: String(pincode || ''),
     gstin: String(gstin || ''),
     pan: String(pan || ''),
-    credit_days: String(credit_days || ''),
-    prefered_courier: String(prefered_courier || ''),
+    credit_days: credit_days !== undefined && credit_days !== null && credit_days !== '' 
+      ? Number(credit_days) 
+      : undefined,
+    prefered_courier: prefered_courier ? String(prefered_courier) : undefined,
   };
   
   // Validate that all required fields are present (no undefined)
@@ -1665,7 +1583,7 @@ export const updateParty = async (partyId, partyData) => {
   };
   
   // Build request body - ensure clean format matching your examples exactly
-  // All fields must be explicitly defined, no undefined values
+  // credit_days should be a number, prefered_courier should be a string or null
   const requestBody = {
     party_name: String(party_name || ''),
     trade_name: String(trade_name || ''),
@@ -1680,8 +1598,10 @@ export const updateParty = async (partyId, partyData) => {
     pincode: String(pincode || ''),
     gstin: String(gstin || ''),
     pan: String(pan || ''),
-    credit_days: String(credit_days || ''),
-    prefered_courier: String(prefered_courier || ''),
+    credit_days: credit_days !== undefined && credit_days !== null && credit_days !== '' 
+      ? Number(credit_days) 
+      : undefined,
+    prefered_courier: prefered_courier ? String(prefered_courier) : undefined,
   };
   
   // Validate that all required fields are present (no undefined)
@@ -1698,15 +1618,14 @@ export const updateParty = async (partyId, partyData) => {
   if (requestBody.city_id === undefined) requestBody.city_id = null;
   if (requestBody.zone_id === undefined) requestBody.zone_id = null;
   
-  // Final validation: ensure absolutely no undefined values
+  // Final validation: ensure absolutely no undefined values for required fields
+  // Optional fields (credit_days, prefered_courier) can be undefined and will be omitted from JSON
   const finalRequestBody = {};
   const allFields = ['party_name', 'trade_name', 'contact_person', 'email', 'phone', 'address', 'country_id', 'state_id', 'city_id', 'zone_id', 'pincode', 'gstin', 'pan', 'credit_days', 'prefered_courier'];
   allFields.forEach(field => {
     const value = requestBody[field];
-    if (value === undefined) {
-      console.error(`[Update Party] Field ${field} is undefined, setting to default`);
-      finalRequestBody[field] = field.includes('_id') ? null : '';
-    } else {
+    // Only include the field if it has a value (undefined will be omitted during JSON.stringify)
+    if (value !== undefined) {
       finalRequestBody[field] = value;
     }
   });
@@ -1739,6 +1658,53 @@ export const deleteParty = async (partyId) => {
     method: 'DELETE',
     includeAuth: true,
   });
+};
+
+/**
+ * Get parties by zone ID
+ * @param {string} zoneId - Zone ID (UUID)
+ * @returns {Promise<Array>} Array of party objects
+ */
+export const getPartiesByZoneId = async (zoneId) => {
+  // Validate zoneId
+  if (!zoneId || typeof zoneId !== 'string' || zoneId.trim() === '') {
+    throw new Error('Invalid zone ID provided');
+  }
+  
+  try {
+    const response = await apiRequest('/parties/byZoneId', {
+      method: 'POST',
+      body: { zone_id: zoneId.trim() },
+      includeAuth: true,
+    });
+    
+    // Ensure we always return an array
+    if (Array.isArray(response)) {
+      return response;
+    } else if (response && Array.isArray(response.data)) {
+      return response.data;
+    }
+    
+    return [];
+  } catch (error) {
+    // Handle "Parties not found" as a valid case (empty parties)
+    const errorMessage = (error.message || '').toLowerCase();
+    const errorText = (error.errorData?.error || error.errorData?.message || '').toLowerCase();
+    
+    // Check multiple variations of "not found" messages
+    if (errorMessage.includes('parties not found') ||
+        errorMessage.includes('no parties found') ||
+        errorMessage.includes('party not found') ||
+        errorText.includes('parties not found') ||
+        errorText.includes('no parties found') ||
+        errorText.includes('party not found') ||
+        error.statusCode === 404) {
+      // Return empty array for "not found" cases - this is a valid state
+      return [];
+    }
+    // Re-throw other errors
+    throw error;
+  }
 };
 
 // ==================== SALESMEN ENDPOINTS ====================
@@ -3735,6 +3701,7 @@ export const getOrders = async () => {
  * @param {string} orderData.order_type - Order type (e.g., "event_order", "party_order", "distributor_order", "visit_order", "whatsapp_order")
  * @param {string} [orderData.party_id] - Party ID (UUID) - required for event_order, party_order, visit_order, whatsapp_order
  * @param {string} [orderData.distributor_id] - Distributor ID (UUID) - required for event_order, party_order, distributor_order, visit_order, whatsapp_order
+ * @param {string} [orderData.zone_id] - Zone ID (UUID) - required for event_order, party_order
  * @param {string} [orderData.salesman_id] - Salesman ID (UUID) - required for event_order, visit_order, whatsapp_order
  * @param {string} [orderData.event_id] - Event ID (UUID) - required for event_order
  * @param {string} [orderData.user_id] - User ID (UUID) - logged-in person's ID
@@ -3751,6 +3718,7 @@ export const createOrder = async (orderData) => {
     order_type,
     party_id,
     distributor_id,
+    zone_id,
     salesman_id,
     event_id,
     user_id,
@@ -3766,12 +3734,13 @@ export const createOrder = async (orderData) => {
 
   if (party_id) body.party_id = party_id;
   if (distributor_id) body.distributor_id = distributor_id;
+  if (zone_id) body.zone_id = zone_id;
   if (salesman_id) body.salesman_id = salesman_id;
   if (event_id) body.event_id = event_id;
   if (user_id) body.user_id = user_id;
   if (order_notes) body.order_notes = order_notes;
 
-  return apiRequest('/orders/create', {
+  return apiRequest('/orders/', {
     method: 'POST',
     body,
     includeAuth: true,
