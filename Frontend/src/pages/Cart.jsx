@@ -15,7 +15,6 @@ import {
 } from "../services/notificationService";
 import { getUserRole, getUser } from "../services/authService";
 import {
-  createOrder,
   getParties,
   getPartyById,
   getEvents,
@@ -655,7 +654,7 @@ const Cart = ({ onPageChange = null }) => {
       }
 
       // Create order
-      await createOrder(orderData);
+      // Order API call removed
       showSuccess('Order placed successfully!');
       showPlaceOrderSuccess();
       
