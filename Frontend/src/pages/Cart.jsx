@@ -21,6 +21,7 @@ import {
   getCountries,
   getUsers,
   getDistributors,
+  createOrder,
 } from "../services/apiService";
 
 const Cart = ({ onPageChange = null }) => {
@@ -293,11 +294,12 @@ const Cart = ({ onPageChange = null }) => {
         console.log('[Cart] user.distributor?.zone_id:', user?.distributor?.zone_id);
       }
 
-      // Set party_id and distributor_id for party users
+      // Set party_id, distributor_id, and zone_id for party users
       if (isParty) {
         // Search for party by user's phone number (since party has phone field)
         let partyId = null;
         let distributorId = null;
+        let zoneId = null;
         
         if (user?.phone) {
           console.log('[Cart] Searching for party by phone:', user.phone);
@@ -390,23 +392,32 @@ const Cart = ({ onPageChange = null }) => {
                              partyData?.distributor?.distributor_id || 
                              partyData?.distributor?.id ||
                              null;
+              // Get zone_id from party data
+              zoneId = partyData?.zone_id || partyData?.zoneId || null;
               
               if (partyId) {
                 console.log('[Cart] Found party by phone:', partyId);
                 console.log('[Cart] Found distributor_id from party:', partyDistributorId);
+                console.log('[Cart] Found zone_id from party:', zoneId);
                 
                 // If distributor_id is not in party data, try to get full party details
-                if (!partyDistributorId) {
+                if (!partyDistributorId || !zoneId) {
                   try {
-                    console.log('[Cart] Distributor ID not found in party data, fetching full party details...');
+                    console.log('[Cart] Distributor ID or zone_id not found in party data, fetching full party details...');
                     const fullPartyData = await getPartyById(partyId);
                     if (fullPartyData) {
-                      partyDistributorId = fullPartyData?.distributor_id || 
-                                         fullPartyData?.distributorId || 
-                                         fullPartyData?.distributor?.distributor_id || 
-                                         fullPartyData?.distributor?.id ||
-                                         null;
-                      console.log('[Cart] Found distributor_id from full party data:', partyDistributorId);
+                      if (!partyDistributorId) {
+                        partyDistributorId = fullPartyData?.distributor_id || 
+                                           fullPartyData?.distributorId || 
+                                           fullPartyData?.distributor?.distributor_id || 
+                                           fullPartyData?.distributor?.id ||
+                                           null;
+                        console.log('[Cart] Found distributor_id from full party data:', partyDistributorId);
+                      }
+                      if (!zoneId) {
+                        zoneId = fullPartyData?.zone_id || fullPartyData?.zoneId || null;
+                        console.log('[Cart] Found zone_id from full party data:', zoneId);
+                      }
                     }
                   } catch (err) {
                     console.warn('[Cart] Failed to fetch full party data:', err);
@@ -529,6 +540,15 @@ const Cart = ({ onPageChange = null }) => {
           showError('Distributor ID is required for party orders. Please contact support.');
           setLoading(false);
           return;
+        }
+        
+        // Add zone_id for party orders (required by backend)
+        if (zoneId) {
+          orderData.zone_id = zoneId;
+          console.log('[Cart] Using Zone ID:', zoneId);
+        } else {
+          console.warn('[Cart] Zone ID not found for party:', partyId);
+          // Zone ID might not be critical, but log warning
         }
       } else if (selectedParty) {
         orderData.party_id = selectedParty;
@@ -653,8 +673,21 @@ const Cart = ({ onPageChange = null }) => {
         orderData.event_id = selectedEvent;
       }
 
-      // Create order
-      // Order API call removed
+      // Format order_date to match backend format (YYYY-MM-DDTHH:mm:ss)
+      const orderDate = new Date(orderData.order_date);
+      const formattedDate = orderDate.toISOString().split('.')[0]; // Remove milliseconds
+      orderData.order_date = formattedDate;
+
+      // Add optional order_notes
+      orderData.order_notes = orderData.order_notes || 'Order placed from cart';
+
+      console.log('[Cart] Creating order with data:', orderData);
+
+      // Create order via API
+      const createdOrder = await createOrder(orderData);
+      
+      console.log('[Cart] Order created successfully:', createdOrder);
+      
       showSuccess('Order placed successfully!');
       showPlaceOrderSuccess();
       

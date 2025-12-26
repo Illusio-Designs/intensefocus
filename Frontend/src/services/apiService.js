@@ -1303,24 +1303,133 @@ export const deleteDistributor = async (distributorId) => {
 // ==================== PARTY ENDPOINTS ====================
 
 /**
- * Get all parties
+ * Get all parties (optionally filtered by country)
+ * @param {string} [countryId] - Optional country ID (UUID) to filter parties by country
  * @returns {Promise<Array>} Array of party objects
  */
-export const getParties = async () => {
+export const getParties = async (countryId) => {
+  // If no countryId provided, use GET endpoint for all parties
+  if (!countryId) {
+    try {
+      const response = await apiRequest('/parties/', {
+        method: 'GET',
+        includeAuth: true,
+      });
+      
+      // Ensure we always return an array
+      if (Array.isArray(response)) {
+        return response;
+      } else if (response && Array.isArray(response.data)) {
+        return response.data;
+      }
+      
+      return [];
+    } catch (error) {
+      // Handle "Parties not found" as a valid case (empty parties)
+      const errorMessage = (error.message || '').toLowerCase();
+      const errorText = (error.errorData?.error || error.errorData?.message || '').toLowerCase();
+      
+      // Check multiple variations of "not found" messages
+      if (errorMessage.includes('parties not found') ||
+          errorMessage.includes('no parties found') ||
+          errorMessage.includes('party not found') ||
+          errorText.includes('parties not found') ||
+          errorText.includes('no parties found') ||
+          errorText.includes('party not found') ||
+          error.statusCode === 404) {
+        // Return empty array for "not found" cases - this is a valid state
+        return [];
+      }
+      // Re-throw other errors
+      throw error;
+    }
+  }
+  
+  // Validate countryId
   try {
-    const response = await apiRequest('/parties/', {
-      method: 'GET',
+    // Validate and clean countryId
+    const cleanCountryId = String(countryId).trim();
+    if (!cleanCountryId || cleanCountryId === 'undefined' || cleanCountryId === 'null') {
+      console.error('[getParties] Invalid country ID:', countryId);
+      return [];
+    }
+    
+    console.log('[getParties] ====== API CALL ======');
+    console.log('[getParties] Requested country_id:', cleanCountryId);
+    console.log('[getParties] Request body:', JSON.stringify({ country_id: cleanCountryId }));
+    
+    // Use POST to /parties/get with country_id in body (following pattern from getDistributors/getSalesmen)
+    const response = await apiRequest('/parties/get', {
+      method: 'POST',
+      body: { country_id: cleanCountryId },
       includeAuth: true,
     });
     
-    // Ensure we always return an array
-    if (Array.isArray(response)) {
-      return response;
-    } else if (response && Array.isArray(response.data)) {
-      return response.data;
+    console.log('[getParties] API response received:', response?.length || 0, 'parties');
+    if (response && response.length > 0) {
+      console.log('[getParties] Response country_ids:', response.map(p => ({
+        id: p.id || p.party_id,
+        name: p.party_name,
+        country_id: p.country_id
+      })));
     }
     
-    return [];
+    // Ensure we always return an array
+    let partiesArray = [];
+    if (Array.isArray(response)) {
+      partiesArray = response;
+    } else if (response && Array.isArray(response.data)) {
+      partiesArray = response.data;
+    }
+    
+    // CRITICAL: Backend may return wrong data, so we MUST filter strictly by country_id
+    if (partiesArray.length > 0) {
+      console.log('[getParties] ====== FILTERING RESPONSE ======');
+      console.log('[getParties] Requested country_id:', cleanCountryId);
+      console.log('[getParties] Total parties received:', partiesArray.length);
+      
+      // Filter to ONLY include parties matching the requested country
+      const beforeFilter = partiesArray.length;
+      partiesArray = partiesArray.filter(p => {
+        if (!p) return false;
+        const partyCountryId = String(p.country_id || p.countryId || '').trim();
+        const matches = partyCountryId === cleanCountryId;
+        
+        if (!matches) {
+          console.warn('[getParties] ❌ REJECTING - country mismatch:', {
+            party_id: p.id || p.party_id,
+            party_name: p.party_name,
+            party_country_id: partyCountryId,
+            requested_country_id: cleanCountryId
+          });
+        }
+        return matches;
+      });
+      
+      const filteredOut = beforeFilter - partiesArray.length;
+      if (filteredOut > 0) {
+        console.warn('[getParties] ⚠️ FILTERED OUT', filteredOut, 'parties with wrong country_id');
+        console.warn('[getParties] Backend returned wrong data - this is a backend issue!');
+      }
+      
+      console.log('[getParties] ✅ Final count after filtering:', partiesArray.length, 'matching parties');
+      
+      // Log sample party to verify
+      if (partiesArray.length > 0) {
+        console.log('[getParties] Sample valid party:', {
+          id: partiesArray[0].id || partiesArray[0].party_id,
+          name: partiesArray[0].party_name,
+          country_id: partiesArray[0].country_id,
+          requested_country_id: cleanCountryId,
+          matches: String(partiesArray[0].country_id) === cleanCountryId
+        });
+      } else {
+        console.log('[getParties] ℹ️ No parties found for country:', cleanCountryId);
+      }
+      console.log('[getParties] ====== END FILTERING ======');
+    }
+    
+    return partiesArray;
   } catch (error) {
     // Handle "Parties not found" as a valid case (empty parties)
     const errorMessage = (error.message || '').toLowerCase();
@@ -1335,6 +1444,7 @@ export const getParties = async () => {
         errorText.includes('party not found') ||
         error.statusCode === 404) {
       // Return empty array for "not found" cases - this is a valid state
+      console.log('[getParties] No parties found for country, returning empty array');
       return [];
     }
     // Re-throw other errors
