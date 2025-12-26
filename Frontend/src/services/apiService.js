@@ -1436,10 +1436,53 @@ export const getPartyById = async (partyId) => {
   if (!partyId || typeof partyId !== 'string' || partyId.trim() === '') {
     throw new Error('Invalid party ID provided');
   }
-  return apiRequest(`/parties/${partyId.trim()}`, {
-    method: 'GET',
-    includeAuth: true,
-  });
+  
+  const cleanPartyId = partyId.trim();
+  
+  try {
+    // Use POST to /parties/get with party_id in body (matching pattern from getParties)
+    console.log('[getPartyById] Fetching party with ID:', cleanPartyId);
+    const response = await apiRequest('/parties/get', {
+      method: 'POST',
+      body: { party_id: cleanPartyId },
+      includeAuth: true,
+    });
+    
+    // Handle array response (backend might return array even for single party)
+    if (Array.isArray(response)) {
+      const party = response.find(p => 
+        String(p.id || p.party_id) === cleanPartyId
+      );
+      if (party) {
+        console.log('[getPartyById] Party found');
+        return party;
+      }
+      throw new Error(`Party with ID ${cleanPartyId} not found`);
+    }
+    
+    // Handle object response
+    if (response && (String(response.id || response.party_id) === cleanPartyId)) {
+      console.log('[getPartyById] Party found');
+      return response;
+    }
+    
+    throw new Error(`Party with ID ${cleanPartyId} not found`);
+  } catch (error) {
+    // If POST to /parties/get fails, try GET to /parties/{id} as fallback
+    if (error.statusCode === 404 || error.message?.includes('404') || error.message?.includes('not found')) {
+      console.log('[getPartyById] POST request failed, trying GET pattern as fallback');
+      try {
+        return await apiRequest(`/parties/${cleanPartyId}`, {
+          method: 'GET',
+          includeAuth: true,
+        });
+      } catch (fallbackError) {
+        console.error('[getPartyById] Both POST and GET patterns failed');
+        throw new Error(`Party with ID ${cleanPartyId} not found. ${fallbackError.message || ''}`);
+      }
+    }
+    throw error;
+  }
 };
 
 /**
