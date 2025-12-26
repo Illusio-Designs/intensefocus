@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import TableWithControls from '../components/ui/TableWithControls';
 import Modal from '../components/ui/Modal';
 import RowActions from '../components/ui/RowActions';
+import DropdownSelector from '../components/ui/DropdownSelector';
 import {
   getParties,
   createParty,
@@ -18,10 +19,11 @@ import { showSuccess, showError } from '../services/notificationService';
 import { getUserRole, getUser } from '../services/authService';
 
 const DashboardClients = () => {
-  const userRole = getUserRole();
-  const user = getUser();
-  const isSalesman = userRole === 'salesman';
-  const isDistributor = userRole === 'distributor';
+  // Memoize user and role to prevent infinite loops
+  const userRole = useMemo(() => getUserRole(), []);
+  const user = useMemo(() => getUser(), []);
+  const isSalesman = useMemo(() => userRole === 'salesman', [userRole]);
+  const isDistributor = useMemo(() => userRole === 'distributor', [userRole]);
   const [activeTab, setActiveTab] = useState('All');
   const [openAdd, setOpenAdd] = useState(false);
   const [editRow, setEditRow] = useState(null);
@@ -245,8 +247,9 @@ const DashboardClients = () => {
       
       // Filter by zone for salesman and distributor
       let filteredParties = validParties;
-      if ((isSalesman || isDistributor) && user?.zone_preference) {
-        const userZone = String(user.zone_preference).trim();
+      const currentUser = getUser(); // Get fresh user data inside the callback
+      if ((isSalesman || isDistributor) && currentUser?.zone_preference) {
+        const userZone = String(currentUser.zone_preference).trim();
         filteredParties = validParties.filter(party => {
           const partyZoneId = party.zone_id || party.zoneId;
           if (!partyZoneId) return false;
@@ -290,7 +293,7 @@ const DashboardClients = () => {
     } finally {
       setLoading(false);
     }
-  }, [isSalesman, isDistributor, user]);
+  }, [isSalesman, isDistributor]);
 
   // Set India as default country filter (only once when countries are loaded)
   useEffect(() => {
@@ -362,8 +365,9 @@ const DashboardClients = () => {
     }
     
     // Filter by zone for salesman and distributor
-    if ((isSalesman || isDistributor) && user?.zone_preference && filteredParties.length > 0) {
-      const userZone = String(user.zone_preference).trim();
+    const currentUser = getUser(); // Get fresh user data
+    if ((isSalesman || isDistributor) && currentUser?.zone_preference && filteredParties.length > 0) {
+      const userZone = String(currentUser.zone_preference).trim();
       const beforeZoneFilter = filteredParties.length;
       filteredParties = filteredParties.filter(party => {
         const partyZoneId = party.zone_id || party.zoneId;
@@ -383,7 +387,7 @@ const DashboardClients = () => {
         isActive: party.is_active !== false,
       };
     });
-  }, [parties, selectedCountryFilter, isSalesman, isDistributor, user]);
+  }, [parties, selectedCountryFilter, isSalesman, isDistributor]);
 
   const filteredRowsByTab = useMemo(() => {
     if (activeTab === 'All') return rows;
@@ -1128,32 +1132,32 @@ const DashboardClients = () => {
                   <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>
                     Filter by Country
                   </label>
-                  <select
-                    className="ui-input"
+                  <DropdownSelector
+                    options={[
+                      { value: '', label: 'All Countries' },
+                      ...countries.map(country => ({
+                        value: country.id,
+                        label: country.name
+                      }))
+                    ]}
                     value={selectedCountryFilter || ''}
-                    onChange={(e) => {
-                      const newCountryId = e.target.value || null;
-                      console.log('[Filter] Country selection changed from', selectedCountryFilter, 'to', newCountryId);
+                    onChange={(newCountryId) => {
+                      const countryId = newCountryId || null;
+                      console.log('[Filter] Country selection changed from', selectedCountryFilter, 'to', countryId);
                       // Clear parties immediately when changing countries
                       setParties([]);
                       // Update state - useEffect will handle fetching or clearing
-                      setSelectedCountryFilter(newCountryId);
+                      setSelectedCountryFilter(countryId);
                       // If "All Countries" is selected (empty), ensure parties are cleared
-                      if (!newCountryId) {
+                      if (!countryId) {
                         console.log('[Filter] All Countries selected - clearing parties');
                         setParties([]);
                         setLoading(false);
                       }
                     }}
-                    style={{ width: '100%', minWidth: '200px' }}
-                  >
-                    <option value="">All Countries</option>
-                    {countries.map(country => (
-                      <option key={country.id} value={country.id}>
-                        {country.name}
-                      </option>
-                    ))}
-                  </select>
+                    placeholder="All Countries"
+                    className="ui-dropdown-custom--full-width"
+                  />
                 </div>
               }
               loading={loading}
@@ -1244,19 +1248,19 @@ const DashboardClients = () => {
           </div>
           <div className="form-group">
             <label className="ui-label">Country *</label>
-            <select
-              className="ui-input"
-              value={formData.country_id}
-              onChange={(e) => handleInputChange('country_id', e.target.value)}
-              required
-            >
-              <option value="">Select Country</option>
-              {countries.map(country => (
-                <option key={country.id} value={country.id}>
-                  {country.name}
-                </option>
-              ))}
-            </select>
+            <DropdownSelector
+              options={[
+                { value: '', label: 'Select Country' },
+                ...countries.map(country => ({
+                  value: country.id,
+                  label: country.name
+                }))
+              ]}
+              value={formData.country_id || ''}
+              onChange={(value) => handleInputChange('country_id', value || '')}
+              placeholder="Select Country"
+              className="ui-dropdown-custom--full-width"
+            />
           </div>
           <div className="form-group form-group--full">
             <label className="ui-label">Address</label>
@@ -1278,57 +1282,60 @@ const DashboardClients = () => {
           </div>
           <div className="form-group">
             <label className="ui-label">State (Optional)</label>
-            <select
-              className="ui-input"
-              value={formData.state_id}
-              onChange={(e) => handleInputChange('state_id', e.target.value)}
+            <DropdownSelector
+              options={[
+                { value: '', label: 'Select State' },
+                ...states.map(state => ({
+                  value: state.id,
+                  label: state.name
+                }))
+              ]}
+              value={formData.state_id || ''}
+              onChange={(value) => handleInputChange('state_id', value || '')}
+              placeholder="Select State"
               disabled={!formData.country_id}
-            >
-              <option value="">Select State</option>
-              {states.map(state => (
-                <option key={state.id} value={state.id}>
-                  {state.name}
-                </option>
-              ))}
-            </select>
+              className="ui-dropdown-custom--full-width"
+            />
             {!formData.country_id && (
               <small style={{ color: '#666', fontSize: '12px' }}>Please select a country first</small>
             )}
           </div>
           <div className="form-group">
             <label className="ui-label">City (Optional)</label>
-            <select
-              className="ui-input"
-              value={formData.city_id}
-              onChange={(e) => handleInputChange('city_id', e.target.value)}
+            <DropdownSelector
+              options={[
+                { value: '', label: 'Select City' },
+                ...cities.map(city => ({
+                  value: city.id,
+                  label: city.name
+                }))
+              ]}
+              value={formData.city_id || ''}
+              onChange={(value) => handleInputChange('city_id', value || '')}
+              placeholder="Select City"
               disabled={!formData.state_id}
-            >
-              <option value="">Select City</option>
-              {cities.map(city => (
-                <option key={city.id} value={city.id}>
-                  {city.name}
-                </option>
-              ))}
-            </select>
+              className="ui-dropdown-custom--full-width"
+            />
             {!formData.state_id && (
               <small style={{ color: '#666', fontSize: '12px' }}>Please select a state first</small>
             )}
           </div>
           <div className="form-group">
             <label className="ui-label">Zone (Optional)</label>
-            <select
-              className="ui-input"
-              value={formData.zone_id}
-              onChange={(e) => handleInputChange('zone_id', e.target.value)}
+            <DropdownSelector
+              options={[
+                { value: '', label: 'Select Zone' },
+                ...zones.map(zone => ({
+                  value: zone.id,
+                  label: zone.name
+                }))
+              ]}
+              value={formData.zone_id || ''}
+              onChange={(value) => handleInputChange('zone_id', value || '')}
+              placeholder="Select Zone"
               disabled={!formData.city_id}
-            >
-              <option value="">Select Zone</option>
-              {zones.map(zone => (
-                <option key={zone.id} value={zone.id}>
-                  {zone.name}
-                </option>
-              ))}
-            </select>
+              className="ui-dropdown-custom--full-width"
+            />
             {!formData.city_id && (
               <small style={{ color: '#666', fontSize: '12px' }}>Please select a city first</small>
             )}
@@ -1456,19 +1463,19 @@ const DashboardClients = () => {
           </div>
           <div className="form-group">
             <label className="ui-label">Country *</label>
-            <select
-              className="ui-input"
-              value={formData.country_id}
-              onChange={(e) => handleInputChange('country_id', e.target.value)}
-              required
-            >
-              <option value="">Select Country</option>
-              {countries.map(country => (
-                <option key={country.id} value={country.id}>
-                  {country.name}
-                </option>
-              ))}
-            </select>
+            <DropdownSelector
+              options={[
+                { value: '', label: 'Select Country' },
+                ...countries.map(country => ({
+                  value: country.id,
+                  label: country.name
+                }))
+              ]}
+              value={formData.country_id || ''}
+              onChange={(value) => handleInputChange('country_id', value || '')}
+              placeholder="Select Country"
+              className="ui-dropdown-custom--full-width"
+            />
           </div>
           <div className="form-group form-group--full">
             <label className="ui-label">Address</label>
@@ -1490,57 +1497,60 @@ const DashboardClients = () => {
           </div>
           <div className="form-group">
             <label className="ui-label">State (Optional)</label>
-            <select
-              className="ui-input"
-              value={formData.state_id}
-              onChange={(e) => handleInputChange('state_id', e.target.value)}
+            <DropdownSelector
+              options={[
+                { value: '', label: 'Select State' },
+                ...states.map(state => ({
+                  value: state.id,
+                  label: state.name
+                }))
+              ]}
+              value={formData.state_id || ''}
+              onChange={(value) => handleInputChange('state_id', value || '')}
+              placeholder="Select State"
               disabled={!formData.country_id}
-            >
-              <option value="">Select State</option>
-              {states.map(state => (
-                <option key={state.id} value={state.id}>
-                  {state.name}
-                </option>
-              ))}
-            </select>
+              className="ui-dropdown-custom--full-width"
+            />
             {!formData.country_id && (
               <small style={{ color: '#666', fontSize: '12px' }}>Please select a country first</small>
             )}
           </div>
           <div className="form-group">
             <label className="ui-label">City (Optional)</label>
-            <select
-              className="ui-input"
-              value={formData.city_id}
-              onChange={(e) => handleInputChange('city_id', e.target.value)}
+            <DropdownSelector
+              options={[
+                { value: '', label: 'Select City' },
+                ...cities.map(city => ({
+                  value: city.id,
+                  label: city.name
+                }))
+              ]}
+              value={formData.city_id || ''}
+              onChange={(value) => handleInputChange('city_id', value || '')}
+              placeholder="Select City"
               disabled={!formData.state_id}
-            >
-              <option value="">Select City</option>
-              {cities.map(city => (
-                <option key={city.id} value={city.id}>
-                  {city.name}
-                </option>
-              ))}
-            </select>
+              className="ui-dropdown-custom--full-width"
+            />
             {!formData.state_id && (
               <small style={{ color: '#666', fontSize: '12px' }}>Please select a state first</small>
             )}
           </div>
           <div className="form-group">
             <label className="ui-label">Zone (Optional)</label>
-            <select
-              className="ui-input"
-              value={formData.zone_id}
-              onChange={(e) => handleInputChange('zone_id', e.target.value)}
+            <DropdownSelector
+              options={[
+                { value: '', label: 'Select Zone' },
+                ...zones.map(zone => ({
+                  value: zone.id,
+                  label: zone.name
+                }))
+              ]}
+              value={formData.zone_id || ''}
+              onChange={(value) => handleInputChange('zone_id', value || '')}
+              placeholder="Select Zone"
               disabled={!formData.city_id}
-            >
-              <option value="">Select Zone</option>
-              {zones.map(zone => (
-                <option key={zone.id} value={zone.id}>
-                  {zone.name}
-                </option>
-              ))}
-            </select>
+              className="ui-dropdown-custom--full-width"
+            />
             {!formData.city_id && (
               <small style={{ color: '#666', fontSize: '12px' }}>Please select a city first</small>
             )}

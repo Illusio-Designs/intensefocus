@@ -10,7 +10,16 @@ import {
   showRemoveFromCartSuccess,
   showPlaceOrderSuccess,
   showCartUpdateSuccess,
+  showError,
+  showSuccess,
 } from "../services/notificationService";
+import { getUserRole, getUser } from "../services/authService";
+import {
+  createOrder,
+  getParties,
+  getEvents,
+  getCountries,
+} from "../services/apiService";
 
 const Cart = ({ onPageChange = null }) => {
   const handlePageChange = (page) => {
@@ -22,8 +31,25 @@ const Cart = ({ onPageChange = null }) => {
   };
   const [cartItems, setCartItems] = useState([]);
   const [editingQuantities, setEditingQuantities] = useState({});
-  const [orderType, setOrderType] = useState("");
-  const [party, setParty] = useState("");
+  
+  // Get user role and user info
+  const userRole = getUserRole();
+  const user = getUser();
+  const isParty = userRole === 'party';
+  const isDistributor = userRole === 'distributor';
+  const isSalesman = userRole === 'salesman';
+  
+  // Role-based state
+  const [orderType, setOrderType] = useState(isDistributor ? "distributor_order" : "");
+  const [selectedParty, setSelectedParty] = useState("");
+  const [selectedEvent, setSelectedEvent] = useState("");
+  const [selectedCountry, setSelectedCountry] = useState("");
+  
+  // Dropdown data
+  const [countries, setCountries] = useState([]);
+  const [parties, setParties] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     // Initialize cart items
@@ -36,8 +62,66 @@ const Cart = ({ onPageChange = null }) => {
       setCartItems([...updatedItems]);
     });
 
+    // Fetch countries if needed (for distributor or salesman)
+    if (isDistributor || isSalesman) {
+      fetchCountries();
+    }
+
     return unsubscribe;
   }, []);
+
+  // Fetch countries
+  const fetchCountries = async () => {
+    try {
+      const countriesData = await getCountries();
+      setCountries(Array.isArray(countriesData) ? countriesData : []);
+    } catch (err) {
+      console.error('Failed to fetch countries:', err);
+      setCountries([]);
+    }
+  };
+
+  // Fetch parties when country is selected (for distributor or salesman)
+  useEffect(() => {
+    if ((isDistributor || isSalesman) && selectedCountry) {
+      fetchParties(selectedCountry);
+    } else {
+      setParties([]);
+    }
+  }, [selectedCountry, isDistributor, isSalesman]);
+
+  const fetchParties = async (countryId) => {
+    if (!countryId) {
+      setParties([]);
+      return;
+    }
+    try {
+      const partiesData = await getParties(countryId);
+      setParties(Array.isArray(partiesData) ? partiesData : []);
+    } catch (err) {
+      console.error('Failed to fetch parties:', err);
+      setParties([]);
+    }
+  };
+
+  // Fetch events when event_order is selected (for salesman)
+  useEffect(() => {
+    if (isSalesman && orderType === 'event_order') {
+      fetchEvents();
+    } else {
+      setEvents([]);
+    }
+  }, [orderType, isSalesman]);
+
+  const fetchEvents = async () => {
+    try {
+      const eventsData = await getEvents();
+      setEvents(Array.isArray(eventsData) ? eventsData : []);
+    } catch (err) {
+      console.error('Failed to fetch events:', err);
+      setEvents([]);
+    }
+  };
 
   const handleRemoveItem = (productId) => {
     const item = cartItems.find((item) => item.id === productId);
@@ -102,6 +186,130 @@ const Cart = ({ onPageChange = null }) => {
 
   const getDisplayName = (item) => {
     return `${item.name} - ${item.lenseColour}`;
+  };
+
+  const handleCheckout = async () => {
+    if (cartItems.length === 0) {
+      showError('Your cart is empty');
+      return;
+    }
+
+    // Validation based on role
+    if (isDistributor && !selectedParty) {
+      showError('Please select a party');
+      return;
+    }
+
+    if (isSalesman) {
+      if (!orderType) {
+        showError('Please select an order type');
+        return;
+      }
+      if (orderType === 'event_order' && !selectedEvent) {
+        showError('Please select an event');
+        return;
+      }
+      if (!selectedParty) {
+        showError('Please select a party');
+        return;
+      }
+    }
+
+    setLoading(true);
+    try {
+      // Prepare order items
+      const orderItems = cartItems.map(item => {
+        const quantity = editingQuantities[item.id] !== undefined 
+          ? parseInt(editingQuantities[item.id], 10) || item.quantity 
+          : item.quantity;
+        const price = parseFloat(item.whp.replace(/[₹,]/g, "")) || 0;
+        
+        return {
+          product_id: item.id,
+          quantity: quantity,
+          price: price
+        };
+      });
+
+      // Prepare order data
+      const orderData = {
+        order_date: new Date().toISOString(),
+        order_items: orderItems,
+      };
+
+      // Set order type
+      if (isParty) {
+        orderData.order_type = 'party_order';
+      } else if (isDistributor) {
+        orderData.order_type = 'distributor_order';
+      } else if (isSalesman && orderType) {
+        orderData.order_type = orderType;
+      }
+
+      // Set party_id
+      if (isParty && user?.party_id) {
+        orderData.party_id = user.party_id;
+      } else if (selectedParty) {
+        orderData.party_id = selectedParty;
+      }
+
+      // Set distributor_id
+      if (isDistributor && user?.distributor_id) {
+        orderData.distributor_id = user.distributor_id;
+      }
+
+      // Set salesman_id
+      if (isSalesman && user?.salesman_id) {
+        orderData.salesman_id = user.salesman_id;
+      }
+
+      // Set event_id
+      if (isSalesman && orderType === 'event_order' && selectedEvent) {
+        orderData.event_id = selectedEvent;
+      }
+
+      // Create order
+      await createOrder(orderData);
+      showSuccess('Order placed successfully!');
+      showPlaceOrderSuccess();
+      
+      // Clear cart after successful order
+      cartItems.forEach(item => {
+        removeFromCart(item.id);
+      });
+      
+      // Reset form
+      setSelectedParty("");
+      setSelectedEvent("");
+      setSelectedCountry("");
+      if (isSalesman) {
+        setOrderType("");
+      }
+    } catch (err) {
+      const errorMessage = err?.message || err?.errorData?.error || 'Failed to place order';
+      showError(errorMessage);
+      console.error('Order creation error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Determine if party dropdown should be shown
+  const shouldShowPartyDropdown = () => {
+    if (isParty) return false; // Party role: no dropdowns
+    if (isDistributor) return true; // Distributor: show party dropdown
+    if (isSalesman && orderType) return true; // Salesman: show after order type selected
+    return false;
+  };
+
+  // Determine if event dropdown should be shown
+  const shouldShowEventDropdown = () => {
+    return isSalesman && orderType === 'event_order';
+  };
+
+  // Determine if country dropdown should be shown (needed for party selection)
+  const shouldShowCountryDropdown = () => {
+    return (isDistributor || isSalesman) && shouldShowPartyDropdown();
   };
 
   return (
@@ -196,31 +404,93 @@ const Cart = ({ onPageChange = null }) => {
             <h2 className="section-title">Summary</h2>
 
             <div className="summary-form">
-              <div className="form-group">
-                <select
-                  id="order-type"
-                  className="summary-dropdown"
-                  value={orderType}
-                  onChange={(e) => setOrderType(e.target.value)}
-                >
-                  <option value="">Select Order Type</option>
-                  <option value="retail">Retail</option>
-                  <option value="wholesale">Wholesale</option>
-                </select>
-              </div>
+              {/* Order Type Dropdown - Only for Salesman */}
+              {isSalesman && (
+                <div className="form-group">
+                  <label htmlFor="order-type" className="form-label">Order Type</label>
+                  <select
+                    id="order-type"
+                    className="summary-dropdown"
+                    value={orderType}
+                    onChange={(e) => {
+                      setOrderType(e.target.value);
+                      // Reset party and event when order type changes
+                      setSelectedParty("");
+                      setSelectedEvent("");
+                    }}
+                  >
+                    <option value="">Select Order Type</option>
+                    <option value="visit_order">Visit Order</option>
+                    <option value="whatsapp_order">WhatsApp Order</option>
+                    <option value="event_order">Event Order</option>
+                  </select>
+                </div>
+              )}
 
-              <div className="form-group">
-                <select
-                  id="party"
-                  className="summary-dropdown"
-                  value={party}
-                  onChange={(e) => setParty(e.target.value)}
-                >
-                  <option value="">Select Party</option>
-                  <option value="party1">Party 1</option>
-                  <option value="party2">Party 2</option>
-                </select>
-              </div>
+              {/* Country Dropdown - For Distributor and Salesman (when party selection is needed) */}
+              {shouldShowCountryDropdown() && (
+                <div className="form-group">
+                  <label htmlFor="country" className="form-label">Country</label>
+                  <select
+                    id="country"
+                    className="summary-dropdown"
+                    value={selectedCountry}
+                    onChange={(e) => {
+                      setSelectedCountry(e.target.value);
+                      // Reset party when country changes
+                      setSelectedParty("");
+                    }}
+                  >
+                    <option value="">Select Country</option>
+                    {countries.map(country => (
+                      <option key={country.id || country.country_id} value={country.id || country.country_id}>
+                        {country.country_name || country.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Event Dropdown - Only for Salesman when event_order is selected */}
+              {shouldShowEventDropdown() && (
+                <div className="form-group">
+                  <label htmlFor="event" className="form-label">Event</label>
+                  <select
+                    id="event"
+                    className="summary-dropdown"
+                    value={selectedEvent}
+                    onChange={(e) => setSelectedEvent(e.target.value)}
+                  >
+                    <option value="">Select Event</option>
+                    {events.map(event => (
+                      <option key={event.id || event.event_id} value={event.id || event.event_id}>
+                        {event.event_name || event.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Party Dropdown - For Distributor and Salesman (after order type selected) */}
+              {shouldShowPartyDropdown() && (
+                <div className="form-group">
+                  <label htmlFor="party" className="form-label">Party</label>
+                  <select
+                    id="party"
+                    className="summary-dropdown"
+                    value={selectedParty}
+                    onChange={(e) => setSelectedParty(e.target.value)}
+                    disabled={!selectedCountry && (isDistributor || isSalesman)}
+                  >
+                    <option value="">Select Party</option>
+                    {parties.map(party => (
+                      <option key={party.id || party.party_id} value={party.id || party.party_id}>
+                        {party.party_name || party.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
             <div className="summary-breakdown">
@@ -246,13 +516,10 @@ const Cart = ({ onPageChange = null }) => {
 
             <button
               className="checkout-btn"
-              onClick={() => {
-                if (cartItems.length > 0) {
-                  showPlaceOrderSuccess();
-                }
-              }}
+              onClick={handleCheckout}
+              disabled={loading}
             >
-              CHECKOUT
+              {loading ? 'PLACING ORDER...' : 'CHECKOUT'}
             </button>
           </div>
         </div>

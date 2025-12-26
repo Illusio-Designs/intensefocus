@@ -276,10 +276,10 @@ const DashboardManage = () => {
     if (activeTab === 'City' && cityStateFilter) {
       // Prevent multiple simultaneous calls
       if (fetchingCitiesRef.current) {
-        return;
+        return; 
       }
       
-      fetchingCitiesRef.current = true;
+      fetchingCitiesRef.current = true; 
       getCities(cityStateFilter)
         .then((citiesData) => {
           setCities(citiesData || []);
@@ -341,42 +341,64 @@ const DashboardManage = () => {
     }
   }, [countries, activeTab, states.length]);
   
-  // Fetch cities for Maharashtra when states are available in Zone tab
+  // Fetch cities from ALL states when Zone tab is active (so filter shows all cities)
+  const zoneCitiesFetchedRef = useRef(false);
+  const [zoneCitiesLoading, setZoneCitiesLoading] = useState(false);
+  
   useEffect(() => {
-    if (states.length > 0 && activeTab === 'Zone' && cities.length === 0) {
-      // Find Maharashtra by name or code
-      const maharashtra = states.find(s => 
-        s.name?.toLowerCase() === 'maharashtra' || 
-        s.code?.toLowerCase() === 'mh'
-      );
-      if (maharashtra) {
-        // Prevent multiple simultaneous calls
-        if (fetchingCitiesRef.current) {
-          return;
-        }
-        
-        fetchingCitiesRef.current = true;
-        getCities(maharashtra.id)
-          .then((citiesData) => {
-            setCities(citiesData || []);
-          })
-          .catch((error) => {
-            // Silently handle "Cities not found" - it's a valid case
-            if (error.message?.toLowerCase().includes('cities not found') ||
-                error.message?.toLowerCase().includes('no cities found')) {
-              setCities([]);
-            } else if (!error.message?.toLowerCase().includes('token expired') && 
-                       !error.message?.toLowerCase().includes('unauthorized')) {
-              console.error('Error fetching cities for Zone tab:', error);
-              setCities([]);
-            }
-          })
-          .finally(() => {
-            fetchingCitiesRef.current = false;
-          });
-      }
+    // Reset flag when leaving Zone tab
+    if (activeTab !== 'Zone') {
+      zoneCitiesFetchedRef.current = false;
+      setZoneCitiesLoading(false);
     }
-  }, [states, activeTab, cities.length]);
+  }, [activeTab]);
+  
+  useEffect(() => {
+    if (states.length > 0 && activeTab === 'Zone' && !zoneCitiesFetchedRef.current) {
+      // Prevent multiple simultaneous calls
+      if (fetchingCitiesRef.current) {
+        return;
+      }
+      
+      fetchingCitiesRef.current = true;
+      zoneCitiesFetchedRef.current = true;
+      setZoneCitiesLoading(true);
+      
+      // Fetch cities for all states and combine them
+      const fetchAllCities = async () => {
+        try {
+          const allCitiesPromises = states.map(state => 
+            getCities(state.id)
+              .then(citiesData => citiesData || [])
+              .catch(error => {
+                // Silently handle "Cities not found" for individual states
+                if (error.message?.toLowerCase().includes('cities not found') ||
+                    error.message?.toLowerCase().includes('no cities found')) {
+                  return [];
+                } else if (!error.message?.toLowerCase().includes('token expired') && 
+                           !error.message?.toLowerCase().includes('unauthorized')) {
+                  console.warn(`Error fetching cities for state ${state.name}:`, error);
+                }
+                return [];
+              })
+          );
+          
+          const citiesArrays = await Promise.all(allCitiesPromises);
+          // Flatten and combine all cities
+          const allCities = citiesArrays.flat();
+          setCities(allCities);
+        } catch (error) {
+          console.error('Error fetching cities for Zone tab:', error);
+          setCities([]);
+        } finally {
+          fetchingCitiesRef.current = false;
+          setZoneCitiesLoading(false);
+        }
+      };
+      
+      fetchAllCities();
+    }
+  }, [states, activeTab]);
   
   useEffect(() => {
     if (cities.length > 0 && activeTab === 'Zone' && !zoneCityFilter && !defaultFilterSetRef.current.Zone) {
@@ -454,11 +476,16 @@ const DashboardManage = () => {
   }, [states, openAdd, editRow]);
 
   // Update cityOptions from cities array (for filters) - only when not in form
+  // For Zone tab, update cityOptions with all cities from all states
+  // For City tab, cityOptions should match cities array (which is filtered by state)
   useEffect(() => {
     if (!openAdd && !editRow) {
+      // Always update cityOptions with current cities array
+      // For Zone tab, this will be all cities from all states
+      // For City tab, this will be cities from the selected state
       setCityOptions(cities.map(c => ({ value: c.id, label: c.name })));
     }
-  }, [cities, openAdd, editRow]);
+  }, [cities, openAdd, editRow, activeTab]);
 
   useEffect(() => {
     // Only fetch states for form dropdowns when form is open
@@ -1769,12 +1796,19 @@ const DashboardManage = () => {
                     <label style={{ fontWeight: 500, fontSize: '14px', marginBottom: '4px' }}>
                       Filter by City:
                     </label>
-                    <DropdownSelector
-                      options={cityOptions}
-                      value={zoneCityFilter}
-                      onChange={(value) => setZoneCityFilter(value)}
-                      placeholder="Select city"
-                    />
+                    {zoneCitiesLoading ? (
+                      <div style={{ padding: '10px', textAlign: 'center', color: '#666', fontSize: '14px' }}>
+                        Loading cities...
+                      </div>
+                    ) : (
+                      <DropdownSelector
+                        options={cityOptions}
+                        value={zoneCityFilter}
+                        onChange={(value) => setZoneCityFilter(value)}
+                        placeholder="Select city"
+                        disabled={zoneCitiesLoading || cityOptions.length === 0}
+                      />
+                    )}
                     {zoneCityFilter && (
                       <button
                         onClick={() => setZoneCityFilter('')}
@@ -1795,7 +1829,7 @@ const DashboardManage = () => {
                   </div>
                 ) : null
               }
-              loading={loading}
+              loading={loading || (activeTab === 'Zone' && zoneCitiesLoading)}
             />
           </div>
         </div>

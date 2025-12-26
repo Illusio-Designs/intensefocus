@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import '../styles/pages/dashboard.css';
 import { getOrders } from '../services/apiService';
 import { getUser } from '../services/authService';
@@ -8,21 +8,22 @@ import RowActions from '../components/ui/RowActions';
 const PartyDashboard = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const user = getUser();
-  const partyId = user?.party_id || user?.partyId;
-
-  useEffect(() => {
-    fetchOrders();
+  
+  // Get partyId once on mount - user data shouldn't change during component lifecycle
+  const partyId = useMemo(() => {
+    const user = getUser();
+    return user?.party_id || user?.partyId;
   }, []);
 
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
       const allOrders = await getOrders();
       // Filter orders for this party
-      const partyOrders = partyId 
+      const currentPartyId = partyId;
+      const partyOrders = currentPartyId 
         ? allOrders.filter(order => 
-            (order.party_id || order.party?.id || order.party?.party_id) === partyId ||
+            (order.party_id || order.party?.id || order.party?.party_id) === currentPartyId ||
             order.order_type === 'party_order'
           )
         : allOrders.filter(order => order.order_type === 'party_order');
@@ -33,7 +34,11 @@ const PartyDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [partyId]);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   // Calculate summary statistics
   const summaryStats = useMemo(() => {
