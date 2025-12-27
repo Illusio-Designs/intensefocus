@@ -152,7 +152,7 @@ class OrderController {
 
                 distributor_id = distributor.distributor_id;
             }
-            if (order_type === OrderType.VISIT_ORDER) {
+            else if (order_type === OrderType.VISIT_ORDER) {
                 if (!latitude || !longitude) {
                     return res.status(400).json({ error: 'Latitude and longitude are required for visit orders' });
                 }
