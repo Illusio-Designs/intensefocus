@@ -18,10 +18,51 @@ class PartyController {
 
     async getPartiesByZoneId(req, res) {
         try {
-            const { zone_id } = req.body;
-            if (!zone_id) {
-                return res.status(400).json({ error: 'Zone ID is required' });
+            const user = req.user;
+
+            // First, try to find distributor by user_id
+            let distributor = await Distributor.findOne({
+                where: { user_id: user.user_id }
+            });
+
+            // If not found, fetch user's email/phone and search for distributor
+            if (!distributor) {
+                const userDetails = await User.findOne({
+                    where: { user_id: user.user_id }
+                });
+
+                if (!userDetails) {
+                    return res.status(404).json({ error: 'User not found' });
+                }
+
+                // Search for distributor by email or phone
+                const whereConditions = [];
+                if (userDetails.email) whereConditions.push({ email: userDetails.email });
+                if (userDetails.phone) whereConditions.push({ phone: userDetails.phone });
+
+                if (whereConditions.length > 0) {
+                    distributor = await Distributor.findOne({
+                        where: {
+                            [Op.or]: whereConditions
+                        }
+                    });
+                }
+
+                // If distributor found, link it to the user
+                if (distributor) {
+                    distributor.user_id = user.user_id;
+                    await distributor.save();
+                } else {
+                    return res.status(404).json({ error: 'No distributor found for this user' });
+                }
             }
+
+            // Get zone_id from distributor
+            const zone_id = distributor.zone_id;
+            if (!zone_id) {
+                return res.status(400).json({ error: 'Distributor does not have a zone assigned' });
+            }
+
             const parties = await Party.findAll({ where: { zone_id: zone_id } });
             if (!parties || parties.length === 0) {
                 return res.status(404).json({ error: 'Parties not found' });
