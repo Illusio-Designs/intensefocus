@@ -1775,16 +1775,11 @@ export const deleteParty = async (partyId) => {
  * @param {string} zoneId - Zone ID (UUID)
  * @returns {Promise<Array>} Array of party objects
  */
-export const getPartiesByZoneId = async (zoneId) => {
-  // Validate zoneId
-  if (!zoneId || typeof zoneId !== 'string' || zoneId.trim() === '') {
-    throw new Error('Invalid zone ID provided');
-  }
-  
+export const getPartiesByZoneId = async () => {
   try {
     const response = await apiRequest('/parties/byZoneId', {
       method: 'POST',
-      body: { zone_id: zoneId.trim() },
+      body: {},
       includeAuth: true,
     });
     

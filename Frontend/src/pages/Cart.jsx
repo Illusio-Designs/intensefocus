@@ -19,9 +19,9 @@ import {
   getPartyById,
   getEvents,
   getCountries,
-  getUsers,
   getDistributors,
   createOrder,
+  getPartiesByZoneId,
 } from "../services/apiService";
 
 const Cart = ({ onPageChange = null }) => {
@@ -65,34 +65,96 @@ const Cart = ({ onPageChange = null }) => {
       setCartItems([...updatedItems]);
     });
 
-    // Fetch countries if needed (for distributor, salesman, or party)
-    if (isDistributor || isSalesman || isParty) {
-      fetchCountries();
+    // For distributors, fetch parties by zone_id directly
+    if (isDistributor && user) {
+      fetchPartiesByZone();
     }
+    // Note: For salesman and party orders, countries and parties are handled differently
+    // (countries may be fetched when needed, not on mount)
 
     return unsubscribe;
   }, []);
 
-  // Fetch countries
-  const fetchCountries = async () => {
+  // Helper function to get distributor details (distributor_id and zone_id)
+  // Returns: { distributor_id: string, zone_id: string } or null
+  // Gets distributor_id and zone_id directly from user object
+  const getDistributorDetails = () => {
+    if (!user) {
+      return null;
+    }
+    
     try {
-      const countriesData = await getCountries();
-      setCountries(Array.isArray(countriesData) ? countriesData : []);
+      // Get distributor_id from user object (NOT user.id - that's user_id!)
+      // Try to get actual distributor_id from user object fields
+      const distributorId = user?.distributor_id || 
+                           user?.distributorId || 
+                           user?.distributor?.distributor_id || 
+                           user?.distributor?.id ||
+                           null;
+      
+      // Get zone_id from user object
+      const zoneId = user?.zone_id || 
+                    user?.zoneId || 
+                    user?.distributor?.zone_id || 
+                    user?.distributor?.zoneId ||
+                    user?.zone_preference ||
+                    null;
+      
+      if (!distributorId) {
+        console.warn('[Cart] Distributor ID not found in user object. Available fields:', Object.keys(user || {}));
+        console.warn('[Cart] User object:', user);
+        return null;
+      }
+      
+      if (!zoneId) {
+        console.warn('[Cart] Zone ID not found in user object. Available fields:', Object.keys(user || {}));
+        console.warn('[Cart] User object:', user);
+        return null;
+      }
+      
+      console.log('[Cart] Found distributor details from user object:', { distributor_id: distributorId, zone_id: zoneId });
+      return {
+        distributor_id: distributorId,
+        zone_id: zoneId
+      };
     } catch (err) {
-      console.error('Failed to fetch countries:', err);
-      setCountries([]);
+      console.error('[Cart] Failed to get distributor details:', err);
+      return null;
     }
   };
 
-  // Fetch parties when country is selected (for distributor or salesman)
-  useEffect(() => {
-    if ((isDistributor || isSalesman) && selectedCountry) {
-      fetchParties(selectedCountry);
-    } else {
+  // Fetch parties by zone_id for distributors
+  const fetchPartiesByZone = async () => {
+    if (!user) {
+      setParties([]);
+      return;
+    }
+    
+    try {
+      console.log('[Cart] Fetching parties by zone (from token)');
+      
+      // Fetch parties using authorization token (zone_id extracted from token)
+      const partiesData = await getPartiesByZoneId();
+      setParties(Array.isArray(partiesData) ? partiesData : []);
+      console.log('[Cart] Fetched parties by zone:', partiesData.length, 'parties');
+    } catch (err) {
+      console.error('[Cart] Failed to fetch parties by zone:', err);
       setParties([]);
     }
-  }, [selectedCountry, isDistributor, isSalesman]);
+  };
 
+  // Note: fetchCountries removed - countries are fetched on-demand when needed for party/salesman orders
+
+  // Fetch parties when country is selected (for salesman only, not distributor)
+  useEffect(() => {
+    if (isSalesman && selectedCountry) {
+      fetchParties(selectedCountry);
+    } else if (!isDistributor) {
+      setParties([]);
+    }
+  }, [selectedCountry, isSalesman]);
+
+  // Fetch parties by country (for salesman only, distributors use fetchPartiesByZone)
   const fetchParties = async (countryId) => {
     if (!countryId) {
       setParties([]);
@@ -100,31 +162,7 @@ const Cart = ({ onPageChange = null }) => {
     }
     try {
       const partiesData = await getParties(countryId);
-      let filteredParties = Array.isArray(partiesData) ? partiesData : [];
-      
-      // Filter parties by distributor's zone if user is a distributor
-      if (isDistributor && user) {
-        // Get distributor's zone_id from user object
-        const distributorZoneId = user?.zone_id || 
-                                  user?.zone_preference || 
-                                  user?.distributor?.zone_id || 
-                                  user?.distributor?.zoneId ||
-                                  null;
-        
-        if (distributorZoneId) {
-          const beforeFilter = filteredParties.length;
-          filteredParties = filteredParties.filter(party => {
-            const partyZoneId = party?.zone_id || party?.zoneId;
-            if (!partyZoneId) return false;
-            return String(partyZoneId).trim() === String(distributorZoneId).trim();
-          });
-          console.log('[Cart] Filtered parties by distributor zone:', distributorZoneId, 'Before:', beforeFilter, 'After:', filteredParties.length);
-        } else {
-          console.warn('[Cart] Distributor zone_id not found in user object, showing all parties for country');
-        }
-      }
-      
-      setParties(filteredParties);
+      setParties(Array.isArray(partiesData) ? partiesData : []);
     } catch (err) {
       console.error('Failed to fetch parties:', err);
       setParties([]);
@@ -222,8 +260,13 @@ const Cart = ({ onPageChange = null }) => {
     }
 
     // Validation based on role
-    // Note: For distributor orders, party selection is optional (not required by backend)
-    // Distributors can place orders without selecting a party
+    if (isDistributor) {
+      // Party selection is REQUIRED for distributor orders
+      if (!selectedParty) {
+        showError('Please select a party');
+        return;
+      }
+    }
 
     if (isSalesman) {
       if (!orderType) {
@@ -271,8 +314,29 @@ const Cart = ({ onPageChange = null }) => {
         orderData.order_type = orderType;
       }
 
-      // Debug: Log user object to see what fields are available
-      if (isParty) {
+      // ============================================
+      // DISTRIBUTOR ORDERS
+      // Backend requirements:
+      // - distributor_id: Extracted from authorization token (NOT sent in body)
+      // - zone_id: Extracted from authorization token (NOT sent in body)
+      // - party_id: REQUIRED (party must be selected)
+      // - salesman_id: NOT included (backend excludes it)
+      // ============================================
+      if (isDistributor) {
+        // Set party_id (required - validated above)
+        if (selectedParty) {
+          orderData.party_id = selectedParty;
+          console.log('[Cart] Distributor order - party_id:', selectedParty);
+        }
+        
+        // Note: distributor_id and zone_id are NOT set - backend extracts from authorization token
+        // Note: salesman_id is NOT set for distributor orders (backend excludes it)
+      } else if (isParty) {
+        // ============================================
+        // PARTY ORDERS
+        // ============================================
+        
+        // Debug: Log user object to see what fields are available
         console.log('[Cart] Party user object:', user);
         console.log('[Cart] Available user fields:', Object.keys(user || {}));
         console.log('[Cart] user.party_id:', user?.party_id);
@@ -637,40 +701,25 @@ const Cart = ({ onPageChange = null }) => {
             // Continue without distributor_id - not critical
           }
         }
-        // For distributor orders, party_id is set above, but distributor_id will be set from logged-in user below
-      }
-
-      // Set distributor_id for distributor role (from user object)
-      // For distributor orders, distributor_id MUST come from the logged-in distributor user
-      if (isDistributor) {
-        const userDistributorId = user?.distributor_id || 
-                                   user?.distributorId || 
-                                   user?.distributor?.distributor_id || 
-                                   user?.distributor?.id ||
-                                   user?.id || // Sometimes user.id is the distributor_id
-                                   null;
+      } else if (isSalesman) {
+        // ============================================
+        // SALESMAN ORDERS
+        // ============================================
         
-        if (userDistributorId) {
-          // Always use the distributor_id from the logged-in user for distributor orders
-          // Don't let party selection override this
-          orderData.distributor_id = userDistributorId;
-          console.log('[Cart] Using distributor_id from logged-in distributor user:', userDistributorId);
-        } else {
-          console.error('[Cart] Distributor ID not found in user object:', user);
-          showError('Distributor ID is required. Please contact support.');
-          setLoading(false);
-          return;
+        // Set party_id if selected (required for salesman orders)
+        if (selectedParty) {
+          orderData.party_id = selectedParty;
         }
-      }
-
-      // Set salesman_id
-      if (isSalesman && user?.salesman_id) {
-        orderData.salesman_id = user.salesman_id;
-      }
-
-      // Set event_id
-      if (isSalesman && orderType === 'event_order' && selectedEvent) {
-        orderData.event_id = selectedEvent;
+        
+        // Set salesman_id (required for salesman orders)
+        if (user?.salesman_id) {
+          orderData.salesman_id = user.salesman_id;
+        }
+        
+        // Set event_id if event_order type
+        if (orderType === 'event_order' && selectedEvent) {
+          orderData.event_id = selectedEvent;
+        }
       }
 
       // Format order_date to match backend format (YYYY-MM-DDTHH:mm:ss)
@@ -715,7 +764,7 @@ const Cart = ({ onPageChange = null }) => {
   // Determine if party dropdown should be shown
   const shouldShowPartyDropdown = () => {
     if (isParty) return false; // Party role: no dropdowns
-    if (isDistributor) return true; // Distributor: show party dropdown
+    if (isDistributor) return true; // Distributor: show party dropdown (no country needed)
     if (isSalesman && orderType) return true; // Salesman: show after order type selected
     return false;
   };
@@ -726,8 +775,9 @@ const Cart = ({ onPageChange = null }) => {
   };
 
   // Determine if country dropdown should be shown (needed for party selection)
+  // For distributors, no country dropdown needed - parties are fetched by zone_id
   const shouldShowCountryDropdown = () => {
-    return (isDistributor || isSalesman) && shouldShowPartyDropdown();
+    return isSalesman && shouldShowPartyDropdown(); // Only for salesman, not distributor
   };
 
   return (
@@ -898,7 +948,7 @@ const Cart = ({ onPageChange = null }) => {
                     className="summary-dropdown"
                     value={selectedParty}
                     onChange={(e) => setSelectedParty(e.target.value)}
-                    disabled={!selectedCountry && (isDistributor || isSalesman)}
+                    disabled={!selectedCountry && isSalesman}
                   >
                     <option value="">Select Party</option>
                     {parties.map(party => (
