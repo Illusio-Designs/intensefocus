@@ -2,6 +2,9 @@ const Party = require('../models/Party');
 const AuditLog = require('../models/AuditLog');
 const Distributor = require('../models/Distributor');
 const User = require('../models/User');
+const Salesman = require('../models/Salesman');
+const UserRole = require('../models/UserRole');
+const Role = require('../models/Role');
 const { Op } = require('sequelize');
 class PartyController {
     async getParties(req, res) {
@@ -19,54 +22,107 @@ class PartyController {
     async getPartiesByZoneId(req, res) {
         try {
             const user = req.user;
+            let zone_id = null;
 
-            // First, try to find distributor by user_id
-            let distributor = await Distributor.findOne({
-                where: { user_id: user.user_id }
+            // Get user's role
+            const userRole = await UserRole.findOne({
+                where: { user_id: user.user_id },
+                include: [{
+                    model: Role,
+                    as: 'role'
+                }]
             });
 
-            // If not found, fetch user's email/phone and search for distributor
-            if (!distributor) {
-                const userDetails = await User.findOne({
+            if (!userRole || !userRole.role) {
+                return res.status(404).json({ error: 'User role not found' });
+            }
+
+            const roleName = userRole.role.role_name.toLowerCase();
+
+            // Based on role, get zone_id from appropriate model
+            if (roleName === 'party') {
+                // Get zone_id from Party model
+                const party = await Party.findOne({
+                    where: {
+                        [Op.or]: [
+                            { email: user.email },
+                            { phone: user.phone }
+                        ]
+                    }
+                });
+
+                if (!party) {
+                    return res.status(404).json({ error: 'Party record not found for this user' });
+                }
+
+                zone_id = party.zone_id;
+
+            } else if (roleName === 'salesman') {
+                // Get zone_preference from Salesman model (stored as text)
+                const salesman = await Salesman.findOne({
                     where: { user_id: user.user_id }
                 });
 
-                if (!userDetails) {
-                    return res.status(404).json({ error: 'User not found' });
+                if (!salesman) {
+                    return res.status(404).json({ error: 'Salesman record not found for this user' });
                 }
 
-                // Search for distributor by email or phone
-                const whereConditions = [];
-                if (userDetails.email) whereConditions.push({ email: userDetails.email });
-                if (userDetails.phone) whereConditions.push({ phone: userDetails.phone });
+                // zone_preference is stored as text containing zone_id
+                zone_id = salesman.zone_preference;
 
-                if (whereConditions.length > 0) {
-                    distributor = await Distributor.findOne({
-                        where: {
-                            [Op.or]: whereConditions
-                        }
+            } else if (roleName === 'distributor') {
+                // Get zone_id from Distributor model
+                let distributor = await Distributor.findOne({
+                    where: { user_id: user.user_id }
+                });
+
+                // If not found, try to find by email/phone and link
+                if (!distributor) {
+                    const userDetails = await User.findOne({
+                        where: { user_id: user.user_id }
                     });
+
+                    if (!userDetails) {
+                        return res.status(404).json({ error: 'User not found' });
+                    }
+
+                    const whereConditions = [];
+                    if (userDetails.email) whereConditions.push({ email: userDetails.email });
+                    if (userDetails.phone) whereConditions.push({ phone: userDetails.phone });
+
+                    if (whereConditions.length > 0) {
+                        distributor = await Distributor.findOne({
+                            where: { [Op.or]: whereConditions }
+                        });
+                    }
+
+                    // If distributor found, link it to the user
+                    if (distributor) {
+                        distributor.user_id = user.user_id;
+                        await distributor.save();
+                    } else {
+                        return res.status(404).json({ error: 'Distributor record not found for this user' });
+                    }
                 }
 
-                // If distributor found, link it to the user
-                if (distributor) {
-                    distributor.user_id = user.user_id;
-                    await distributor.save();
-                } else {
-                    return res.status(404).json({ error: 'No distributor found for this user' });
-                }
+                zone_id = distributor.zone_id;
+
+            } else {
+                return res.status(400).json({ error: `Role '${roleName}' is not supported for this operation` });
             }
 
-            // Get zone_id from distributor
-            const zone_id = distributor.zone_id;
+            // Validate zone_id
             if (!zone_id) {
-                return res.status(400).json({ error: 'Distributor does not have a zone assigned' });
+                return res.status(400).json({ error: `No zone assigned for this ${roleName}` });
             }
 
+            // Find all parties in the zone
             const parties = await Party.findAll({ where: { zone_id: zone_id } });
+
             if (!parties || parties.length === 0) {
-                return res.status(404).json({ error: 'Parties not found' });
+                return res.status(404).json({ error: 'No parties found for the assigned zone' });
             }
+
             res.status(200).json(parties);
         } catch (error) {
             res.status(500).json({ error: error.message });
