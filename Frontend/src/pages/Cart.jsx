@@ -737,7 +737,6 @@ const Cart = ({ onPageChange = null }) => {
       
       console.log('[Cart] Order created successfully:', createdOrder);
       
-      showSuccess('Order placed successfully!');
       showPlaceOrderSuccess();
       
       // Clear cart after successful order
