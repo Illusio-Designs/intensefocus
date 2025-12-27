@@ -204,39 +204,99 @@ const ProductDetail = ({ productId: propProductId = null }) => {
     }
 
     const transformed = models.map((model, index) => {
-      // Helper to get image URL
-      const getImageUrl = (imageUrls) => {
-        if (!imageUrls) return '/images/products/spac1.webp';
+      // Helper to extract filename from path
+      const extractFilename = (imagePath) => {
+        if (!imagePath || typeof imagePath !== 'string') return null;
         
-        // If it's already an array, get first image
-        if (Array.isArray(imageUrls)) {
-          if (imageUrls.length > 0) {
-            const img = imageUrls[0];
-            if (typeof img === 'string') {
-              // Extract filename and construct URL
-              const filename = img.split('/').pop()?.split('?')[0];
-              return filename ? `https://stallion.nishree.com/uploads/products/${filename}` : '/images/products/spac1.webp';
-            }
-          }
-          return '/images/products/spac1.webp';
+        // Remove any query parameters or fragments
+        let cleanPath = imagePath.split('?')[0].split('#')[0];
+        
+        // Remove any trailing JSON syntax characters (like \]", ]", \", etc.)
+        // Remove backslashes, closing brackets, and quotes at the end
+        cleanPath = cleanPath.replace(/([\]"\\])+$/, '');
+        
+        // Extract filename from path (handles "/uploads/products/filename.webp" or full paths)
+        const parts = cleanPath.split('/');
+        let filename = parts[parts.length - 1];
+        
+        // Clean filename: remove any remaining JSON syntax characters
+        filename = filename.replace(/([\]"\\])+$/, '');
+        
+        // Make sure we got a valid filename (not empty, has extension)
+        if (filename && filename.includes('.')) {
+          return filename;
         }
         
-        // If it's a string, try to parse as JSON
+        return null;
+      };
+
+      // Helper to parse image_urls - handle JSON string format like "[\"/uploads/products/spac2-1766058948930.webp\"]"
+      const parseImageUrls = (imageUrls) => {
+        if (!imageUrls) return null;
+        
+        // If it's already an array, return it
+        if (Array.isArray(imageUrls)) {
+          return imageUrls;
+        }
+        
+        // If it's a string, try to parse it as JSON
         if (typeof imageUrls === 'string') {
           try {
-            const parsed = JSON.parse(imageUrls);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              const img = parsed[0];
-              const filename = img.split('/').pop()?.split('?')[0];
-              return filename ? `https://stallion.nishree.com/uploads/products/${filename}` : '/images/products/spac1.webp';
+            // Try parsing once
+            let parsed = JSON.parse(imageUrls);
+            
+            // Handle double-encoded strings (some APIs return double-encoded JSON)
+            if (typeof parsed === 'string') {
+              try {
+                parsed = JSON.parse(parsed);
+              } catch (e) {
+                // If second parse fails, use the first parsed value
+              }
+            }
+            
+            // If parsed result is an array, return it
+            if (Array.isArray(parsed)) {
+              return parsed;
+            }
+            
+            // If parsed result is a string, wrap it in an array
+            if (typeof parsed === 'string') {
+              return [parsed];
             }
           } catch (e) {
-            // If parsing fails, treat as filename
-            const filename = imageUrls.split('/').pop()?.split('?')[0];
-            return filename ? `https://stallion.nishree.com/uploads/products/${filename}` : '/images/products/spac1.webp';
+            // If parsing fails, treat the string itself as the image path
+            if (imageUrls.trim().length > 0 && imageUrls !== '[]') {
+              return [imageUrls];
+            }
           }
         }
         
+        return null;
+      };
+
+      // Helper to get image URL
+      const getImageUrl = (imageUrls, fallbackImageUrl) => {
+        // Handle image_urls (can be array or JSON string)
+        const parsedUrls = parseImageUrls(imageUrls);
+        if (parsedUrls && parsedUrls.length > 0) {
+          const firstImage = parsedUrls[0];
+          if (firstImage) {
+            const filename = extractFilename(firstImage);
+            if (filename) {
+              return `https://stallion.nishree.com/uploads/products/${filename}`;
+            }
+          }
+        }
+        
+        // Handle single image_url string (fallback)
+        if (fallbackImageUrl) {
+          const filename = extractFilename(fallbackImageUrl);
+          if (filename) {
+            return `https://stallion.nishree.com/uploads/products/${filename}`;
+          }
+        }
+        
+        // Default fallback
         return '/images/products/spac1.webp';
       };
 
@@ -279,7 +339,7 @@ const ProductDetail = ({ productId: propProductId = null }) => {
         mrp: formatPrice(model.mrp),
         whp: formatPrice(model.whp),
         qty: formatQty(model.total_qty || model.warehouse_qty || 0),
-        image: getImageUrl(model.image_urls),
+        image: getImageUrl(model.image_urls, model.image_url),
       };
     });
 
@@ -483,7 +543,16 @@ const ProductDetail = ({ productId: propProductId = null }) => {
           {productVariations.map((variation, index) => (
             <div key={variation.id} className="list-view-item">
               <div className="list-item-image">
-                <img src={variation.image} alt={variation.name} />
+                <img 
+                  src={variation.image || '/images/products/spac1.webp'} 
+                  alt={variation.name}
+                  onError={(e) => {
+                    // Fallback to default image if image fails to load
+                    if (e.target.src !== '/images/products/spac1.webp') {
+                      e.target.src = '/images/products/spac1.webp';
+                    }
+                  }}
+                />
               </div>
               <div className="list-item-details">
                 <div className="detail-grid">
@@ -664,7 +733,16 @@ const ProductDetail = ({ productId: propProductId = null }) => {
                           onClick={() => handleVariationClick(actualIndex)}
                         >
                           <div className="variation-card-image">
-                            <img src={variation.image} alt={variation.name} />
+                            <img 
+                              src={variation.image || '/images/products/spac1.webp'} 
+                              alt={variation.name}
+                              onError={(e) => {
+                                // Fallback to default image if image fails to load
+                                if (e.target.src !== '/images/products/spac1.webp') {
+                                  e.target.src = '/images/products/spac1.webp';
+                                }
+                              }}
+                            />
                           </div>
                           <div className="variation-card-details">
                             <h4 className="variation-card-title">
@@ -776,7 +854,16 @@ const ProductDetail = ({ productId: propProductId = null }) => {
             {/* Main Product Display */}
             <div className="main-product-display">
               <div className="main-product-image">
-                <img src={currentProduct.image} alt={currentProduct.name} />
+                <img 
+                  src={currentProduct.image || '/images/products/spac1.webp'} 
+                  alt={currentProduct.name}
+                  onError={(e) => {
+                    // Fallback to default image if image fails to load
+                    if (e.target.src !== '/images/products/spac1.webp') {
+                      e.target.src = '/images/products/spac1.webp';
+                    }
+                  }}
+                />
               </div>
               <div className="main-product-info">
                 <h2 className="product-title">{currentProduct.name}</h2>
@@ -871,8 +958,14 @@ const ProductDetail = ({ productId: propProductId = null }) => {
                   onClick={() => handleVariationClick(index)}
                 >
                   <img
-                    src={variation.image}
+                    src={variation.image || '/images/products/spac1.webp'}
                     alt={`${variation.name} - ${variation.lenseColour}`}
+                    onError={(e) => {
+                      // Fallback to default image if image fails to load
+                      if (e.target.src !== '/images/products/spac1.webp') {
+                        e.target.src = '/images/products/spac1.webp';
+                      }
+                    }}
                   />
                 </div>
               ))}

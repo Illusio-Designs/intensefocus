@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import "../styles/pages/Cart.css";
 import {
   getCartItems,
@@ -48,11 +48,19 @@ const Cart = ({ onPageChange = null }) => {
   const [selectedEvent, setSelectedEvent] = useState("");
   const [selectedCountry, setSelectedCountry] = useState("");
   
+  // Location state for visit orders
+  const [latitude, setLatitude] = useState(null);
+  const [longitude, setLongitude] = useState(null);
+  const [locationError, setLocationError] = useState(null);
+  
   // Dropdown data
   const [countries, setCountries] = useState([]);
   const [parties, setParties] = useState([]);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
+  
+  // Ref to track last fetched order type to prevent duplicate API calls
+  const lastFetchedOrderType = useRef(null);
 
   useEffect(() => {
     // Initialize cart items
@@ -65,11 +73,12 @@ const Cart = ({ onPageChange = null }) => {
       setCartItems([...updatedItems]);
     });
 
-    // For distributors, fetch parties by zone_id directly
+    // For distributors, fetch parties by zone_id directly on mount
     if (isDistributor && user) {
       fetchPartiesByZone();
     }
-    // Note: For salesman and party orders, countries and parties are handled differently
+    // For salesmen, parties are fetched based on order type (handled in useEffect below)
+    // Note: For party orders, countries and parties are handled differently
     // (countries may be fetched when needed, not on mount)
 
     return unsubscribe;
@@ -143,31 +152,114 @@ const Cart = ({ onPageChange = null }) => {
     }
   };
 
-  // Note: fetchCountries removed - countries are fetched on-demand when needed for party/salesman orders
+  // Note: fetchCountries removed - countries are fetched on-demand when needed for party orders only
 
-  // Fetch parties when country is selected (for salesman only, not distributor)
+  // Get user's current location for visit orders (returns Promise)
+  const getCurrentLocation = () => {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        const errorMsg = 'Geolocation is not supported by your browser';
+        setLocationError(errorMsg);
+        console.error('[Cart] Geolocation not supported');
+        reject(new Error(errorMsg));
+        return;
+      }
+
+      setLocationError(null);
+      console.log('[Cart] Requesting user location...');
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = parseFloat(position.coords.latitude);
+          const lng = parseFloat(position.coords.longitude);
+          setLatitude(lat);
+          setLongitude(lng);
+          console.log('[Cart] ✅ Location captured - Latitude:', lat, 'Longitude:', lng);
+          resolve({ latitude: lat, longitude: lng });
+        },
+        (error) => {
+          console.error('[Cart] Error getting location:', error);
+          const errorMsg = error.message || 'Failed to get location';
+          setLocationError(errorMsg);
+          setLatitude(null);
+          setLongitude(null);
+          reject(error);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 0
+        }
+      );
+    });
+  };
+
+  // Fetch parties based on order type for salesman
   useEffect(() => {
-    if (isSalesman && selectedCountry) {
-      fetchParties(selectedCountry);
-    } else if (!isDistributor) {
-      setParties([]);
-    }
-  }, [selectedCountry, isSalesman]);
-
-  // Fetch parties by country (for salesman only, distributors use fetchPartiesByZone)
-  const fetchParties = async (countryId) => {
-    if (!countryId) {
-      setParties([]);
+    if (!isSalesman || !user) {
       return;
     }
-    try {
-      const partiesData = await getParties(countryId);
-      setParties(Array.isArray(partiesData) ? partiesData : []);
-    } catch (err) {
-      console.error('Failed to fetch parties:', err);
+
+    if (!orderType) {
+      // Reset parties and location when order type is cleared
       setParties([]);
+      setSelectedParty("");
+      setLatitude(null);
+      setLongitude(null);
+      setLocationError(null);
+      lastFetchedOrderType.current = null;
+      return;
+    }
+
+    // Prevent duplicate API calls - only fetch if order type actually changed
+    if (lastFetchedOrderType.current === orderType) {
+      return;
+    }
+
+    // Reset parties, location, and events when order type changes
+    setParties([]);
+    setSelectedParty("");
+    setLatitude(null);
+    setLongitude(null);
+    setLocationError(null);
+    // Clear events if not event_order
+    if (orderType !== 'event_order') {
+      setEvents([]);
+      setSelectedEvent("");
+    }
+    lastFetchedOrderType.current = orderType;
+
+    const fetchPartiesForOrderType = async () => {
+      try {
+        if (orderType === 'visit_order' || orderType === 'whatsapp_order') {
+          // For visit_order and whatsapp_order: use getPartiesByZoneId (token only)
+          console.log('[Cart] Fetching parties by zone for', orderType);
+          const partiesData = await getPartiesByZoneId();
+      setParties(Array.isArray(partiesData) ? partiesData : []);
+          console.log('[Cart] Fetched parties by zone:', partiesData.length, 'parties');
+          
+          // Capture location for visit_order
+          if (orderType === 'visit_order') {
+            getCurrentLocation();
+          }
+        } else if (orderType === 'event_order') {
+          // For event_order: use getParties() without countryId (gets all parties)
+          console.log('[Cart] Fetching all parties for event_order');
+          const partiesData = await getParties(); // No countryId = gets all parties
+          setParties(Array.isArray(partiesData) ? partiesData : []);
+          console.log('[Cart] Fetched all parties:', partiesData.length, 'parties');
+        }
+    } catch (err) {
+        console.error('[Cart] Failed to fetch parties for order type:', err);
+      setParties([]);
+        // Reset ref on error so it can retry
+        lastFetchedOrderType.current = null;
     }
   };
+
+    fetchPartiesForOrderType();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderType, isSalesman]); // Only depend on orderType and isSalesman, not user object
 
   // Fetch events when event_order is selected (for salesman)
   useEffect(() => {
@@ -277,6 +369,22 @@ const Cart = ({ onPageChange = null }) => {
         showError('Please select an event');
         return;
       }
+      if (orderType === 'visit_order' && (latitude === null || longitude === null)) {
+        // Try to get location and wait for it before proceeding
+        setLoading(true);
+        try {
+          showError('Please allow location access for visit orders. Capturing location...');
+          await getCurrentLocation();
+          console.log('[Cart] ✅ Location captured successfully, proceeding with checkout');
+          setLoading(false);
+          // Continue with checkout - location is now set
+        } catch (err) {
+          console.error('[Cart] ❌ Failed to capture location:', err);
+          setLoading(false);
+          showError('Failed to get location. Please enable location access in your browser settings and try again.');
+          return;
+        }
+      }
       if (!selectedParty) {
         showError('Please select a party');
         return;
@@ -312,6 +420,11 @@ const Cart = ({ onPageChange = null }) => {
         orderData.order_type = 'distributor_order';
       } else if (isSalesman && orderType) {
         orderData.order_type = orderType;
+        // Set event_id for event_order type (required - validated above)
+        if (orderType === 'event_order' && selectedEvent) {
+          orderData.event_id = selectedEvent;
+          console.log('[Cart] ✅ Event ID set for event_order:', selectedEvent);
+        }
       }
 
       // ============================================
@@ -624,6 +737,18 @@ const Cart = ({ onPageChange = null }) => {
             const partyData = await getPartyById(selectedParty);
             
             if (partyData) {
+              // Get zone_id from party data for visit_order, whatsapp_order, and event_order
+              if (orderData.order_type === 'visit_order' || orderData.order_type === 'whatsapp_order' || orderData.order_type === 'event_order') {
+                const partyZoneId = partyData?.zone_id || 
+                                   partyData?.zoneId || 
+                                   partyData?.distributor?.zone_id ||
+                                   null;
+                if (partyZoneId && !orderData.zone_id) {
+                  orderData.zone_id = partyZoneId;
+                  console.log('[Cart] ✅ Zone ID set for', orderData.order_type, 'from party data:', partyZoneId);
+                }
+              }
+              
               // Get distributor_id from party data first
               const partyDistributorId = partyData?.distributor_id || 
                                    partyData?.distributorId || 
@@ -712,13 +837,109 @@ const Cart = ({ onPageChange = null }) => {
         }
         
         // Set salesman_id (required for salesman orders)
-        if (user?.salesman_id) {
-          orderData.salesman_id = user.salesman_id;
+        // Try multiple ways to get salesman_id from user object
+        // For salesman users, user.id is typically the salesman_id
+        let salesmanId = user?.salesman_id || 
+                        user?.salesmanId || 
+                        user?.salesman?.salesman_id ||
+                        user?.salesman?.id ||
+                        null;
+        
+        // If not found in specific fields, use user.id for salesman users
+        // This is the most common case - for salesman users, their user.id IS their salesman_id
+        if (!salesmanId && isSalesman) {
+          if (user?.id) {
+            salesmanId = user.id;
+            console.log('[Cart] Using user.id as salesman_id (common case for salesman users):', salesmanId);
+          } else {
+            // Try to extract from JWT token as last resort
+            try {
+              const token = localStorage.getItem('token');
+              if (token) {
+                const tokenParts = token.split('.');
+                if (tokenParts.length === 3) {
+                  const payload = JSON.parse(atob(tokenParts[1]));
+                  const tokenSalesmanId = payload.salesman_id || payload.salesmanId || payload.userId || payload.user_id;
+                  if (tokenSalesmanId) {
+                    salesmanId = tokenSalesmanId;
+                    console.log('[Cart] Extracted salesman_id from JWT token:', salesmanId);
+                  }
+                }
+              }
+            } catch (err) {
+              console.warn('[Cart] Failed to extract salesman_id from token:', err);
+            }
+          }
         }
         
-        // Set event_id if event_order type
-        if (orderType === 'event_order' && selectedEvent) {
+        // Always set salesman_id if we found it, or use user.id as absolute fallback
+        if (salesmanId) {
+          orderData.salesman_id = salesmanId;
+          console.log('[Cart] ✅ Salesman ID set:', salesmanId);
+        } else if (user?.id) {
+          // Last resort: use user.id (backend will validate if this is correct)
+          orderData.salesman_id = user.id;
+          console.log('[Cart] ⚠️ Using user.id as salesman_id (last resort):', user.id);
+        } else {
+          console.error('[Cart] ❌ CRITICAL: Cannot determine salesman_id');
+          console.error('[Cart] User object keys:', Object.keys(user || {}));
+          console.error('[Cart] User object:', JSON.stringify(user, null, 2));
+          console.error('[Cart] isSalesman:', isSalesman);
+        }
+        
+        // Set zone_id for visit_order, whatsapp_order, and event_order
+        if (orderType === 'visit_order' || orderType === 'whatsapp_order' || orderType === 'event_order' ||
+            orderData.order_type === 'visit_order' || orderData.order_type === 'whatsapp_order' || orderData.order_type === 'event_order') {
+          // Try to get zone_id from user object first
+          const zoneId = user?.zone_id || 
+                        user?.zoneId || 
+                        user?.zone_preference ||
+                        null;
+          
+          if (zoneId) {
+            orderData.zone_id = zoneId;
+            console.log('[Cart] ✅ Zone ID set for', orderData.order_type, 'from user:', zoneId);
+          } else {
+            console.warn('[Cart] ⚠️ Zone ID not found in user object for', orderData.order_type);
+            // Will try to get from party data below if available
+          }
+        }
+        
+        // Event_id is already set above when order_type is set, but verify it's set here as well
+        if (orderData.order_type === 'event_order') {
+          if (!orderData.event_id && selectedEvent) {
           orderData.event_id = selectedEvent;
+            console.log('[Cart] ✅ Event ID set for event_order (fallback):', selectedEvent);
+          }
+          if (!orderData.event_id) {
+            console.error('[Cart] ❌ Event order but event_id is missing!');
+            console.error('[Cart] selectedEvent:', selectedEvent);
+            showError('Event ID is required for event orders');
+            setLoading(false);
+            return;
+          }
+        }
+        
+        // Set latitude and longitude for visit_order type
+        if (orderType === 'visit_order' || orderData.order_type === 'visit_order') {
+          console.log('[Cart] Setting location for visit_order - latitude:', latitude, 'longitude:', longitude);
+          console.log('[Cart] orderType:', orderType, 'orderData.order_type:', orderData.order_type);
+          // Convert to numbers and ensure they're set
+          if (latitude !== null && latitude !== undefined) {
+            orderData.latitude = parseFloat(latitude);
+          } else {
+            orderData.latitude = latitude;
+          }
+          if (longitude !== null && longitude !== undefined) {
+            orderData.longitude = parseFloat(longitude);
+          } else {
+            orderData.longitude = longitude;
+          }
+          console.log('[Cart] ✅ Visit order - location set in orderData:', {
+            latitude: orderData.latitude,
+            longitude: orderData.longitude,
+            type: { lat: typeof orderData.latitude, lng: typeof orderData.longitude }
+          });
         }
       }
 
@@ -730,12 +951,122 @@ const Cart = ({ onPageChange = null }) => {
       // Add optional order_notes
       orderData.order_notes = orderData.order_notes || 'Order placed from cart';
 
+      // Safety check: Ensure latitude and longitude are set for visit_order (in case they weren't set earlier)
+      if (orderData.order_type === 'visit_order') {
+        if (orderData.latitude === undefined || orderData.latitude === null) {
+          console.log('[Cart] Safety check: Setting latitude from state for visit_order');
+          orderData.latitude = latitude !== null && latitude !== undefined ? parseFloat(latitude) : latitude;
+        } else {
+          orderData.latitude = parseFloat(orderData.latitude);
+        }
+        if (orderData.longitude === undefined || orderData.longitude === null) {
+          console.log('[Cart] Safety check: Setting longitude from state for visit_order');
+          orderData.longitude = longitude !== null && longitude !== undefined ? parseFloat(longitude) : longitude;
+        } else {
+          orderData.longitude = parseFloat(orderData.longitude);
+        }
+        console.log('[Cart] Safety check complete - location in orderData:', {
+          latitude: orderData.latitude,
+          longitude: orderData.longitude
+        });
+      }
+
+      // Final check: Ensure event_id is set for event_order
+      if (orderData.order_type === 'event_order' && !orderData.event_id) {
+        console.error('[Cart] ❌ CRITICAL: event_order but event_id is missing!');
+        console.error('[Cart] selectedEvent:', selectedEvent);
+        console.error('[Cart] orderData:', orderData);
+        showError('Event ID is required for event orders');
+        setLoading(false);
+        return;
+      }
+
+      // Final check: Ensure latitude and longitude are set for visit_order
+      if (orderData.order_type === 'visit_order') {
+        // Use state values if orderData doesn't have them
+        if (orderData.latitude === undefined || orderData.latitude === null) {
+          orderData.latitude = latitude !== null && latitude !== undefined ? parseFloat(latitude) : latitude;
+        } else {
+          orderData.latitude = parseFloat(orderData.latitude);
+        }
+        if (orderData.longitude === undefined || orderData.longitude === null) {
+          orderData.longitude = longitude !== null && longitude !== undefined ? parseFloat(longitude) : longitude;
+        } else {
+          orderData.longitude = parseFloat(orderData.longitude);
+        }
+        
+        // Now validate that we have valid location data (must be numbers, not null/undefined)
+        if (orderData.latitude === null || orderData.longitude === null || 
+            orderData.latitude === undefined || orderData.longitude === undefined ||
+            isNaN(orderData.latitude) || isNaN(orderData.longitude)) {
+          console.error('[Cart] ❌ CRITICAL: visit_order but location is missing or invalid!');
+          console.error('[Cart] latitude state:', latitude, 'longitude state:', longitude);
+          console.error('[Cart] orderData.latitude:', orderData.latitude, 'orderData.longitude:', orderData.longitude);
+          console.error('[Cart] orderData:', JSON.stringify(orderData, null, 2));
+          showError('Location is required for visit orders. Please allow location access.');
+          setLoading(false);
+          return;
+        }
+        
+        // Ensure they are numbers
+        orderData.latitude = Number(orderData.latitude);
+        orderData.longitude = Number(orderData.longitude);
+        
+        console.log('[Cart] ✅ Visit order location validated and set:', {
+          latitude: orderData.latitude,
+          longitude: orderData.longitude,
+          types: { lat: typeof orderData.latitude, lng: typeof orderData.longitude }
+        });
+      }
+
+      // Final check: Log salesman_id status (but don't block API call - let backend validate)
+      if (isSalesman) {
+        if (!orderData.salesman_id) {
+          console.warn('[Cart] ⚠️ WARNING: Salesman order but salesman_id is missing - API will run, backend will validate');
+          console.warn('[Cart] User object:', user);
+          console.warn('[Cart] orderData:', JSON.stringify(orderData, null, 2));
+        } else {
+          console.log('[Cart] ✅ Salesman ID validated:', orderData.salesman_id);
+        }
+      }
+
       console.log('[Cart] Creating order with data:', orderData);
+      console.log('[Cart] Order type:', orderData.order_type);
+      console.log('[Cart] Salesman ID:', orderData.salesman_id);
+      console.log('[Cart] Event ID:', orderData.event_id);
+      console.log('[Cart] Latitude:', orderData.latitude, 'Longitude:', orderData.longitude);
+      
+      // Final verification for visit_order - log the complete body
+      if (orderData.order_type === 'visit_order') {
+        console.log('[Cart] 🔍 FINAL CHECK - Visit order body:', JSON.stringify({
+          ...orderData,
+          latitude: orderData.latitude,
+          longitude: orderData.longitude
+        }, null, 2));
+        if (!orderData.latitude || !orderData.longitude) {
+          console.error('[Cart] ❌ ERROR: Latitude or longitude is missing in final check!');
+          showError('Location is required for visit orders');
+          setLoading(false);
+          return;
+        }
+      }
 
       // Create order via API
-      const createdOrder = await createOrder(orderData);
+      console.log('[Cart] 🚀 ABOUT TO CALL createOrder API...');
+      console.log('[Cart] 📦 Final orderData before API call:', JSON.stringify(orderData, null, 2));
+      console.log('[Cart] 📋 Order summary:', {
+        order_type: orderData.order_type,
+        salesman_id: orderData.salesman_id,
+        party_id: orderData.party_id,
+        zone_id: orderData.zone_id,
+        event_id: orderData.event_id,
+        latitude: orderData.latitude,
+        longitude: orderData.longitude,
+        order_items_count: orderData.order_items?.length || 0
+      });
       
-      console.log('[Cart] Order created successfully:', createdOrder);
+      const createdOrder = await createOrder(orderData);
+      console.log('[Cart] ✅ Order created successfully:', createdOrder);
       
       showPlaceOrderSuccess();
       
@@ -770,13 +1101,15 @@ const Cart = ({ onPageChange = null }) => {
 
   // Determine if event dropdown should be shown
   const shouldShowEventDropdown = () => {
+    // Only show for salesman and when event_order is selected
     return isSalesman && orderType === 'event_order';
   };
 
   // Determine if country dropdown should be shown (needed for party selection)
-  // For distributors, no country dropdown needed - parties are fetched by zone_id
+  // For distributors and salesmen, no country dropdown needed - parties are fetched by zone_id
+  // Country dropdown is only needed for party orders (not implemented in this component)
   const shouldShowCountryDropdown = () => {
-    return isSalesman && shouldShowPartyDropdown(); // Only for salesman, not distributor
+    return false; // No country dropdown needed - parties fetched by zone_id for distributors and salesmen
   };
 
   return (
@@ -802,14 +1135,23 @@ const Cart = ({ onPageChange = null }) => {
 
                 {cartItems.map((item) => (
                   <div key={item.id} className="cart-item">
-                    <div className="item-info">
-                      <div className="item-image">
-                        <img src={item.image} alt={item.name} />
-                      </div>
-                      <div className="item-details">
-                        <h3 className="item-name">{getDisplayName(item)}</h3>
-                      </div>
+                  <div className="item-info">
+                    <div className="item-image">
+                      <img 
+                        src={item.image || '/images/products/spac1.webp'} 
+                        alt={item.name}
+                        onError={(e) => {
+                          // Fallback to default image if image fails to load
+                          if (e.target.src !== '/images/products/spac1.webp') {
+                            e.target.src = '/images/products/spac1.webp';
+                          }
+                        }}
+                      />
                     </div>
+                    <div className="item-details">
+                      <h3 className="item-name">{getDisplayName(item)}</h3>
+                    </div>
+                  </div>
                     <div className="item-qty">
                       <div className="quantity-selector-cart">
                         <button
@@ -880,10 +1222,17 @@ const Cart = ({ onPageChange = null }) => {
                     className="summary-dropdown"
                     value={orderType}
                     onChange={(e) => {
-                      setOrderType(e.target.value);
+                      const newOrderType = e.target.value;
+                      setOrderType(newOrderType);
                       // Reset party and event when order type changes
                       setSelectedParty("");
                       setSelectedEvent("");
+                      // Reset country (not needed for salesman, but clean up state)
+                      setSelectedCountry("");
+                      // Clear events if switching away from event_order
+                      if (newOrderType !== 'event_order') {
+                        setEvents([]);
+                      }
                     }}
                   >
                     <option value="">Select Order Type</option>
@@ -947,7 +1296,6 @@ const Cart = ({ onPageChange = null }) => {
                     className="summary-dropdown"
                     value={selectedParty}
                     onChange={(e) => setSelectedParty(e.target.value)}
-                    disabled={!selectedCountry && isSalesman}
                   >
                     <option value="">Select Party</option>
                     {parties.map(party => (

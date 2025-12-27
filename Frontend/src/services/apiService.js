@@ -1308,21 +1308,26 @@ export const deleteDistributor = async (distributorId) => {
  * @returns {Promise<Array>} Array of party objects
  */
 export const getParties = async (countryId) => {
-  // If no countryId provided, use GET endpoint for all parties
+  // If no countryId provided, use POST /parties/get with empty body to get all parties
   if (!countryId) {
     try {
-      const response = await apiRequest('/parties/', {
-        method: 'GET',
+      console.log('[getParties] Fetching all parties (no country filter)');
+      const response = await apiRequest('/parties/get', {
+        method: 'POST',
+        body: {}, // Empty body to get all parties
         includeAuth: true,
       });
       
       // Ensure we always return an array
       if (Array.isArray(response)) {
+        console.log('[getParties] Received', response.length, 'parties (all)');
         return response;
       } else if (response && Array.isArray(response.data)) {
+        console.log('[getParties] Received', response.data.length, 'parties (all)');
         return response.data;
       }
       
+      console.log('[getParties] No parties found or unexpected response format');
       return [];
     } catch (error) {
       // Handle "Parties not found" as a valid case (empty parties)
@@ -1338,9 +1343,11 @@ export const getParties = async (countryId) => {
           errorText.includes('party not found') ||
           error.statusCode === 404) {
         // Return empty array for "not found" cases - this is a valid state
+        console.log('[getParties] No parties found, returning empty array');
         return [];
       }
       // Re-throw other errors
+      console.error('[getParties] Error fetching all parties:', error);
       throw error;
     }
   }
@@ -1772,14 +1779,14 @@ export const deleteParty = async (partyId) => {
 
 /**
  * Get parties by zone ID
- * @param {string} zoneId - Zone ID (UUID)
+ * Zone ID is extracted from authorization token (no body parameters needed)
  * @returns {Promise<Array>} Array of party objects
  */
 export const getPartiesByZoneId = async () => {
   try {
     const response = await apiRequest('/parties/byZoneId', {
       method: 'POST',
-      body: {},
+      body: null, // No body needed - only authorization token in headers
       includeAuth: true,
     });
     
@@ -3806,7 +3813,7 @@ export const getOrders = async () => {
  * @param {string} orderData.order_type - Order type (e.g., "event_order", "party_order", "distributor_order", "visit_order", "whatsapp_order")
  * @param {string} [orderData.party_id] - Party ID (UUID) - required for event_order, party_order, visit_order, whatsapp_order
  * @param {string} [orderData.distributor_id] - Distributor ID (UUID) - required for event_order, party_order, distributor_order, visit_order, whatsapp_order
- * @param {string} [orderData.zone_id] - Zone ID (UUID) - required for event_order, party_order
+ * @param {string} [orderData.zone_id] - Zone ID (UUID) - required for event_order, party_order, visit_order, whatsapp_order
  * @param {string} [orderData.salesman_id] - Salesman ID (UUID) - required for event_order, visit_order, whatsapp_order
  * @param {string} [orderData.event_id] - Event ID (UUID) - required for event_order
  * @param {string} [orderData.user_id] - User ID (UUID) - logged-in person's ID
@@ -3815,6 +3822,8 @@ export const getOrders = async () => {
  * @param {number} orderData.order_items[].quantity - Quantity
  * @param {number} orderData.order_items[].price - Price per unit
  * @param {string} [orderData.order_notes] - Order notes
+ * @param {number} [orderData.latitude] - Latitude - required for visit_order
+ * @param {number} [orderData.longitude] - Longitude - required for visit_order
  * @returns {Promise<Object>} Created order object
  */
 export const createOrder = async (orderData) => {
@@ -3829,6 +3838,8 @@ export const createOrder = async (orderData) => {
     user_id,
     order_items,
     order_notes,
+    latitude,
+    longitude,
   } = orderData;
 
   const body = {
@@ -3840,10 +3851,51 @@ export const createOrder = async (orderData) => {
   if (party_id) body.party_id = party_id;
   if (distributor_id) body.distributor_id = distributor_id;
   if (zone_id) body.zone_id = zone_id;
-  if (salesman_id) body.salesman_id = salesman_id;
-  if (event_id) body.event_id = event_id;
+  
+  // Include salesman_id (required for visit_order, whatsapp_order, event_order)
+  if (order_type === 'visit_order' || order_type === 'whatsapp_order' || order_type === 'event_order') {
+    if (salesman_id !== undefined && salesman_id !== null && salesman_id !== '') {
+      body.salesman_id = salesman_id;
+      console.log('[createOrder] ✅ Salesman ID included for', order_type, ':', salesman_id);
+    } else {
+      console.warn('[createOrder] ⚠️', order_type, 'but salesman_id is missing - API will run, backend will validate');
+      // Don't throw error - let API call proceed, backend will return proper error message
+      // This allows us to see the actual API response
+    }
+  } else if (salesman_id !== undefined && salesman_id !== null && salesman_id !== '') {
+    // Include salesman_id for other order types if provided (optional)
+    body.salesman_id = salesman_id;
+    console.log('[createOrder] Salesman ID included (optional):', salesman_id);
+  }
+  
+  // Include event_id for event_order type (required)
+  if (order_type === 'event_order') {
+    if (event_id !== undefined && event_id !== null && event_id !== '') {
+      body.event_id = event_id;
+      console.log('[createOrder] ✅ Event ID included for event_order:', event_id);
+    } else {
+      console.warn('[createOrder] ⚠️ Event order but event_id is missing - API will run, backend will validate');
+      // Don't throw error - let API call proceed, backend will return proper error message
+    }
+  } else if (event_id) {
+    // Include event_id for other order types if provided (optional)
+    body.event_id = event_id;
+    console.log('[createOrder] Event ID included (optional):', event_id);
+  }
+  
   if (user_id) body.user_id = user_id;
   if (order_notes) body.order_notes = order_notes;
+  
+  // Include latitude and longitude for visit orders
+  if (latitude !== undefined && latitude !== null) {
+    body.latitude = Number(latitude);
+  }
+  if (longitude !== undefined && longitude !== null) {
+    body.longitude = Number(longitude);
+  }
+
+  console.log('[createOrder] Request body:', JSON.stringify(body, null, 2));
+  console.log('[createOrder] 🚀 Making API request to /orders/...');
 
   return apiRequest('/orders/', {
     method: 'POST',
