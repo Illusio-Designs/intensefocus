@@ -24,20 +24,25 @@ class PartyController {
             const user = req.user;
             let zone_id = null;
 
-            // Get user's role
+            // Get user's role using manual join
             const userRole = await UserRole.findOne({
-                where: { user_id: user.user_id },
-                include: [{
-                    model: Role,
-                    as: 'role'
-                }]
+                where: { user_id: user.user_id }
             });
 
-            if (!userRole || !userRole.role) {
+            if (!userRole) {
                 return res.status(404).json({ error: 'User role not found' });
             }
 
-            const roleName = userRole.role.role_name.toLowerCase();
+            // Get the role details manually
+            const role = await Role.findOne({
+                where: { role_id: userRole.role_id }
+            });
+
+            if (!role) {
+                return res.status(404).json({ error: 'Role not found' });
+            }
+
+            const roleName = role.role_name.toLowerCase();
 
             // Based on role, get zone_id from appropriate model
             if (roleName === 'party') {
