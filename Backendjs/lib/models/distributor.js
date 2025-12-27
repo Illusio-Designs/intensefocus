@@ -17,6 +17,7 @@ pan VARCHAR(10),
 territory VARCHAR(100),
 commission_rate DECIMAL(5,2),
 is_active BOOLEAN DEFAULT true,
+user_id UUID,
 created_by UUID,
 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -112,6 +113,14 @@ const Distributor = sequelize.define('Distributor', {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: true
+    },
+    user_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: 'users',
+            key: 'user_id'
+        }
     },
     created_by: {
         type: DataTypes.UUID,

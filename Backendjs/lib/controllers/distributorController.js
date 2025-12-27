@@ -1,5 +1,7 @@
 const Distributor = require('../models/Distributor');
 const AuditLog = require('../models/AuditLog');
+const User = require('../models/User');
+const { Op } = require('sequelize');
 class DistributorController {
     async getDistributors(req, res) {
         try {
@@ -16,6 +18,27 @@ class DistributorController {
         try {
             const user = req.user;
             const { distributor_name, trade_name, contact_person, email, phone, address, country_id, state_id, city_id, zone_id, pincode, gstin, pan, territory, commission_rate } = req.body;
+
+            // Find existing user by email or phone
+            const whereConditions = [];
+            if (email) whereConditions.push({ email });
+            if (phone) whereConditions.push({ phone });
+
+            let distributorUser = null;
+            if (whereConditions.length > 0) {
+                distributorUser = await User.findOne({
+                    where: {
+                        [Op.or]: whereConditions
+                    }
+                });
+            }
+
+            // If no user found, return error
+            if (!distributorUser) {
+                return res.status(404).json({ error: 'User not found with the provided email or phone number' });
+            }
+
+            // Create distributor record and link to user
             const distributor = await Distributor.create({
                 distributor_name,
                 trade_name,
@@ -32,11 +55,13 @@ class DistributorController {
                 pan,
                 territory,
                 commission_rate,
+                user_id: distributorUser.user_id,
                 created_by: user.user_id,
                 created_at: new Date(),
                 updated_at: new Date(),
                 is_active: true
             });
+
             await AuditLog.create({
                 user_id: user.user_id,
                 action: 'create',
@@ -48,6 +73,7 @@ class DistributorController {
                 ip_address: req.ip,
                 created_at: new Date()
             });
+
             res.status(200).json(distributor);
         } catch (error) {
             res.status(500).json({ error: error.message });

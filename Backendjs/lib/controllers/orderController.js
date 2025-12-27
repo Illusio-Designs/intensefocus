@@ -10,6 +10,8 @@ const { generateUniqueOrderNumber } = require('../services/order_number_generato
 const Event = require('../models/event');
 const OrderOperation = require('../models/OrderOperation');
 const Zone = require('../models/Zone');
+const User = require('../models/User');
+const { Op } = require('sequelize');
 
 // Helper function to reverse an order operation (does not depend on controller instance)
 async function reverseOrderOperation(orderId) {
@@ -103,14 +105,52 @@ class OrderController {
                     return res.status(404).json({ error: 'Party not found' });
                 }
             }
-            // if order type is distributor order, check if distributor id is provided
+            // if order type is distributor order, fetch distributor by user ID
             else if (order_type === OrderType.DISTRIBUTOR_ORDER) {
                 isDistributorRequired = true;
                 isPartyRequired = false;
                 isSalesmanRequired = false;
-                if (!distributor_id) {
-                    return res.status(400).json({ error: 'Distributor ID is required for distributor orders' });
+
+                const user = req.user;
+
+                // First, try to find distributor by user_id
+                let distributor = await Distributor.findOne({
+                    where: { user_id: user.user_id }
+                });
+
+                // If not found, fetch user's email/phone and search for distributor
+                if (!distributor) {
+                    const userDetails = await User.findOne({
+                        where: { user_id: user.user_id }
+                    });
+
+                    if (!userDetails) {
+                        return res.status(404).json({ error: 'User not found' });
+                    }
+
+                    // Search for distributor by email or phone
+                    const whereConditions = [];
+                    if (userDetails.email) whereConditions.push({ email: userDetails.email });
+                    if (userDetails.phone) whereConditions.push({ phone: userDetails.phone });
+
+                    if (whereConditions.length > 0) {
+                        distributor = await Distributor.findOne({
+                            where: {
+                                [Op.or]: whereConditions
+                            }
+                        });
+                    }
+
+                    // If distributor found, link it to the user
+                    if (distributor) {
+                        distributor.user_id = user.user_id;
+                        await distributor.save();
+                    } else {
+                        return res.status(404).json({ error: 'No distributor found for this user' });
+                    }
                 }
+
+                distributor_id = distributor.distributor_id;
             }
             if (order_type === OrderType.VISIT_ORDER) {
                 if (!latitude || !longitude) {
@@ -283,13 +323,12 @@ class OrderController {
             const orderTotal = resolvedOrderItems.reduce(
                 (acc, item) => acc + item.quantity * item.price, 0);
             const orderNumber = generateUniqueOrderNumber();
-            const order = await Order.create({
+
+            // Build order data object
+            const orderData = {
                 order_number: orderNumber,
                 order_date,
                 order_type,
-                party_id,
-                distributor_id,
-                salesman_id,
                 order_total: orderTotal,
                 order_items: resolvedOrderItems,
                 order_notes,
@@ -299,7 +338,24 @@ class OrderController {
                 event_id,
                 latitude,
                 longitude,
-            });
+            };
+
+            // Only add party_id if party is required
+            if (isPartyRequired && party_id) {
+                orderData.party_id = party_id;
+            }
+
+            // Only add distributor_id if distributor is required
+            if (isDistributorRequired && distributor_id) {
+                orderData.distributor_id = distributor_id;
+            }
+
+            // Only add salesman_id if salesman is required
+            if (isSalesmanRequired && salesman_id) {
+                orderData.salesman_id = salesman_id;
+            }
+
+            const order = await Order.create(orderData);
             await OrderOperation.create({
                 order_id: order.order_id,
                 ...orderOperationData
