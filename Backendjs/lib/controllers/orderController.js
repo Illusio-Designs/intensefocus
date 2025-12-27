@@ -63,8 +63,9 @@ class OrderController {
     async createOrder(req, res) {
         try {
             // latitude, logitude for visit order
-            const { order_date, order_type, order_items, order_notes, event_id, party_id, salesman_id, latitude, longitude, zone_id } = req.body;
+            const { order_date, order_type, order_items, order_notes, event_id, party_id, latitude, longitude, zone_id } = req.body;
             let distributor_id = req.body.distributor_id;
+            let salesman_id = req.body.salesman_id;
             if (!order_date || !order_type || !order_items) {
                 return res.status(400).json({ error: 'order_date, order_type, order_items  are required' });
             }
@@ -199,12 +200,20 @@ class OrderController {
                 }
             }
             if (isSalesmanRequired) {
+                // If salesman_id is not provided, find it from the user_id
                 if (!salesman_id) {
-                    return res.status(400).json({ error: 'Salesman ID is required' });
-                }
-                const salesman = await Salesman.findOne({ where: { salesman_id: salesman_id } });
-                if (!salesman) {
-                    return res.status(404).json({ error: 'Salesman not found' });
+                    const user = req.user;
+                    const salesman = await Salesman.findOne({ where: { user_id: user.user_id } });
+                    if (!salesman) {
+                        return res.status(404).json({ error: 'Salesman record not found for this user' });
+                    }
+                    salesman_id = salesman.salesman_id;
+                } else {
+                    // If salesman_id is provided, verify it exists
+                    const salesman = await Salesman.findOne({ where: { salesman_id: salesman_id } });
+                    if (!salesman) {
+                        return res.status(404).json({ error: 'Salesman not found' });
+                    }
                 }
             }
 
